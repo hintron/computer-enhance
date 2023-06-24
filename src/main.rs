@@ -8,7 +8,7 @@ enum ByteNum {
     SIX,
 }
 
-enum InstType {
+enum OpType {
     MOV,
     UNKNOWN
 }
@@ -23,7 +23,7 @@ fn decode() {
     let mut inst_stream: Vec<u8> = vec![];
 
     let mut byte_num = ByteNum::ONE;
-    let mut inst = InstType::UNKNOWN;
+    let mut inst = OpType::UNKNOWN;
     let mut inst_ended = false;
 
     // Create a test stream of instructions to decode
@@ -58,10 +58,10 @@ fn decode() {
 
         if inst_ended {
             match inst {
-                InstType::MOV => {
+                OpType::MOV => {
                     println!("mov");
                 }
-                InstType::UNKNOWN => {
+                OpType::UNKNOWN => {
                     println!("unknown instruction");
                 }
             }
@@ -71,15 +71,15 @@ fn decode() {
 
 }
 
-fn decode_1(byte: &u8) -> InstType {
+fn decode_1(byte: &u8) -> OpType {
     // For 8086 decoding help, see pg. 4-18 through 4-36
     match byte {
         // mov
         0x88..=0x8C | 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7 => {
-            return InstType::MOV;
+            return OpType::MOV;
         }
         _ => {
-            return InstType::UNKNOWN;
+            return OpType::UNKNOWN;
         }
     }
 }
