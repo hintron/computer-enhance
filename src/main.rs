@@ -10,10 +10,10 @@ enum ByteNum {
 
 fn main() {
     println!("Welcome to the Computer Enhance homework program!");
-    decode_mov();
+    decode();
 }
 
-fn decode_mov() {
+fn decode() {
     println!("Decoding a mov instruction...");
     let mut inst_stream: Vec<u8> = vec![];
 
