@@ -1,3 +1,7 @@
+use std::env;
+use std::fs::File;
+use std::io::{self, Read};
+
 // Bytes in an 8086 inst are numbered from 1 up to 6
 enum ByteNum {
     ONE,
@@ -23,15 +27,36 @@ struct InstType {
     text: String,
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     println!("Welcome to the Computer Enhance homework program!");
-    decode();
+
+    let args: Vec<String> = env::args().collect();
+
+    let mut inst_stream: Vec<u8> = vec![];
+    if args.len() < 2 {
+        println!("Decoding a test instruction stream...");
+        // Create a test stream of instructions to decode
+        // A mov instr
+        inst_stream.push(0x89);
+        inst_stream.push(0xD9);
+        // Add bogus instr
+        inst_stream.push(0x00);
+        // Another mov instr
+        inst_stream.push(0x88);
+        inst_stream.push(0xD9);
+    } else {
+        // Get the instruction stream from a file.
+        println!("Decoding instructions from file '{}'...", &args[1]);
+        let mut file = File::open(&args[1])?;
+        file.read_to_end(&mut inst_stream)?;
+    }
+
+    decode(inst_stream);
+
+    Ok(())
 }
 
-fn decode() {
-    println!("Decoding an instruction stream...");
-    let mut inst_stream: Vec<u8> = vec![];
-
+fn decode(inst_stream: Vec<u8>) {
     let mut byte_num = ByteNum::ONE;
     let mut inst = InstType {
         d_field: false,
@@ -43,16 +68,6 @@ fn decode() {
         text: String::new(),
     };
     let mut inst_ended;
-
-    // Create a test stream of instructions to decode
-    // A mov instr
-    inst_stream.push(0x89);
-    inst_stream.push(0xD9);
-    // Add bogus instr
-    inst_stream.push(0x00);
-    // Another mov instr
-    inst_stream.push(0x88);
-    inst_stream.push(0xD9);
 
     for byte in inst_stream {
         // println!("{byte:#X} ({byte:#b})");
