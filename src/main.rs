@@ -29,6 +29,8 @@ fn decode() {
     // Create a test stream of instructions to decode
     inst_stream.push(0x89);
     inst_stream.push(0xD9);
+    inst_stream.push(0x88);
+    inst_stream.push(0xD9);
 
     for byte in inst_stream {
         println!("{byte:#X} ({byte:#b})");
@@ -66,6 +68,7 @@ fn decode() {
                 }
             }
             inst_ended = false;
+            byte_num = ByteNum::ONE;
         }
     }
 
