@@ -116,7 +116,7 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         _ => unreachable!(),
     }
 
-    inst.reg_field = get_reg_field((byte & 0b00111000) >> 3, inst.w_field);
+    inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
     inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
     // See if reg is source or destination and construct instruction text
     let (dest, source) = match inst.d_field {
@@ -131,7 +131,7 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
 
 // REG (Register) Field Encoding
 // See table 4-9
-fn get_reg_field(reg: u8, w: bool) -> String {
+fn decode_reg_field(reg: u8, w: bool) -> String {
     match (reg, w) {
         (0b000, false) => "al".to_string(),
         (0b001, false) => "cl".to_string(),
