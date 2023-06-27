@@ -1,10 +1,12 @@
 #!/bin/bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-FILE_DIR="$SCRIPT_DIR/../files"
-SRC_DIR="$SCRIPT_DIR/../src"
-TARGET_DIR="$SCRIPT_DIR/../target"
-BIN=$TARGET_DIR/debug/computer-enhance
+PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
+FILE_DIR="$PROJECT_DIR/files"
+ASM_BUILD_DIR="$FILE_DIR/build"
+SRC_DIR="$PROJECT_DIR/src"
+TARGET_DIR="$PROJECT_DIR/target"
+BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
@@ -21,23 +23,15 @@ if ! cargo build; then
 fi
 
 rc=0
-$BIN $FILE_DIR/build/listing_0037_single_register_mov > tmp37.asm
-nasm tmp37.asm -o tmp37.o
-if ! diff tmp37.o $FILE_DIR/build/listing_0037_single_register_mov ; then
-    echo "ERROR: Listing 37 regression failed"
-    rc=1
-fi
-rm tmp37.asm
-rm tmp37.o
-
-$BIN $FILE_DIR/build/listing_0038_many_register_mov > tmp38.asm
-nasm tmp38.asm -o tmp38.o
-if ! diff tmp38.o $FILE_DIR/build/listing_0038_many_register_mov ; then
-    echo "ERROR: Listing 38 regression failed"
-    rc=1
-fi
-rm tmp38.asm
-rm tmp38.o
+for file in "$ASM_BUILD_DIR"/*; do
+    echo "Checking decode of $file..."
+    $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm"
+    nasm "$ASM_BUILD_DIR/tmp.asm" -o "$ASM_BUILD_DIR/tmp.o"
+    if ! diff "$ASM_BUILD_DIR/tmp.o" "$file" ; then
+        echo "ERROR: regression failed for $file"
+        rc=1
+    fi
+done
 
 if [ "$rc" == "0" ]; then
     echo "All regressions passed"
