@@ -25,10 +25,19 @@ fi
 rc=0
 for file in "$ASM_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
-    RUST_BACKTRACE=1 $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm"
+    if ! RUST_BACKTRACE=1 $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm" ; then
+        echo "ERROR: Decode program failed for $file"
+        rc=1
+        break
+    fi
     nasm "$ASM_BUILD_DIR/tmp.asm" -o "$ASM_BUILD_DIR/tmp.o"
     if ! diff "$ASM_BUILD_DIR/tmp.o" "$file" ; then
-        echo "ERROR: regression failed for $file"
+        echo "ERROR: Assembly of decoded output failed for $file"
+        rc=1
+        break
+    fi
+    if ! diff "$ASM_BUILD_DIR/tmp.o" "$file" ; then
+        echo "ERROR: Decoded output didn't match golden for $file"
         rc=1
         break
     fi
