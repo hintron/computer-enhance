@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
         let mut file = File::open(&args[1])?;
         file.read_to_end(&mut inst_stream)?;
     }
-    
+
     println!("bits 16");
     decode(inst_stream);
 
