@@ -116,8 +116,7 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         _ => unreachable!(),
     }
 
-    let reg_temp = (byte & 0b00111000) >> 3;
-    inst.reg_field = get_reg_field(reg_temp, inst.w_field);
+    inst.reg_field = get_reg_field((byte & 0b00111000) >> 3, inst.w_field);
 
     // See table 4-10
     let rm_temp = byte & 0b00000111;
