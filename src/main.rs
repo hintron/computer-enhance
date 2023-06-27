@@ -164,6 +164,18 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         (0b101, ModType::RegisterMode, true) => inst.rm_field = "bp".to_string(),
         (0b110, ModType::RegisterMode, true) => inst.rm_field = "si".to_string(),
         (0b111, ModType::RegisterMode, true) => inst.rm_field = "di".to_string(),
+        (_, ModType::MemoryMode0, _) => {
+            eprintln!("TODO: Implement MemoryMode0");
+            unimplemented!();
+        }
+        (_, ModType::MemoryMode8, _) => {
+            eprintln!("TODO: Implement MemoryMode8");
+            unimplemented!();
+        }
+        (_, ModType::MemoryMode16, _) => {
+            eprintln!("TODO: Implement MemoryMode8");
+            unimplemented!();
+        }
         _ => unimplemented!(),
         // TODO: Implement other memory modes!
         // TODO: For mm8 and mm16, decode byte 3
