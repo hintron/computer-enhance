@@ -164,22 +164,13 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         (0b101, ModType::RegisterMode, true) => inst.rm_field = "bp".to_string(),
         (0b110, ModType::RegisterMode, true) => inst.rm_field = "si".to_string(),
         (0b111, ModType::RegisterMode, true) => inst.rm_field = "di".to_string(),
-        (_, ModType::MemoryMode0, _) => {
-            eprintln!("TODO: Implement MemoryMode0");
-            unimplemented!();
-        }
-        (_, ModType::MemoryMode8, _) => {
-            eprintln!("TODO: Implement MemoryMode8");
-            unimplemented!();
-        }
-        (_, ModType::MemoryMode16, _) => {
-            eprintln!("TODO: Implement MemoryMode8");
-            unimplemented!();
-        }
-        _ => unimplemented!(),
-        // TODO: Implement other memory modes!
+        (_, ModType::RegisterMode, _) => unreachable!("TODO: Unknown RegisterMode condition"),
+        (_, ModType::MemoryMode0, _) => unimplemented!("TODO: Implement MemoryMode0"),
         // TODO: For mm8 and mm16, decode byte 3
+        (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
         // TODO: For mm16, decode byte 4
+        (_, ModType::MemoryMode16, _) => unimplemented!("TODO: Implement MemoryMode8"),
+        (_, ModType::Unknown, _) => unreachable!("TODO: Unknown RegisterMode condition"),
     };
 
     // See if reg is source or destination and construct instruction text
