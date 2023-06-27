@@ -6,6 +6,9 @@ SRC_DIR="$SCRIPT_DIR/../src"
 TARGET_DIR="$SCRIPT_DIR/../target"
 BIN=$TARGET_DIR/debug/computer-enhance
 
+DATE=$(date +"%Y-%m-%d at %H:%M:%S")
+echo "Date: $DATE"
+
 cd $FILE_DIR
 $FILE_DIR/clean.sh
 $FILE_DIR/make.sh
