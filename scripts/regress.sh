@@ -11,10 +11,14 @@ echo "Date: $DATE"
 
 cd $FILE_DIR
 $FILE_DIR/clean.sh
-$FILE_DIR/make.sh
+if ! $FILE_DIR/make.sh; then
+    exit 1
+fi
 
 cd $SCRIPT_DIR
-cargo build
+if ! cargo build; then
+    exit 1
+fi
 
 rc=0
 $BIN $FILE_DIR/build/listing_0037_single_register_mov > tmp37.asm
