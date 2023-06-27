@@ -175,8 +175,8 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
 
     // See if reg is source or destination and construct instruction text
     let (dest, source) = match inst.d_field {
-        false => (inst.rm_field.clone(), inst.reg_field.clone()),
-        true => (inst.reg_field.clone(), inst.rm_field.clone()),
+        false => (&inst.rm_field, &inst.reg_field),
+        true => (&inst.reg_field, &inst.rm_field),
     };
 
     inst.text = format!("{} {}, {}", inst.op_type, dest, source);
