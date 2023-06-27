@@ -7,18 +7,17 @@ enum ModType {
     MemoryMode8,
     MemoryMode16,
     RegisterMode,
-    Unknown,
 }
 
 struct InstType {
     d_field: bool,
     w_field: bool,
-    mod_field: ModType,
-    reg_field: String,
-    rm_field: String,
-    op_type: String,
+    mod_field: Option<ModType>,
+    reg_field: Option<String>,
+    rm_field: Option<String>,
+    op_type: Option<String>,
     /// The final instruction representation
-    text: String,
+    text: Option<String>,
 }
 
 fn main() -> io::Result<()> {
@@ -58,11 +57,11 @@ fn decode(inst_stream: Vec<u8>) {
         let mut inst = InstType {
             d_field: false,
             w_field: false,
-            mod_field: ModType::Unknown,
-            reg_field: String::new(),
-            rm_field: String::new(),
-            op_type: String::new(),
-            text: String::new(),
+            mod_field: None,
+            reg_field: None,
+            rm_field: None,
+            op_type: None,
+            text: None,
         };
         let byte = iter.next().unwrap();
         debug_byte(byte);
@@ -72,16 +71,16 @@ fn decode(inst_stream: Vec<u8>) {
         match byte {
             // mov
             0x88..=0x8C => {
-                inst.op_type = "mov".to_string();
+                inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0x1) == 1;
                 inst.d_field = (byte & 0x2) == 1;
             }
             // TODO: Handle other mov variants:
             // 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7
             _ => {
-                inst.op_type = "unknown".to_string();
+                inst.op_type = Some("unknown".to_string());
                 inst.text = inst.op_type.clone();
-                println!("{}", inst.text);
+                println!("{}", inst.text.unwrap());
                 continue;
             }
         }
@@ -94,17 +93,26 @@ fn decode(inst_stream: Vec<u8>) {
 
         // Decode the second byte of the instruction.
         // Get the upper two bits
-        inst.mod_field = decode_mod_field((byte & 0b11000000) >> 6);
-        inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
-        inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
+        inst.mod_field = Some(decode_mod_field((byte & 0b11000000) >> 6));
+        inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
+        inst.rm_field = Some(decode_rm_field(
+            byte & 0b00000111,
+            &inst.mod_field.unwrap(),
+            inst.w_field,
+        ));
         // See if reg is source or destination and construct instruction text
         let (dest, source) = match inst.d_field {
-            false => (&inst.rm_field, &inst.reg_field),
-            true => (&inst.reg_field, &inst.rm_field),
+            false => (inst.rm_field.clone(), inst.reg_field.clone()),
+            true => (inst.reg_field.clone(), inst.rm_field.clone()),
         };
 
-        inst.text = format!("{} {}, {}", inst.op_type, dest, source);
-        println!("{}", inst.text);
+        inst.text = Some(format!(
+            "{} {}, {}",
+            inst.op_type.unwrap(),
+            dest.unwrap(),
+            source.unwrap()
+        ));
+        println!("{}", inst.text.unwrap());
     }
 }
 
@@ -184,6 +192,5 @@ fn decode_rm_field(rm: u8, mode: &ModType, w: bool) -> String {
         (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
         // TODO: For mm16, decode byte 4
         (_, ModType::MemoryMode16, _) => unimplemented!("TODO: Implement MemoryMode8"),
-        (_, ModType::Unknown, _) => unreachable!("ERROR: Unknown memory mode"),
     }
 }
