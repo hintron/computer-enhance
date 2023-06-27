@@ -105,17 +105,8 @@ fn decode_1(byte: &u8, inst: &mut InstType) -> bool {
 /// Decode the second byte of the instruction. If there are no other bytes left
 /// in the instruction, return true, otherwise return false.
 fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
-    // See table 4-8
     // Get the upper two bits
-    let mod_temp = (byte & 0b11000000) >> 6;
-    match mod_temp {
-        0b00 => inst.mod_field = ModType::MemoryMode0,
-        0b01 => inst.mod_field = ModType::MemoryMode8,
-        0b10 => inst.mod_field = ModType::MemoryMode16,
-        0b11 => inst.mod_field = ModType::RegisterMode,
-        _ => unreachable!(),
-    }
-
+    inst.mod_field = decode_mod_field((byte & 0b11000000) >> 6);
     inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
     inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
     // See if reg is source or destination and construct instruction text
@@ -127,6 +118,18 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
     inst.text = format!("{} {}, {}", inst.op_type, dest, source);
 
     true
+}
+
+/// MOD (Mode) Field Encoding
+/// See table 4-8
+fn decode_mod_field(mode: u8) -> ModType {
+    match mode {
+        0b00 => ModType::MemoryMode0,
+        0b01 => ModType::MemoryMode8,
+        0b10 => ModType::MemoryMode16,
+        0b11 => ModType::RegisterMode,
+        _ => unreachable!(),
+    }
 }
 
 // REG (Register) Field Encoding
