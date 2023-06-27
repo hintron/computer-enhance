@@ -30,12 +30,13 @@ for file in "$ASM_BUILD_DIR"/*; do
     if ! diff "$ASM_BUILD_DIR/tmp.o" "$file" ; then
         echo "ERROR: regression failed for $file"
         rc=1
+        break
     fi
 done
 
 if [ "$rc" == "0" ]; then
     echo "All regressions passed"
 else
-    echo "ERROR: One or more failures"
+    echo "ERROR: Regressions failed"
 fi
 exit $rc
