@@ -10,6 +10,9 @@ for file in "$SCRIPT_DIR"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling $new_name"
-        nasm "$file" -o "$BUILD_DIR/$new_name"
+        if ! nasm "$file" -o "$BUILD_DIR/$new_name"; then
+            echo "ERROR: nasm failed!"
+            exit 1
+        fi
     fi
 done
