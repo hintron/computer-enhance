@@ -72,11 +72,13 @@ fn decode(inst_stream: Vec<u8>) {
         // For 8086 decoding help, see pg. 4-18 through 4-36.
         match byte {
             // mov
-            0x88..=0x8C | 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7 => {
+            0x88..=0x8C => {
                 inst.op_type = "mov".to_string();
                 inst.w_field = (byte & 0x1) == 1;
                 inst.d_field = (byte & 0x2) == 1;
             }
+            // TODO: Handle other mov variants:
+            // 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7
             _ => {
                 inst.op_type = "unknown".to_string();
                 inst.text = inst.op_type.clone();
