@@ -25,7 +25,7 @@ fi
 rc=0
 for file in "$ASM_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
-    $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm"
+    RUST_BACKTRACE=1 $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm"
     nasm "$ASM_BUILD_DIR/tmp.asm" -o "$ASM_BUILD_DIR/tmp.o"
     if ! diff "$ASM_BUILD_DIR/tmp.o" "$file" ; then
         echo "ERROR: regression failed for $file"
