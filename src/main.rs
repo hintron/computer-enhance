@@ -116,27 +116,7 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         _ => unreachable!(),
     }
 
-    // See table 4-9
-    let reg_temp = (byte & 0b00111000) >> 3;
-    match (reg_temp, inst.w_field) {
-        (0b000, false) => inst.reg_field = "al".to_string(),
-        (0b001, false) => inst.reg_field = "cl".to_string(),
-        (0b010, false) => inst.reg_field = "dl".to_string(),
-        (0b011, false) => inst.reg_field = "bl".to_string(),
-        (0b100, false) => inst.reg_field = "ah".to_string(),
-        (0b101, false) => inst.reg_field = "ch".to_string(),
-        (0b110, false) => inst.reg_field = "dh".to_string(),
-        (0b111, false) => inst.reg_field = "bh".to_string(),
-        (0b000, true) => inst.reg_field = "ax".to_string(),
-        (0b001, true) => inst.reg_field = "cx".to_string(),
-        (0b010, true) => inst.reg_field = "dx".to_string(),
-        (0b011, true) => inst.reg_field = "bx".to_string(),
-        (0b100, true) => inst.reg_field = "sp".to_string(),
-        (0b101, true) => inst.reg_field = "bp".to_string(),
-        (0b110, true) => inst.reg_field = "si".to_string(),
-        (0b111, true) => inst.reg_field = "di".to_string(),
-        _ => unreachable!(),
-    }
+    inst.reg_field = get_reg_field((byte & 0b00111000) >> 3, inst.w_field);
 
     // See table 4-10
     let rm_temp = byte & 0b00000111;
@@ -185,4 +165,28 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
     inst.text = format!("{} {}, {}", inst.op_type, dest, source);
 
     true
+}
+
+// REG (Register) Field Encoding
+// See table 4-9
+fn get_reg_field(reg: u8, w: bool) -> String {
+    match (reg, w) {
+        (0b000, false) => "al".to_string(),
+        (0b001, false) => "cl".to_string(),
+        (0b010, false) => "dl".to_string(),
+        (0b011, false) => "bl".to_string(),
+        (0b100, false) => "ah".to_string(),
+        (0b101, false) => "ch".to_string(),
+        (0b110, false) => "dh".to_string(),
+        (0b111, false) => "bh".to_string(),
+        (0b000, true) => "ax".to_string(),
+        (0b001, true) => "cx".to_string(),
+        (0b010, true) => "dx".to_string(),
+        (0b011, true) => "bx".to_string(),
+        (0b100, true) => "sp".to_string(),
+        (0b101, true) => "bp".to_string(),
+        (0b110, true) => "si".to_string(),
+        (0b111, true) => "di".to_string(),
+        _ => unreachable!(),
+    }
 }
