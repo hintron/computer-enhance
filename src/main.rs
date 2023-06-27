@@ -66,7 +66,7 @@ fn decode(inst_stream: Vec<u8>) {
     // NOTE: I don't know how to do this other than with a while let
     while iter.peek().is_some() {
         let byte = iter.next().unwrap();
-        println!("; found byte {byte:#X} ({byte:#b})");
+        debug_byte(byte);
 
         // Decode the first byte of the instruction.
         // For 8086 decoding help, see pg. 4-18 through 4-36.
@@ -91,6 +91,7 @@ fn decode(inst_stream: Vec<u8>) {
             break;
         };
         let byte = iter.next().unwrap();
+        debug_byte(byte);
 
         // Decode the second byte of the instruction.
         // Get the upper two bits
@@ -106,6 +107,10 @@ fn decode(inst_stream: Vec<u8>) {
         inst.text = format!("{} {}, {}", inst.op_type, dest, source);
         println!("{}", inst.text);
     }
+}
+
+fn debug_byte(byte: &u8) {
+    println!("; processing byte {byte:#X} ({byte:#b})");
 }
 
 /// MOD (Mode) Field Encoding
