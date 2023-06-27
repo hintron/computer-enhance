@@ -23,10 +23,6 @@ struct InstType {
     reg_field: String,
     rm_field: String,
     op_type: String,
-    /// The left part of the instruction after the op code
-    dest: String,
-    /// The right part of the instruction after the op code
-    source: String,
     /// The final instruction representation
     text: String,
 }
@@ -70,8 +66,6 @@ fn decode(inst_stream: Vec<u8>) {
         reg_field: String::new(),
         rm_field: String::new(),
         op_type: String::new(),
-        dest: String::new(),
-        source: String::new(),
         text: String::new(),
     };
     let mut inst_ended;
@@ -180,12 +174,12 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
     };
 
     // See if reg is source or destination and construct instruction text
-    match inst.d_field {
-        false => (inst.dest, inst.source) = (inst.rm_field.clone(), inst.reg_field.clone()),
-        true => (inst.dest, inst.source) = (inst.reg_field.clone(), inst.rm_field.clone()),
+    let (dest, source) = match inst.d_field {
+        false => (inst.rm_field.clone(), inst.reg_field.clone()),
+        true => (inst.reg_field.clone(), inst.rm_field.clone()),
     };
 
-    inst.text = format!("{} {}, {}", inst.op_type, inst.dest, inst.source);
+    inst.text = format!("{} {}, {}", inst.op_type, dest, source);
 
     true
 }
