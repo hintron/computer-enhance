@@ -67,57 +67,43 @@ fn decode(inst_stream: Vec<u8>) {
     while iter.peek().is_some() {
         // println!("{byte:#X} ({byte:#b})");
         let byte = iter.next().unwrap();
-        if decode_1(&byte, &mut inst) {
-            println!("{}", inst.text);
-            continue;
+
+        // Decode the first byte of the instruction.
+        // For 8086 decoding help, see pg. 4-18 through 4-36.
+        match byte {
+            // mov
+            0x88..=0x8C | 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7 => {
+                inst.op_type = "mov".to_string();
+                inst.w_field = (byte & 0x1) == 1;
+                inst.d_field = (byte & 0x2) == 1;
+            }
+            _ => {
+                inst.op_type = "unknown".to_string();
+                inst.text = inst.op_type.clone();
+                println!("{}", inst.text);
+                continue;
+            }
         }
+
         if iter.peek().is_none() {
             break;
         };
         let byte = iter.next().unwrap();
-        if decode_2(&byte, &mut inst) {
-            println!("{}", inst.text);
-            continue;
-        }
+
+        // Decode the second byte of the instruction.
+        // Get the upper two bits
+        inst.mod_field = decode_mod_field((byte & 0b11000000) >> 6);
+        inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
+        inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
+        // See if reg is source or destination and construct instruction text
+        let (dest, source) = match inst.d_field {
+            false => (&inst.rm_field, &inst.reg_field),
+            true => (&inst.reg_field, &inst.rm_field),
+        };
+
+        inst.text = format!("{} {}, {}", inst.op_type, dest, source);
+        println!("{}", inst.text);
     }
-}
-
-/// Decode the first byte of the instruction. If there are no other bytes left
-/// in the instruction, return true, otherwise return false.
-/// For 8086 decoding help, see pg. 4-18 through 4-36.
-fn decode_1(byte: &u8, inst: &mut InstType) -> bool {
-    match byte {
-        // mov
-        0x88..=0x8C | 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7 => {
-            inst.op_type = "mov".to_string();
-            inst.w_field = (byte & 0x1) == 1;
-            inst.d_field = (byte & 0x2) == 1;
-            false
-        }
-        _ => {
-            inst.op_type = "unknown".to_string();
-            inst.text = inst.op_type.clone();
-            true
-        }
-    }
-}
-
-/// Decode the second byte of the instruction. If there are no other bytes left
-/// in the instruction, return true, otherwise return false.
-fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
-    // Get the upper two bits
-    inst.mod_field = decode_mod_field((byte & 0b11000000) >> 6);
-    inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
-    inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
-    // See if reg is source or destination and construct instruction text
-    let (dest, source) = match inst.d_field {
-        false => (&inst.rm_field, &inst.reg_field),
-        true => (&inst.reg_field, &inst.rm_field),
-    };
-
-    inst.text = format!("{} {}, {}", inst.op_type, dest, source);
-
-    true
 }
 
 /// MOD (Mode) Field Encoding
