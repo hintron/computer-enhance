@@ -2,12 +2,6 @@ use std::env;
 use std::fs::File;
 use std::io::{self, Read};
 
-// Bytes in an 8086 inst are numbered from 1 up to 6
-enum ByteNum {
-    ONE,
-    TWO,
-}
-
 enum ModType {
     MemoryMode0,
     MemoryMode8,
@@ -58,7 +52,6 @@ fn main() -> io::Result<()> {
 }
 
 fn decode(inst_stream: Vec<u8>) {
-    let mut byte_num = ByteNum::ONE;
     let mut inst = InstType {
         d_field: false,
         w_field: false,
@@ -68,23 +61,23 @@ fn decode(inst_stream: Vec<u8>) {
         op_type: String::new(),
         text: String::new(),
     };
-    let mut inst_ended;
 
-    for byte in inst_stream {
+    let mut iter = inst_stream.iter().peekable();
+    // NOTE: I don't know how to do this other than with a while let
+    while iter.peek().is_some() {
         // println!("{byte:#X} ({byte:#b})");
-        match &mut byte_num {
-            ByteNum::ONE => {
-                inst_ended = decode_1(&byte, &mut inst);
-                byte_num = ByteNum::TWO;
-            }
-            ByteNum::TWO => {
-                inst_ended = decode_2(&byte, &mut inst);
-            }
-        }
-
-        if inst_ended {
+        let byte = iter.next().unwrap();
+        if decode_1(&byte, &mut inst) {
             println!("{}", inst.text);
-            byte_num = ByteNum::ONE;
+            continue;
+        }
+        if iter.peek().is_none() {
+            break;
+        };
+        let byte = iter.next().unwrap();
+        if decode_2(&byte, &mut inst) {
+            println!("{}", inst.text);
+            continue;
         }
     }
 }
