@@ -65,8 +65,8 @@ fn decode(inst_stream: Vec<u8>) {
     let mut iter = inst_stream.iter().peekable();
     // NOTE: I don't know how to do this other than with a while let
     while iter.peek().is_some() {
-        // println!("{byte:#X} ({byte:#b})");
         let byte = iter.next().unwrap();
+        println!("; found byte {byte:#X} ({byte:#b})");
 
         // Decode the first byte of the instruction.
         // For 8086 decoding help, see pg. 4-18 through 4-36.
