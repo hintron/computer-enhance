@@ -116,46 +116,8 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         _ => unreachable!(),
     }
 
-    inst.reg_field = get_reg_field((byte & 0b00111000) >> 3, inst.w_field);
-
-    // See table 4-10
-    let rm_temp = byte & 0b00000111;
-    match (rm_temp, &inst.mod_field, inst.w_field) {
-        (0b000, ModType::RegisterMode, false) => inst.rm_field = "al".to_string(),
-        (0b001, ModType::RegisterMode, false) => inst.rm_field = "cl".to_string(),
-        (0b010, ModType::RegisterMode, false) => inst.rm_field = "dl".to_string(),
-        (0b011, ModType::RegisterMode, false) => inst.rm_field = "bl".to_string(),
-        (0b100, ModType::RegisterMode, false) => inst.rm_field = "ah".to_string(),
-        (0b101, ModType::RegisterMode, false) => inst.rm_field = "ch".to_string(),
-        (0b110, ModType::RegisterMode, false) => inst.rm_field = "dh".to_string(),
-        (0b111, ModType::RegisterMode, false) => inst.rm_field = "bh".to_string(),
-        (0b000, ModType::RegisterMode, true) => inst.rm_field = "ax".to_string(),
-        (0b001, ModType::RegisterMode, true) => inst.rm_field = "cx".to_string(),
-        (0b010, ModType::RegisterMode, true) => inst.rm_field = "dx".to_string(),
-        (0b011, ModType::RegisterMode, true) => inst.rm_field = "bx".to_string(),
-        (0b100, ModType::RegisterMode, true) => inst.rm_field = "sp".to_string(),
-        (0b101, ModType::RegisterMode, true) => inst.rm_field = "bp".to_string(),
-        (0b110, ModType::RegisterMode, true) => inst.rm_field = "si".to_string(),
-        (0b111, ModType::RegisterMode, true) => inst.rm_field = "di".to_string(),
-        (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
-        (0b000, ModType::MemoryMode0, _) => inst.rm_field = "[bx + si]".to_string(),
-        (0b001, ModType::MemoryMode0, _) => inst.rm_field = "[bx + di]".to_string(),
-        (0b010, ModType::MemoryMode0, _) => inst.rm_field = "[bp + si]".to_string(),
-        (0b011, ModType::MemoryMode0, _) => inst.rm_field = "[bp + di]".to_string(),
-        (0b100, ModType::MemoryMode0, _) => inst.rm_field = "[si]".to_string(),
-        (0b101, ModType::MemoryMode0, _) => inst.rm_field = "[di]".to_string(),
-        (0b110, ModType::MemoryMode0, _) => {
-            unimplemented!("TODO: Implement DIRECT ADDRESS for MemoryMode0")
-        }
-        (0b111, ModType::MemoryMode0, _) => inst.rm_field = "[bx]".to_string(),
-        (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
-        // TODO: For mm8 and mm16, decode byte 3
-        (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
-        // TODO: For mm16, decode byte 4
-        (_, ModType::MemoryMode16, _) => unimplemented!("TODO: Implement MemoryMode8"),
-        (_, ModType::Unknown, _) => unreachable!("ERROR: Unknown memory mode"),
-    };
-
+    inst.reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
+    inst.rm_field = decode_rm_field(byte & 0b00000111, &inst.mod_field, inst.w_field);
     // See if reg is source or destination and construct instruction text
     let (dest, source) = match inst.d_field {
         false => (&inst.rm_field, &inst.reg_field),
@@ -169,7 +131,7 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
 
 // REG (Register) Field Encoding
 // See table 4-9
-fn get_reg_field(reg: u8, w: bool) -> String {
+fn decode_reg_field(reg: u8, w: bool) -> String {
     match (reg, w) {
         (0b000, false) => "al".to_string(),
         (0b001, false) => "cl".to_string(),
@@ -188,5 +150,45 @@ fn get_reg_field(reg: u8, w: bool) -> String {
         (0b110, true) => "si".to_string(),
         (0b111, true) => "di".to_string(),
         _ => unreachable!(),
+    }
+}
+
+// R/M (Register/Memory) Field Encoding
+// See table 4-10
+fn decode_rm_field(rm: u8, mode: &ModType, w: bool) -> String {
+    match (rm, mode, w) {
+        (0b000, ModType::RegisterMode, false) => "al".to_string(),
+        (0b001, ModType::RegisterMode, false) => "cl".to_string(),
+        (0b010, ModType::RegisterMode, false) => "dl".to_string(),
+        (0b011, ModType::RegisterMode, false) => "bl".to_string(),
+        (0b100, ModType::RegisterMode, false) => "ah".to_string(),
+        (0b101, ModType::RegisterMode, false) => "ch".to_string(),
+        (0b110, ModType::RegisterMode, false) => "dh".to_string(),
+        (0b111, ModType::RegisterMode, false) => "bh".to_string(),
+        (0b000, ModType::RegisterMode, true) => "ax".to_string(),
+        (0b001, ModType::RegisterMode, true) => "cx".to_string(),
+        (0b010, ModType::RegisterMode, true) => "dx".to_string(),
+        (0b011, ModType::RegisterMode, true) => "bx".to_string(),
+        (0b100, ModType::RegisterMode, true) => "sp".to_string(),
+        (0b101, ModType::RegisterMode, true) => "bp".to_string(),
+        (0b110, ModType::RegisterMode, true) => "si".to_string(),
+        (0b111, ModType::RegisterMode, true) => "di".to_string(),
+        (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
+        (0b000, ModType::MemoryMode0, _) => "[bx + si]".to_string(),
+        (0b001, ModType::MemoryMode0, _) => "[bx + di]".to_string(),
+        (0b010, ModType::MemoryMode0, _) => "[bp + si]".to_string(),
+        (0b011, ModType::MemoryMode0, _) => "[bp + di]".to_string(),
+        (0b100, ModType::MemoryMode0, _) => "[si]".to_string(),
+        (0b101, ModType::MemoryMode0, _) => "[di]".to_string(),
+        (0b110, ModType::MemoryMode0, _) => {
+            unimplemented!("TODO: Implement DIRECT ADDRESS for MemoryMode0")
+        }
+        (0b111, ModType::MemoryMode0, _) => "[bx]".to_string(),
+        (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
+        // TODO: For mm8 and mm16, decode byte 3
+        (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
+        // TODO: For mm16, decode byte 4
+        (_, ModType::MemoryMode16, _) => unimplemented!("TODO: Implement MemoryMode8"),
+        (_, ModType::Unknown, _) => unreachable!("ERROR: Unknown memory mode"),
     }
 }
