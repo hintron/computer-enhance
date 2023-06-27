@@ -52,19 +52,18 @@ fn main() -> io::Result<()> {
 }
 
 fn decode(inst_stream: Vec<u8>) {
-    let mut inst = InstType {
-        d_field: false,
-        w_field: false,
-        mod_field: ModType::Unknown,
-        reg_field: String::new(),
-        rm_field: String::new(),
-        op_type: String::new(),
-        text: String::new(),
-    };
-
     let mut iter = inst_stream.iter().peekable();
     // NOTE: I don't know how to do this other than with a while let
     while iter.peek().is_some() {
+        let mut inst = InstType {
+            d_field: false,
+            w_field: false,
+            mod_field: ModType::Unknown,
+            reg_field: String::new(),
+            rm_field: String::new(),
+            op_type: String::new(),
+            text: String::new(),
+        };
         let byte = iter.next().unwrap();
         debug_byte(byte);
 
