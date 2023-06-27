@@ -165,7 +165,17 @@ fn decode_2(byte: &u8, inst: &mut InstType) -> bool {
         (0b110, ModType::RegisterMode, true) => inst.rm_field = "si".to_string(),
         (0b111, ModType::RegisterMode, true) => inst.rm_field = "di".to_string(),
         (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
-        (_, ModType::MemoryMode0, _) => unimplemented!("TODO: Implement MemoryMode0"),
+        (0b000, ModType::MemoryMode0, _) => inst.rm_field = "[bx + si]".to_string(),
+        (0b001, ModType::MemoryMode0, _) => inst.rm_field = "[bx + di]".to_string(),
+        (0b010, ModType::MemoryMode0, _) => inst.rm_field = "[bp + si]".to_string(),
+        (0b011, ModType::MemoryMode0, _) => inst.rm_field = "[bp + di]".to_string(),
+        (0b100, ModType::MemoryMode0, _) => inst.rm_field = "[si]".to_string(),
+        (0b101, ModType::MemoryMode0, _) => inst.rm_field = "[di]".to_string(),
+        (0b110, ModType::MemoryMode0, _) => {
+            unimplemented!("TODO: Implement DIRECT ADDRESS for MemoryMode0")
+        }
+        (0b111, ModType::MemoryMode0, _) => inst.rm_field = "[bx]".to_string(),
+        (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
         // TODO: For mm8 and mm16, decode byte 3
         (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
         // TODO: For mm16, decode byte 4
