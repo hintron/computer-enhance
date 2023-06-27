@@ -25,7 +25,7 @@ fi
 rc=0
 for file in "$ASM_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
-    if ! RUST_BACKTRACE=1 $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm" ; then
+    if ! $BIN "$file" > "$ASM_BUILD_DIR/tmp.asm" ; then
         echo "ERROR: Decode program failed for $file"
         rc=1
         break
