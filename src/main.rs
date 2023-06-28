@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
@@ -12,13 +11,27 @@ enum ModType {
 }
 
 #[derive(Copy, Clone, Debug)]
-enum ByteType {
+enum ModRmBytes {
     ModRegRm,
     // Mod000Rm,
+}
+
+#[derive(Copy, Clone, Debug)]
+enum DataBytesType {
     DataLo,
     DataHi,
     DispLo,
     DispHi,
+}
+
+#[derive(Debug)]
+enum SrcDstType {
+    Reg,
+    Data8,
+    Data16,
+    Disp8,
+    Disp16,
+    DirectAddress16,
 }
 
 #[derive(Debug)]
@@ -27,14 +40,27 @@ struct InstType {
     w_field: bool,
     mod_field: Option<ModType>,
     reg_field: Option<String>,
+    // A string containing the registers but NOT the src/dst
     rm_field: Option<String>,
     op_type: Option<String>,
+    // A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
-    processed_byte_types: Vec<ByteType>,
+    mod_rm_byte: Option<ModRmBytes>,
+    /// The actual data for the data bytes
     data_lo: Option<u8>,
     data_hi: Option<u8>,
     disp_lo: Option<u8>,
     disp_hi: Option<u8>,
+    /// The expected byte types to parse after we parse the 1st byte and the
+    /// mod/rm byte (if it exists).
+    data_bytes: Vec<DataBytesType>,
+    /// The bytes from data_bytes that will be used for the source
+    source_type: Option<SrcDstType>,
+    // The text
+    source_text: Option<String>,
+    /// The bytes from data_bytes that will be used for the dest
+    dest_type: Option<SrcDstType>,
+    dest_text: Option<String>,
     /// The final instruction representation
     text: Option<String>,
 }
@@ -71,7 +97,6 @@ fn main() -> io::Result<()> {
 
 fn decode(inst_stream: Vec<u8>) {
     let mut iter = inst_stream.iter().peekable();
-    // NOTE: I don't know how to do this other than with a while let
     while iter.peek().is_some() {
         let mut inst = InstType {
             d_field: false,
@@ -81,21 +106,21 @@ fn decode(inst_stream: Vec<u8>) {
             rm_field: None,
             op_type: None,
             processed_bytes: vec![],
-            processed_byte_types: vec![],
+            mod_rm_byte: None,
             data_lo: None,
             data_hi: None,
             disp_lo: None,
             disp_hi: None,
+            data_bytes: vec![],
+            source_type: None,
+            source_text: None,
+            dest_type: None,
+            dest_text: None,
             text: None,
         };
         let byte = iter.next().unwrap();
         debug_byte(byte);
         inst.processed_bytes.push(*byte);
-
-        let mut source = String::new();
-        let mut dest = String::new();
-        let mut byte_order_tmp = VecDeque::new();
-        let mut next_byte_type;
 
         // Decode the first byte of the instruction.
         // For 8086 decoding help, see pg. 4-18 through 4-36.
@@ -105,22 +130,27 @@ fn decode(inst_stream: Vec<u8>) {
                 inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0x1) == 1;
                 inst.d_field = (byte & 0x2) == 1;
-                next_byte_type = Some(ByteType::ModRegRm);
-                // byte_order_tmp.push_back(ByteType::ModRegRm);
-                // We need to see what mod is before we know about disp lo/hi
+                inst.mod_rm_byte = Some(ModRmBytes::ModRegRm);
+                // We need to see what mod is before we know what is the source
+                // and what is the destination
             }
             // mov - Immediate to register
             0xB0..=0xBF => {
                 inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0b1000) == 1;
                 let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
-                dest.push_str(&reg_field);
+                inst.dest_text = Some(reg_field);
                 inst.reg_field = Some(reg_field);
-                next_byte_type = Some(ByteType::DataLo);
-                // byte_order_tmp.push_back(ByteType::DataLo);
+                // No mod rm byte for this mov variant!
+                // Indicate that there are source data bytes after this byte
+                inst.data_bytes.push(DataBytesType::DataLo);
                 if inst.w_field {
-                    byte_order_tmp.push_back(ByteType::DataHi);
+                    inst.data_bytes.push(DataBytesType::DataHi);
+                    inst.source_type = Some(SrcDstType::Data16);
+                } else {
+                    inst.source_type = Some(SrcDstType::Data8);
                 }
+                inst.dest_type = Some(SrcDstType::Reg);
             }
             // TODO: Handle other mov variants:
             // 0x8E | 0xA0..=0xA3 | 0xC6..=0xC7
@@ -132,61 +162,91 @@ fn decode(inst_stream: Vec<u8>) {
             }
         }
 
-        // Finally, store this byte
-        inst.processed_byte_types.push(next_byte_type.unwrap());
+        if iter.peek().is_none() {
+            println!("; End of instruction stream");
+            break;
+        };
 
-        while next_byte_type.is_some() {
+        // Process mod rm byte, if it exists
+        match &inst.mod_rm_byte {
+            Some(ModRmBytes::ModRegRm) => {
+                // Get the next (mod rm) byte in the stream
+                let byte = iter.next().unwrap();
+                debug_byte(byte);
+                inst.processed_bytes.push(*byte);
+                // Decode the second byte of the instruction.
+                // Get the upper two bits
+                let mode = decode_mod_field((byte & 0b11000000) >> 6);
+                inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
+                inst.rm_field = Some(decode_rm_field(byte & 0b00000111, &mode, inst.w_field));
+                match &mode {
+                    ModType::MemoryMode8 => {
+                        inst.data_bytes.push(DataBytesType::DispLo);
+                        inst.source_type = Some(SrcDstType::Disp8);
+                    }
+                    ModType::MemoryMode16 => {
+                        inst.data_bytes.push(DataBytesType::DispLo);
+                        inst.data_bytes.push(DataBytesType::DispHi);
+                        inst.source_type = Some(SrcDstType::Disp16);
+                    }
+                    _ => {}
+                }
+                inst.mod_field = Some(mode);
+                // See if reg is specified as source or dest
+                match (inst.d_field, &inst.reg_field) {
+                    (false, Some(x)) => {
+                        inst.source_type = Some(SrcDstType::Reg);
+                    }
+                    (true, Some(x)) => {
+                        inst.dest_type = Some(SrcDstType::Reg);
+                    }
+                    (_, None) => {
+                        unreachable!()
+                    }
+                };
+            }
+            None => {
+                // No mod rm byte for this instruction. Continue
+            }
+            _ => {}
+        }
+
+        // Process data bytes
+        for byte_type in &inst.data_bytes {
             if iter.peek().is_none() {
-                break;
+                println!("; End of instruction stream");
+                return;
             };
             let byte = iter.next().unwrap();
             debug_byte(byte);
             inst.processed_bytes.push(*byte);
 
-            // Decode the next byte of the instruction
-            match next_byte_type {
-                Some(ByteType::ModRegRm) => {
-                    // Decode the second byte of the instruction.
-                    // Get the upper two bits
-                    let mode = decode_mod_field((byte & 0b11000000) >> 6);
-                    inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
-                    inst.rm_field = Some(decode_rm_field(byte & 0b00000111, &mode, inst.w_field));
-                    match &mode {
-                        ModType::MemoryMode8 => {
-                            byte_order_tmp.push_back(ByteType::DispLo);
-                        }
-                        ModType::MemoryMode16 => {
-                            byte_order_tmp.push_back(ByteType::DispLo);
-                            byte_order_tmp.push_back(ByteType::DispHi);
-                        }
-                        _ => {}
-                    }
-                    inst.mod_field = Some(mode);
-
-                    // See if reg is source or destination and construct instruction text
-                    match inst.d_field {
-                        false => {
-                            source.push_str(&inst.reg_field.unwrap());
-                            dest.push_str(&inst.rm_field.unwrap());
-                        }
-                        true => {
-                            source.push_str(&inst.rm_field.unwrap());
-                            dest.push_str(&inst.reg_field.unwrap());
-                        }
-                    };
-                    // TODO: Why is source/dest backwards?
-                }
-                Some(ByteType::DispLo) => inst.disp_lo = Some(*byte),
-                Some(ByteType::DispHi) => inst.disp_hi = Some(*byte),
-                Some(ByteType::DataLo) => inst.data_lo = Some(*byte),
-                Some(ByteType::DataHi) => inst.data_hi = Some(*byte),
-                None => {}
+            match byte_type {
+                DataBytesType::DispLo => inst.disp_lo = Some(*byte),
+                DataBytesType::DispHi => inst.disp_hi = Some(*byte),
+                DataBytesType::DataLo => inst.data_lo = Some(*byte),
+                DataBytesType::DataHi => inst.data_hi = Some(*byte),
             }
-
-            // Record this processed byte
-            inst.processed_byte_types.push(next_byte_type.unwrap());
-            next_byte_type = byte_order_tmp.pop_front();
         }
+
+        // TODO: How do figure this out?
+
+        source = build_src_dest(
+            &inst.source_type,
+            inst.rm_field,
+            inst.mod_field,
+            inst.w_field,
+            inst.disp_lo,
+            inst.disp_hi,
+        );
+        dest = build_src_dest(
+            &inst.dest_type,
+            inst.rm_field,
+            inst.mod_field,
+            inst.w_field,
+            inst.disp_lo,
+            inst.disp_hi,
+        );
 
         inst.text = Some(format!("{} {}, {}", inst.op_type.unwrap(), dest, source));
         println!("{}", inst.text.unwrap());
@@ -235,37 +295,82 @@ fn decode_reg_field(reg: u8, w: bool) -> String {
     }
 }
 
+/// Build either a source or a destination
+fn build_src_dest(
+    src_dst_type: Option<SrcDstType>,
+    rm_field: Option<u8>,
+    mode: &ModType,
+    w: bool,
+    byte_lo: Option<u8>,
+    byte_hi: Option<u8>,
+) -> Option<String> {
+    let output = String::new();
+    match src_dst_type {
+        // If there is data, it's an immediate, and must be a source
+        // An immediate destination is under disp as DIRECT_ADDRESS
+        Some(SrcDstType::Data8) => output.push_str(&format!("{:#X}", inst.data_lo.unwrap())),
+        Some(SrcDstType::Data16) => {
+            output = format!("{:#X}{:#X}", inst.data_hi.unwrap(), inst.data_lo.unwrap());
+        }
+        Some(SrcDstType::Disp8) | Some(SrcDstType::Disp16) | None => {
+            // Get the first part of the source text
+            match (inst.d_field, &inst.rm_field) {
+                (false, Some(rm)) => {
+                    dest.push_str(&s.unwrap());
+                }
+                (true, Some(rm)) => {
+                    // source.push_str(rm)
+                }
+                (_, _) => {}
+            }
+            output.push_str(&format!("[{:#X}]", inst.disp_lo.unwrap()));
+            output = format!("[{:#X}{:#X}]", inst.disp_hi.unwrap(), inst.disp_lo.unwrap());
+        }
+    }
+
+    let rm = match rm_field {
+        None => return None,
+        Some(x) => x,
+    };
+    // R/M (Register/Memory) Field Encoding
+    // See table 4-10
+}
+
 // R/M (Register/Memory) Field Encoding
 // See table 4-10
 fn decode_rm_field(rm: u8, mode: &ModType, w: bool) -> String {
     match (rm, mode, w) {
-        (0b000, ModType::RegisterMode, false) => "al".to_string(),
-        (0b001, ModType::RegisterMode, false) => "cl".to_string(),
-        (0b010, ModType::RegisterMode, false) => "dl".to_string(),
-        (0b011, ModType::RegisterMode, false) => "bl".to_string(),
-        (0b100, ModType::RegisterMode, false) => "ah".to_string(),
-        (0b101, ModType::RegisterMode, false) => "ch".to_string(),
-        (0b110, ModType::RegisterMode, false) => "dh".to_string(),
-        (0b111, ModType::RegisterMode, false) => "bh".to_string(),
-        (0b000, ModType::RegisterMode, true) => "ax".to_string(),
-        (0b001, ModType::RegisterMode, true) => "cx".to_string(),
-        (0b010, ModType::RegisterMode, true) => "dx".to_string(),
-        (0b011, ModType::RegisterMode, true) => "bx".to_string(),
-        (0b100, ModType::RegisterMode, true) => "sp".to_string(),
-        (0b101, ModType::RegisterMode, true) => "bp".to_string(),
-        (0b110, ModType::RegisterMode, true) => "si".to_string(),
-        (0b111, ModType::RegisterMode, true) => "di".to_string(),
+        (0b000, ModType::RegisterMode, false) => Some("al".to_string()),
+        (0b001, ModType::RegisterMode, false) => Some("cl".to_string()),
+        (0b010, ModType::RegisterMode, false) => Some("dl".to_string()),
+        (0b011, ModType::RegisterMode, false) => Some("bl".to_string()),
+        (0b100, ModType::RegisterMode, false) => Some("ah".to_string()),
+        (0b101, ModType::RegisterMode, false) => Some("ch".to_string()),
+        (0b110, ModType::RegisterMode, false) => Some("dh".to_string()),
+        (0b111, ModType::RegisterMode, false) => Some("bh".to_string()),
+        (0b000, ModType::RegisterMode, true) => Some("ax".to_string()),
+        (0b001, ModType::RegisterMode, true) => Some("cx".to_string()),
+        (0b010, ModType::RegisterMode, true) => Some("dx".to_string()),
+        (0b011, ModType::RegisterMode, true) => Some("bx".to_string()),
+        (0b100, ModType::RegisterMode, true) => Some("sp".to_string()),
+        (0b101, ModType::RegisterMode, true) => Some("bp".to_string()),
+        (0b110, ModType::RegisterMode, true) => Some("si".to_string()),
+        (0b111, ModType::RegisterMode, true) => Some("di".to_string()),
         (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
-        (0b000, ModType::MemoryMode0, _) => "[bx + si]".to_string(),
-        (0b001, ModType::MemoryMode0, _) => "[bx + di]".to_string(),
-        (0b010, ModType::MemoryMode0, _) => "[bp + si]".to_string(),
-        (0b011, ModType::MemoryMode0, _) => "[bp + di]".to_string(),
-        (0b100, ModType::MemoryMode0, _) => "[si]".to_string(),
-        (0b101, ModType::MemoryMode0, _) => "[di]".to_string(),
+        (0b000, _, _) => Some("bx + si".to_string()),
+        (0b001, _, _) => Some("bx + di".to_string()),
+        (0b010, _, _) => Some("bp + si".to_string()),
+        (0b011, _, _) => Some("bp + di".to_string()),
+        (0b100, _, _) => Some("si".to_string()),
+        (0b101, _, _) => Some("di".to_string()),
         (0b110, ModType::MemoryMode0, _) => {
-            unimplemented!("TODO: Implement DIRECT ADDRESS for MemoryMode0")
+            // No registers - just a 16-bit immediate address from data lo, data hi
+            // This will be added in later
         }
-        (0b111, ModType::MemoryMode0, _) => "[bx]".to_string(),
+        (0b110, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
+            Some("bp".to_string());
+        }
+        (0b111, ModType::MemoryMode0, _) => Some("[bx]".to_string()),
         (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
         // TODO: For mm8 and mm16, decode byte 3
         (_, ModType::MemoryMode8, _) => unimplemented!("TODO: Implement MemoryMode8"),
