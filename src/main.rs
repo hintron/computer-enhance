@@ -1,7 +1,9 @@
+use std::collections::VecDeque;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
 
+#[derive(Debug)]
 enum ModType {
     MemoryMode0,
     MemoryMode8,
@@ -9,6 +11,17 @@ enum ModType {
     RegisterMode,
 }
 
+#[derive(Copy, Clone, Debug)]
+enum ByteType {
+    ModRegRm,
+    // Mod000Rm,
+    DataLo,
+    DataHi,
+    DispLo,
+    DispHi,
+}
+
+#[derive(Debug)]
 struct InstType {
     d_field: bool,
     w_field: bool,
@@ -16,6 +29,12 @@ struct InstType {
     reg_field: Option<String>,
     rm_field: Option<String>,
     op_type: Option<String>,
+    processed_bytes: Vec<u8>,
+    processed_byte_types: Vec<ByteType>,
+    data_lo: Option<u8>,
+    data_hi: Option<u8>,
+    disp_lo: Option<u8>,
+    disp_hi: Option<u8>,
     /// The final instruction representation
     text: Option<String>,
 }
@@ -61,22 +80,50 @@ fn decode(inst_stream: Vec<u8>) {
             reg_field: None,
             rm_field: None,
             op_type: None,
+            processed_bytes: vec![],
+            processed_byte_types: vec![],
+            data_lo: None,
+            data_hi: None,
+            disp_lo: None,
+            disp_hi: None,
             text: None,
         };
         let byte = iter.next().unwrap();
         debug_byte(byte);
+        inst.processed_bytes.push(*byte);
+
+        let mut source = String::new();
+        let mut dest = String::new();
+        let mut byte_order_tmp = VecDeque::new();
+        let mut next_byte_type;
 
         // Decode the first byte of the instruction.
         // For 8086 decoding help, see pg. 4-18 through 4-36.
         match byte {
-            // mov
+            // mov - Register/memory to/from register
             0x88..=0x8C => {
                 inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0x1) == 1;
                 inst.d_field = (byte & 0x2) == 1;
+                next_byte_type = Some(ByteType::ModRegRm);
+                // byte_order_tmp.push_back(ByteType::ModRegRm);
+                // We need to see what mod is before we know about disp lo/hi
+            }
+            // mov - Immediate to register
+            0xB0..=0xBF => {
+                inst.op_type = Some("mov".to_string());
+                inst.w_field = (byte & 0b1000) == 1;
+                let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
+                dest.push_str(&reg_field);
+                inst.reg_field = Some(reg_field);
+                next_byte_type = Some(ByteType::DataLo);
+                // byte_order_tmp.push_back(ByteType::DataLo);
+                if inst.w_field {
+                    byte_order_tmp.push_back(ByteType::DataHi);
+                }
             }
             // TODO: Handle other mov variants:
-            // 0x8E | 0xA0..=0xA3 | 0xB0..=0xBF | 0xC6..=0xC7
+            // 0x8E | 0xA0..=0xA3 | 0xC6..=0xC7
             _ => {
                 inst.op_type = Some("unknown".to_string());
                 inst.text = inst.op_type.clone();
@@ -85,34 +132,66 @@ fn decode(inst_stream: Vec<u8>) {
             }
         }
 
-        if iter.peek().is_none() {
-            break;
-        };
-        let byte = iter.next().unwrap();
-        debug_byte(byte);
+        // Finally, store this byte
+        inst.processed_byte_types.push(next_byte_type.unwrap());
 
-        // Decode the second byte of the instruction.
-        // Get the upper two bits
-        inst.mod_field = Some(decode_mod_field((byte & 0b11000000) >> 6));
-        inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
-        inst.rm_field = Some(decode_rm_field(
-            byte & 0b00000111,
-            &inst.mod_field.unwrap(),
-            inst.w_field,
-        ));
-        // See if reg is source or destination and construct instruction text
-        let (dest, source) = match inst.d_field {
-            false => (inst.rm_field.clone(), inst.reg_field.clone()),
-            true => (inst.reg_field.clone(), inst.rm_field.clone()),
-        };
+        while next_byte_type.is_some() {
+            if iter.peek().is_none() {
+                break;
+            };
+            let byte = iter.next().unwrap();
+            debug_byte(byte);
+            inst.processed_bytes.push(*byte);
 
-        inst.text = Some(format!(
-            "{} {}, {}",
-            inst.op_type.unwrap(),
-            dest.unwrap(),
-            source.unwrap()
-        ));
+            // Decode the next byte of the instruction
+            match next_byte_type {
+                Some(ByteType::ModRegRm) => {
+                    // Decode the second byte of the instruction.
+                    // Get the upper two bits
+                    let mode = decode_mod_field((byte & 0b11000000) >> 6);
+                    inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
+                    inst.rm_field = Some(decode_rm_field(byte & 0b00000111, &mode, inst.w_field));
+                    match &mode {
+                        ModType::MemoryMode8 => {
+                            byte_order_tmp.push_back(ByteType::DispLo);
+                        }
+                        ModType::MemoryMode16 => {
+                            byte_order_tmp.push_back(ByteType::DispLo);
+                            byte_order_tmp.push_back(ByteType::DispHi);
+                        }
+                        _ => {}
+                    }
+                    inst.mod_field = Some(mode);
+
+                    // See if reg is source or destination and construct instruction text
+                    match inst.d_field {
+                        false => {
+                            source.push_str(&inst.reg_field.unwrap());
+                            dest.push_str(&inst.rm_field.unwrap());
+                        }
+                        true => {
+                            source.push_str(&inst.rm_field.unwrap());
+                            dest.push_str(&inst.reg_field.unwrap());
+                        }
+                    };
+                    // TODO: Why is source/dest backwards?
+                }
+                Some(ByteType::DispLo) => inst.disp_lo = Some(*byte),
+                Some(ByteType::DispHi) => inst.disp_hi = Some(*byte),
+                Some(ByteType::DataLo) => inst.data_lo = Some(*byte),
+                Some(ByteType::DataHi) => inst.data_hi = Some(*byte),
+                None => {}
+            }
+
+            // Record this processed byte
+            inst.processed_byte_types.push(next_byte_type.unwrap());
+            next_byte_type = byte_order_tmp.pop_front();
+        }
+
+        inst.text = Some(format!("{} {}, {}", inst.op_type.unwrap(), dest, source));
         println!("{}", inst.text.unwrap());
+        // TODO: Record instruction
+        // On to the next instruction...
     }
 }
 
