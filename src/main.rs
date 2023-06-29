@@ -313,7 +313,9 @@ fn decode(inst_stream: Vec<u8>) {
                 (Some(dest_text), _, Some(AddTo::Dest)) => {
                     dest_text.push_str(&disp_bytes_text);
                 }
-                (_, _, _) => {}
+                (_, _, _) => {
+                    unreachable!("Unhandled combo for dest_text, source_text, add_disp_to")
+                }
             };
         }
 
@@ -346,7 +348,9 @@ fn decode(inst_stream: Vec<u8>) {
                 (None, Some(AddTo::Source)) => {
                     inst.source_text = Some(data_bytes_text);
                 }
-                (_, _) => {}
+                (_, _) => {
+                    unreachable!("Unhandled combo for source_text, add_data_to")
+                }
             }
         };
 
