@@ -354,36 +354,55 @@ fn decode(inst_stream: Vec<u8>) {
             }
         };
 
+        let dest_text = match (inst.dest_text, inst.dest_text_end) {
+            (Some(dest1), Some(dest2)) => {
+                Some(format!("{dest1}{dest2}"))
+            }
+            (Some(dest1), None) => {
+                Some(dest1)
+            }
+            (None, Some(dest2)) => {
+                Some(dest2)
+            }
+            (None, None) => {
+                None
+            }
+        };
+
+        let source_text = match (inst.source_text, inst.source_text_end) {
+            (Some(source1), Some(source2)) => {
+                Some(format!("{source1}{source2}"))
+            }
+            (Some(source1), None) => {
+                Some(source1)
+            }
+            (None, Some(source2)) => {
+                Some(source2)
+            }
+            (None, None) => {
+                None
+            }
+        };
+
         let inst_text = match (
             inst.op_type,
-            inst.dest_text,
-            inst.dest_text_end,
-            inst.source_text,
-            inst.source_text_end,
+            dest_text,
+            source_text,
         ) {
-            (Some(op), Some(dest1), Some(dest2), Some(src1), Some(src2)) => {
-                format!("{op} {dest1}{dest2}, {src1}{src2}")
+            (Some(op), Some(dest_text), Some(source_text)) => {
+                format!("{op} {dest_text}, {source_text}")
             }
-            (Some(op), Some(dest1), Some(dest2), Some(src1), None) => {
-                format!("{op} {dest1}{dest2}, {src1}")
+            (Some(op), Some(dest_text), None) => {
+                format!("{op} {dest_text}")
             }
-            (Some(op), Some(dest1), None, Some(src1), Some(src2)) => {
-                format!("{op} {dest1}, {src1}{src2}")
+            (Some(op), None, Some(source_text)) => {
+                format!("{op} {source_text}")
             }
-            (Some(op), Some(dest1), None, Some(src1), None) => {
-                format!("{op} {dest1}, {src1}")
+            (Some(op), None, None) => {
+                format!("{op}")
             }
-            (Some(op), Some(dest1), None, None, None) => {
-                format!("{op} {dest1}")
-            }
-            (Some(op), None, None, Some(src1), None) => {
-                format!("{op} {src1}")
-            }
-            (None, _, _, _, _) => {
+            (None, _, _) => {
                 unreachable!("Op code text not set!");
-            }
-            (_, _, _, _, _) => {
-                unreachable!("Instruction strings got messed up");
             }
         };
         println!("{}", inst_text);
