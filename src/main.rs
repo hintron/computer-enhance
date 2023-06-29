@@ -39,6 +39,7 @@ struct InstType {
     d_field: bool,
     w_field: bool,
     mod_field: Option<ModType>,
+    rm_field: Option<u8>,
     reg_field: Option<String>,
     /// A string containing the registers but NOT the src/dst
     op_type: Option<String>,
@@ -108,6 +109,7 @@ fn decode(inst_stream: Vec<u8>) {
             d_field: false,
             w_field: false,
             mod_field: None,
+            rm_field: None,
             reg_field: None,
             op_type: None,
             processed_bytes: vec![],
@@ -275,6 +277,7 @@ fn decode(inst_stream: Vec<u8>) {
                 }
 
                 inst.mod_field = Some(mode);
+                inst.rm_field = Some(rm_field);
             }
             None => {
                 // No mod rm byte for this instruction. Continue
