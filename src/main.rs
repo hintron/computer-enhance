@@ -345,7 +345,7 @@ fn decode(inst_stream: Vec<u8>) {
 }
 
 fn debug_byte(byte: &u8) {
-    println!("; processing byte {byte:#X} ({byte:#b})");
+    println!("; processing byte 0x{byte:02X} (0b{byte:08b})");
 }
 
 /// MOD (Mode) Field Encoding
