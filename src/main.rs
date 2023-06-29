@@ -311,35 +311,30 @@ fn decode(inst_stream: Vec<u8>) {
         }
 
         // Add in data/immediate bytes to the source or dest text
-        match (&mut inst.source_text, inst.add_data_to) {
-            (Some(source_text), Some(AddTo::Source)) => {
-                match (inst.data_lo, inst.data_hi) {
-                    (Some(lo), None) => source_text.push_str(&format!("0x{lo:X}")),
-                    (Some(lo), Some(hi)) => {
-                        source_text.push_str(&format!("0x{hi:X}{lo:X}"));
-                    }
-                    (None, None) => {
-                        unreachable!("ERROR: No data bytes found to add to source")
-                    }
-                    (None, Some(_)) => {
-                        unreachable!("ERROR: Low data byte not set for source")
-                    }
-                };
+        if inst.add_data_to.is_some() {
+            let data_bytes_text = match (inst.data_lo, inst.data_hi) {
+                (Some(lo), None) => format!("0x{lo:X}"),
+                (Some(lo), Some(hi)) => {
+                    format!("0x{hi:X}{lo:X}")
+                }
+                (None, None) => {
+                    unreachable!("ERROR: No data bytes found")
+                }
+                (None, Some(_)) => {
+                    unreachable!("ERROR: Low data byte not set")
+                }
+            };
+
+            match (&mut inst.source_text, inst.add_data_to) {
+                (Some(source_text), Some(AddTo::Source)) => {
+                    source_text.push_str(&data_bytes_text);
+                }
+                (None, Some(AddTo::Source)) => {
+                    inst.source_text = Some(data_bytes_text);
+                }
+                (_, _) => {}
             }
-            (None, Some(AddTo::Source)) => {
-                match (inst.data_lo, inst.data_hi) {
-                    (Some(lo), None) => inst.source_text = Some(format!("0x{lo:X}")),
-                    (Some(lo), Some(hi)) => inst.source_text = Some(format!("0x{hi:X}{lo:X}")),
-                    (None, None) => {
-                        unreachable!("ERROR: No data bytes found to add to source")
-                    }
-                    (None, Some(_)) => {
-                        unreachable!("ERROR: Low data byte not set for dest")
-                    }
-                };
-            }
-            (_, _) => {}
-        }
+        };
 
         let inst_text = match (
             inst.op_type,
