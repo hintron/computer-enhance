@@ -60,6 +60,10 @@ struct InstType {
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
+    /// If true, then we know the destination is a register and thus has a fixed
+    /// size, so we don't need to put a 'word' or 'byte' prefix in front of an
+    /// immediate source. If false, then an immediate will need a size prefix.
+    is_dest_reg: bool,
     /// The final instruction representation
     text: Option<String>,
 }
@@ -118,6 +122,7 @@ fn decode(inst_stream: Vec<u8>) {
             // dest_type: None,
             dest_text: None,
             dest_text_end: None,
+            is_dest_reg: false,
             text: None,
         };
         let byte = iter.next().unwrap();
@@ -152,6 +157,7 @@ fn decode(inst_stream: Vec<u8>) {
                 let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
                 inst.reg_field = Some(reg_field.clone());
                 inst.dest_text = Some(reg_field);
+                inst.is_dest_reg = true;
                 // No mod rm byte for this mov variant!
                 // Indicate that there are source data bytes after this byte
                 inst.add_data_to = Some(AddTo::Source);
@@ -193,6 +199,11 @@ fn decode(inst_stream: Vec<u8>) {
                         // Dest is rm field
                         inst.dest_text = rm_text;
                         inst.dest_text_end = rm_text_end;
+                        match inst.mod_field {
+                            // Mark dest as a reg to add size prefix to imm sources
+                            Some(ModType::RegisterMode) => inst.is_dest_reg = true,
+                            _ => {}
+                        }
                     }
                     true => {
                         // Source is rm field
@@ -312,10 +323,17 @@ fn decode(inst_stream: Vec<u8>) {
 
         // Add in data/immediate bytes to the source or dest text
         if inst.add_data_to.is_some() {
+            // Add a size prefix to an immediate source if dest is not a reg
+            let size_prefix = match (inst.is_dest_reg, inst.data_hi) {
+                (false, Some(_)) => "word ",
+                (false, None) => "byte ",
+                // If dest is reg, size is implicit in reg size
+                (true, _) => "",
+            };
             let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-                (Some(lo), None) => format!("0x{lo:X}"),
+                (Some(lo), None) => format!("{size_prefix}0x{lo:X}"),
                 (Some(lo), Some(hi)) => {
-                    format!("0x{hi:X}{lo:X}")
+                    format!("{size_prefix}0x{hi:X}{lo:X}")
                 }
                 (None, None) => {
                     unreachable!("ERROR: No data bytes found")
