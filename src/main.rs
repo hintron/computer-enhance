@@ -243,6 +243,10 @@ fn decode(inst_stream: Vec<u8>) {
                                 inst.data_bytes.push(DataBytesType::DataHi);
                             }
                         }
+                        inst.add_data_to = Some(AddTo::Source);
+                        // TODO: Handle None instead of append to empty string
+                        inst.source_text = Some("".to_string());
+                        inst.source_text_end = None;
                     }
                 }
                 // Indicate what displacement should be added to: src or dest
@@ -309,6 +313,7 @@ fn decode(inst_stream: Vec<u8>) {
         }
 
         // Add in data/immediate bytes to the source or dest text
+        // TODO: Handle None instead of append to empty string
         match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
             (_, Some(source_text), Some(AddTo::Source)) => {
                 match (inst.data_lo, inst.data_hi) {
