@@ -131,7 +131,7 @@ fn decode(inst_stream: Vec<u8>) {
             0x88..=0x8C => {
                 inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0x1) == 1;
-                inst.d_field = (byte & 0x2) == 1;
+                inst.d_field = ((byte & 0x2) >> 1) == 1;
                 inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
                 // We need to see what mod is before we know what is the source
                 // and what is the destination
