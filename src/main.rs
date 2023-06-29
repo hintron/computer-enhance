@@ -356,27 +356,38 @@ fn decode(inst_stream: Vec<u8>) {
 
         let dest_text = concat_texts(inst.dest_text, inst.dest_text_end);
         let source_text = concat_texts(inst.source_text, inst.source_text_end);
-        let inst_text = match (inst.op_type, dest_text, source_text) {
-            (Some(op), Some(dest_text), Some(source_text)) => {
-                format!("{op} {dest_text}, {source_text}")
-            }
-            (Some(op), Some(dest_text), None) => {
-                format!("{op} {dest_text}")
-            }
-            (Some(op), None, Some(source_text)) => {
-                format!("{op} {source_text}")
-            }
-            (Some(op), None, None) => {
-                format!("{op}")
-            }
-            (None, _, _) => {
-                unreachable!("Op code text not set!");
-            }
-        };
+        let inst_text = concat_operands(inst.op_type, dest_text, source_text);
+
         println!("{}", inst_text);
         inst.text = Some(inst_text);
         // TODO: Record instruction
         // On to the next instruction...
+    }
+}
+
+/// Concat op code with optional operands
+/// op_type is required
+fn concat_operands(
+    op_type: Option<String>,
+    dest_text: Option<String>,
+    source_text: Option<String>,
+) -> String {
+    match (op_type, dest_text, source_text) {
+        (Some(op), Some(dest), Some(source)) => {
+            format!("{op} {dest}, {source}")
+        }
+        (Some(op), Some(dest), None) => {
+            format!("{op} {dest}")
+        }
+        (Some(op), None, Some(source)) => {
+            format!("{op} {source}")
+        }
+        (Some(op), None, None) => {
+            format!("{op}")
+        }
+        (None, _, _) => {
+            unreachable!("Op code text not set!");
+        }
     }
 }
 
