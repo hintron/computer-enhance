@@ -13,7 +13,7 @@ enum ModType {
 #[derive(Copy, Clone, Debug)]
 enum ModRmByteType {
     ModRegRm,
-    // Mod000Rm,
+    ModOpRm,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -136,6 +136,15 @@ fn decode(inst_stream: Vec<u8>) {
                 // We need to see what mod is before we know what is the source
                 // and what is the destination
             }
+            // mov - Immediate to register/memory
+            0xC6..=0xC7 => {
+                inst.op_type = Some("mov".to_string());
+                inst.w_field = (byte & 0x1) == 1;
+                // In effect, the d field is hard coded to 0: the destination is
+                // rm and the source is an immediate (which replaced reg from
+                // the above mov variant)
+                inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
+            }
             // mov - Immediate to register
             0xB0..=0xBF => {
                 inst.op_type = Some("mov".to_string());
@@ -169,7 +178,7 @@ fn decode(inst_stream: Vec<u8>) {
 
         // Process mod rm byte, if it exists
         match &inst.mod_rm_byte {
-            Some(ModRmByteType::ModRegRm) => {
+            Some(mod_rm_byte) => {
                 // Get the next (mod rm) byte in the stream
                 let byte = iter.next().unwrap();
                 debug_byte(byte);
@@ -177,34 +186,25 @@ fn decode(inst_stream: Vec<u8>) {
                 // Decode the second byte of the instruction.
                 // Get the upper two bits
                 let mode = decode_mod_field((byte & 0b11000000) >> 6);
-                inst.reg_field = Some(decode_reg_field((byte & 0b00111000) >> 3, inst.w_field));
                 let (rm_text, rm_text_end) =
                     decode_rm_field(byte & 0b00000111, &mode, inst.w_field);
-                // See if reg is specified as source or dest
-                match (inst.d_field, &inst.reg_field) {
-                    (false, Some(reg_field)) => {
-                        // Source is REG field
-                        inst.source_text = Some(reg_field.clone());
-                        inst.source_text_end = None;
+                match inst.d_field {
+                    false => {
                         // Dest is rm field
                         inst.dest_text = rm_text;
                         inst.dest_text_end = rm_text_end;
                         inst.add_disp_to = Some(AddTo::Dest);
                     }
-                    (true, Some(reg_field)) => {
+                    true => {
                         // Source is rm field
                         inst.source_text = rm_text;
                         inst.source_text_end = rm_text_end;
                         inst.add_disp_to = Some(AddTo::Source);
-                        // Destination is REG field
-                        inst.dest_text = Some(reg_field.clone());
-                        inst.dest_text_end = None;
                     }
-                    (_, None) => {
-                        unreachable!()
-                    }
-                };
+                }
+
                 // Indicate that there are displacement bytes to process next
+                // Displacement bytes come before immediate/data bytes
                 match &mode {
                     ModType::MemoryMode8 => {
                         inst.data_bytes.push(DataBytesType::DispLo);
@@ -214,6 +214,38 @@ fn decode(inst_stream: Vec<u8>) {
                         inst.data_bytes.push(DataBytesType::DispHi);
                     }
                     _ => {}
+                }
+
+                // Process the middle part of the mod rm byte
+                match mod_rm_byte {
+                    ModRmByteType::ModRegRm => {
+                        let reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
+                        // See if reg is specified as source or dest
+                        match inst.d_field {
+                            false => {
+                                // Source is REG field
+                                inst.source_text = Some(reg_field.clone());
+                                inst.source_text_end = None;
+                            }
+                            true => {
+                                // Destination is REG field
+                                inst.dest_text = Some(reg_field.clone());
+                                inst.dest_text_end = None;
+                            }
+                        };
+                        inst.reg_field = Some(reg_field);
+                    }
+                    ModRmByteType::ModOpRm => {
+                        match inst.w_field {
+                            false => {
+                                inst.data_bytes.push(DataBytesType::DispLo);
+                            }
+                            true => {
+                                inst.data_bytes.push(DataBytesType::DispLo);
+                                inst.data_bytes.push(DataBytesType::DispHi);
+                            }
+                        }
+                    }
                 }
                 // Indicate what displacement should be added to: src or dest
                 match (inst.d_field, &mode) {
