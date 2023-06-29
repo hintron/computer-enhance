@@ -295,30 +295,26 @@ fn decode(inst_stream: Vec<u8>) {
         }
 
         // Add in displacement bytes to the source or dest text
-        match (&mut inst.dest_text, &mut inst.source_text, inst.add_disp_to) {
-            (_, Some(source_text), Some(AddTo::Source)) => {
-                match (inst.disp_lo, inst.disp_hi) {
-                    (Some(lo), None) => source_text.push_str(&format!("0x{lo:X}")),
-                    (Some(lo), Some(hi)) => {
-                        source_text.push_str(&format!("0x{hi:X}{lo:X}"));
-                    }
-                    (None, None) => {}
-                    (None, Some(_)) => {
-                        unreachable!("ERROR: Low disp byte not set for source")
-                    }
-                };
-            }
-            (Some(dest_text), _, Some(AddTo::Dest)) => {
-                match (inst.disp_lo, inst.disp_hi) {
-                    (Some(lo), None) => dest_text.push_str(&format!("0x{lo:X}")),
-                    (Some(lo), Some(hi)) => dest_text.push_str(&format!("0x{hi:X}{lo:X}")),
-                    (None, None) => {}
-                    (None, Some(_)) => {
-                        unreachable!("ERROR: Low disp byte not set for dest")
-                    }
-                };
-            }
-            (_, _, _) => {}
+        if inst.add_disp_to.is_some() {
+            let disp_bytes_text = match (inst.disp_lo, inst.disp_hi) {
+                (Some(lo), None) => format!("0x{lo:X}"),
+                (Some(lo), Some(hi)) => format!("0x{hi:X}{lo:X}"),
+                (None, None) => {
+                    unreachable!("ERROR: No disp bytes found")
+                }
+                (None, Some(_)) => {
+                    unreachable!("ERROR: Low disp byte not")
+                }
+            };
+            match (&mut inst.dest_text, &mut inst.source_text, inst.add_disp_to) {
+                (_, Some(source_text), Some(AddTo::Source)) => {
+                    source_text.push_str(&disp_bytes_text);
+                }
+                (Some(dest_text), _, Some(AddTo::Dest)) => {
+                    dest_text.push_str(&disp_bytes_text);
+                }
+                (_, _, _) => {}
+            };
         }
 
         // Add in data/immediate bytes to the source or dest text
