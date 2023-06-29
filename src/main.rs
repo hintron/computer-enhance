@@ -198,7 +198,7 @@ fn decode(inst_stream: Vec<u8>) {
                 // Get the upper two bits
                 let mode = decode_mod_field((byte & 0b11000000) >> 6);
                 let rm_field = byte & 0b00000111;
-                let (rm_text, rm_text_end) = decode_rm_field(&rm_field, &mode, inst.w_field);
+                let (rm_text, rm_text_end) = decode_rm_field(rm_field, &mode, inst.w_field);
                 match inst.d_field {
                     false => {
                         // Dest is rm field
@@ -264,13 +264,13 @@ fn decode(inst_stream: Vec<u8>) {
                     }
                 }
                 // Indicate what displacement should be added to: src or dest
-                match (inst.d_field, &mode, &rm_field) {
+                match (inst.d_field, &mode, rm_field) {
                     (false, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-                    | (false, ModType::MemoryMode0, &DIRECT_ADDR) => {
+                    | (false, ModType::MemoryMode0, DIRECT_ADDR) => {
                         inst.add_disp_to = Some(AddTo::Dest);
                     }
                     (true, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-                    | (true, ModType::MemoryMode0, &DIRECT_ADDR) => {
+                    | (true, ModType::MemoryMode0, DIRECT_ADDR) => {
                         inst.add_disp_to = Some(AddTo::Source);
                     }
                     (_, _, _) => {}
@@ -454,7 +454,7 @@ fn decode_reg_field(reg: u8, w: bool) -> String {
 /// Return a tuple of the first part of the text and the last part of the text,
 /// so the displacement can be optionally inserted in later. If the last part of
 /// the text is None, then there should be no insertion.
-fn decode_rm_field(rm: &u8, mode: &ModType, w: bool) -> (Option<String>, Option<String>) {
+fn decode_rm_field(rm: u8, mode: &ModType, w: bool) -> (Option<String>, Option<String>) {
     match (rm, mode, w) {
         (0b000, ModType::RegisterMode, false) => (Some("al".to_string()), None),
         (0b001, ModType::RegisterMode, false) => (Some("cl".to_string()), None),
