@@ -236,11 +236,11 @@ fn decode(inst_stream: Vec<u8>) {
                     ModRmByteType::ModOpRm => {
                         match inst.w_field {
                             false => {
-                                inst.data_bytes.push(DataBytesType::DispLo);
+                                inst.data_bytes.push(DataBytesType::DataLo);
                             }
                             true => {
-                                inst.data_bytes.push(DataBytesType::DispLo);
-                                inst.data_bytes.push(DataBytesType::DispHi);
+                                inst.data_bytes.push(DataBytesType::DataLo);
+                                inst.data_bytes.push(DataBytesType::DataHi);
                             }
                         }
                     }
