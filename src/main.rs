@@ -354,36 +354,8 @@ fn decode(inst_stream: Vec<u8>) {
             }
         };
 
-        let dest_text = match (inst.dest_text, inst.dest_text_end) {
-            (Some(dest1), Some(dest2)) => {
-                Some(format!("{dest1}{dest2}"))
-            }
-            (Some(dest1), None) => {
-                Some(dest1)
-            }
-            (None, Some(dest2)) => {
-                Some(dest2)
-            }
-            (None, None) => {
-                None
-            }
-        };
-
-        let source_text = match (inst.source_text, inst.source_text_end) {
-            (Some(source1), Some(source2)) => {
-                Some(format!("{source1}{source2}"))
-            }
-            (Some(source1), None) => {
-                Some(source1)
-            }
-            (None, Some(source2)) => {
-                Some(source2)
-            }
-            (None, None) => {
-                None
-            }
-        };
-
+        let dest_text = concat_texts(inst.dest_text, inst.dest_text_end);
+        let source_text = concat_texts(inst.source_text, inst.source_text_end);
         let inst_text = match (inst.op_type, dest_text, source_text) {
             (Some(op), Some(dest_text), Some(source_text)) => {
                 format!("{op} {dest_text}, {source_text}")
@@ -405,6 +377,16 @@ fn decode(inst_stream: Vec<u8>) {
         inst.text = Some(inst_text);
         // TODO: Record instruction
         // On to the next instruction...
+    }
+}
+
+/// Concatenate two Option Strings
+fn concat_texts(a: Option<String>, b: Option<String>) -> Option<String> {
+    match (a, b) {
+        (Some(str_a), Some(str_b)) => Some(format!("{str_a}{str_b}")),
+        (Some(str_a), None) => Some(str_a),
+        (None, Some(str_b)) => Some(str_b),
+        (None, None) => None,
     }
 }
 
