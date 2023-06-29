@@ -318,7 +318,9 @@ fn decode(inst_stream: Vec<u8>) {
                     (Some(lo), Some(hi)) => {
                         source_text.push_str(&format!("0x{hi:X}{lo:X}"));
                     }
-                    (None, None) => {}
+                    (None, None) => {
+                        unreachable!("ERROR: No data bytes found to add to source")
+                    }
                     (None, Some(_)) => {
                         unreachable!("ERROR: Low data byte not set for source")
                     }
@@ -328,7 +330,9 @@ fn decode(inst_stream: Vec<u8>) {
                 match (inst.data_lo, inst.data_hi) {
                     (Some(lo), None) => inst.source_text = Some(format!("0x{lo:X}")),
                     (Some(lo), Some(hi)) => inst.source_text = Some(format!("0x{hi:X}{lo:X}")),
-                    (None, None) => {}
+                    (None, None) => {
+                        unreachable!("ERROR: No data bytes found to add to source")
+                    }
                     (None, Some(_)) => {
                         unreachable!("ERROR: Low data byte not set for dest")
                     }
