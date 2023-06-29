@@ -155,11 +155,11 @@ fn decode(inst_stream: Vec<u8>) {
                 // No mod rm byte for this mov variant!
                 // Indicate that there are source data bytes after this byte
                 inst.add_data_to = Some(AddTo::Source);
+                // source_text will be filled in later
                 inst.data_bytes.push(DataBytesType::DataLo);
                 if inst.w_field {
                     inst.data_bytes.push(DataBytesType::DataHi);
                 }
-                inst.source_text = Some(String::new());
             }
             // TODO: Handle other mov variants:
             // 0x8E | 0xA0..=0xA3 | 0xC6..=0xC7
@@ -244,9 +244,7 @@ fn decode(inst_stream: Vec<u8>) {
                             }
                         }
                         inst.add_data_to = Some(AddTo::Source);
-                        // TODO: Handle None instead of append to empty string
-                        inst.source_text = Some("".to_string());
-                        inst.source_text_end = None;
+                        // source_text will be filled in later
                     }
                 }
                 // Indicate what displacement should be added to: src or dest
@@ -313,9 +311,8 @@ fn decode(inst_stream: Vec<u8>) {
         }
 
         // Add in data/immediate bytes to the source or dest text
-        // TODO: Handle None instead of append to empty string
-        match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
-            (_, Some(source_text), Some(AddTo::Source)) => {
+        match (&mut inst.source_text, inst.add_data_to) {
+            (Some(source_text), Some(AddTo::Source)) => {
                 match (inst.data_lo, inst.data_hi) {
                     (Some(lo), None) => source_text.push_str(&format!("0x{lo:X}")),
                     (Some(lo), Some(hi)) => {
@@ -327,17 +324,17 @@ fn decode(inst_stream: Vec<u8>) {
                     }
                 };
             }
-            (Some(dest_text), _, Some(AddTo::Dest)) => {
+            (None, Some(AddTo::Source)) => {
                 match (inst.data_lo, inst.data_hi) {
-                    (Some(lo), None) => dest_text.push_str(&format!("0x{lo:X}")),
-                    (Some(lo), Some(hi)) => dest_text.push_str(&format!("0x{hi:X}{lo:X}")),
+                    (Some(lo), None) => inst.source_text = Some(format!("0x{lo:X}")),
+                    (Some(lo), Some(hi)) => inst.source_text = Some(format!("0x{hi:X}{lo:X}")),
                     (None, None) => {}
                     (None, Some(_)) => {
                         unreachable!("ERROR: Low data byte not set for dest")
                     }
                 };
             }
-            (_, _, _) => {}
+            (_, _) => {}
         }
 
         let inst_text = match (
