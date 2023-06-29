@@ -384,11 +384,7 @@ fn decode(inst_stream: Vec<u8>) {
             }
         };
 
-        let inst_text = match (
-            inst.op_type,
-            dest_text,
-            source_text,
-        ) {
+        let inst_text = match (inst.op_type, dest_text, source_text) {
             (Some(op), Some(dest_text), Some(source_text)) => {
                 format!("{op} {dest_text}, {source_text}")
             }
