@@ -193,13 +193,11 @@ fn decode(inst_stream: Vec<u8>) {
                         // Dest is rm field
                         inst.dest_text = rm_text;
                         inst.dest_text_end = rm_text_end;
-                        inst.add_disp_to = Some(AddTo::Dest);
                     }
                     true => {
                         // Source is rm field
                         inst.source_text = rm_text;
                         inst.source_text_end = rm_text_end;
-                        inst.add_disp_to = Some(AddTo::Source);
                     }
                 }
 
