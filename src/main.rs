@@ -55,6 +55,9 @@ struct InstType {
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
     add_data_to: Option<AddTo>,
+    /// If true, then the displacement is a direct address instead of added to
+    /// any
+    disp_direct_address: bool,
     /// The expected byte types to parse after we parse the 1st byte and the
     /// mod/rm byte (if it exists).
     data_bytes: Vec<DataBytesType>,
@@ -120,6 +123,7 @@ fn decode(inst_stream: Vec<u8>) {
             disp_lo: None,
             disp_hi: None,
             add_disp_to: None,
+            disp_direct_address: false,
             data_bytes: vec![],
             source_text: None,
             source_text_end: None,
@@ -196,6 +200,9 @@ fn decode(inst_stream: Vec<u8>) {
                 // Get the upper two bits
                 let mode = decode_mod_field((byte & 0b11000000) >> 6);
                 let rm_field = byte & 0b00000111;
+                if rm_field == DIRECT_ADDR {
+                    inst.disp_direct_address = true;
+                }
                 let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
                 match inst.d_field {
                     false => {
@@ -303,8 +310,23 @@ fn decode(inst_stream: Vec<u8>) {
         // Add in displacement bytes to the source or dest text
         if inst.add_disp_to.is_some() {
             let disp_bytes_text = match (inst.disp_lo, inst.disp_hi) {
-                (Some(lo), None) => format!("0x{lo:X}"),
-                (Some(lo), Some(hi)) => format!("0x{hi:X}{lo:X}"),
+                (Some(lo), None) => {
+                    // Print as signed 8 bit
+                    format!("{:+}", lo as i8)
+                }
+                (Some(lo), Some(hi)) => {
+                    match inst.disp_direct_address {
+                        false => {
+                            // If not direct address, print as signed 16 bit
+                            let lo_hi = lo as u16 | ((hi as u16) << 8);
+                            format!("{:+}", lo_hi as i16)
+                        }
+                        true => {
+                            // If direct address, print in hex for convenience
+                            format!("0x{hi:X}{lo:X}")
+                        }
+                    }
+                }
                 (None, None) => {
                     unreachable!("ERROR: No disp bytes found")
                 }
@@ -481,29 +503,31 @@ fn decode_rm_field(rm: u8, mode: ModType, w: bool) -> (Option<String>, Option<St
         (0b110, ModType::MemoryMode0, _) => (Some("[".to_string()), Some("]".to_string())),
         (0b111, ModType::MemoryMode0, _) => (Some("[bx]".to_string()), None),
         (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
+        // For MM8/MM16, all we need to do later after this function is add in
+        // a signed disp with +/- sign explicitly printed out.
         (0b000, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx + si + ".to_string()), Some("]".to_string()))
+            (Some("[bx + si ".to_string()), Some("]".to_string()))
         }
         (0b001, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx + di + ".to_string()), Some("]".to_string()))
+            (Some("[bx + di ".to_string()), Some("]".to_string()))
         }
         (0b010, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp + si + ".to_string()), Some("]".to_string()))
+            (Some("[bp + si ".to_string()), Some("]".to_string()))
         }
         (0b011, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp + di + ".to_string()), Some("]".to_string()))
+            (Some("[bp + di ".to_string()), Some("]".to_string()))
         }
         (0b100, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[si + ".to_string()), Some("]".to_string()))
+            (Some("[si ".to_string()), Some("]".to_string()))
         }
         (0b101, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[di + ".to_string()), Some("]".to_string()))
+            (Some("[di ".to_string()), Some("]".to_string()))
         }
         (0b110, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp + ".to_string()), Some("]".to_string()))
+            (Some("[bp ".to_string()), Some("]".to_string()))
         }
         (0b111, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx + ".to_string()), Some("]".to_string()))
+            (Some("[bx ".to_string()), Some("]".to_string()))
         }
         (_, ModType::MemoryMode8, _) => unreachable!("ERROR: Unknown MemoryMode8 condition"),
         (_, ModType::MemoryMode16, _) => unreachable!("ERROR: Unknown MemoryMode16 condition"),
