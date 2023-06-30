@@ -243,6 +243,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
     true
 }
 
+/// Decode the "mod rm" byte of an 8086 instruction.
+///
+/// The mod rm byte, if it exists, is the second byte of an 8086 instruction
+/// that specifies further bytes and addressing modes.
 fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Decode the second byte of the instruction.
     // Get the upper two bits
