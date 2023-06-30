@@ -113,13 +113,12 @@ pub fn decode(inst_stream: Vec<u8>) {
             continue;
         }
 
-        if iter.peek().is_none() {
-            println!("; End of instruction stream");
-            break;
-        };
-
         // Process mod rm byte, if it exists
         if inst.mod_rm_byte.is_some() {
+            if iter.peek().is_none() {
+                println!("; End of instruction stream");
+                break;
+            };
             // Get the next (mod r/m) byte in the stream
             let byte = iter.next().unwrap();
             debug_byte(byte);
