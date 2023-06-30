@@ -111,14 +111,14 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         inst.processed_bytes.push(*byte);
 
         if decode_first_byte(*byte, &mut inst) == false {
-            println!("; unknown instruction");
+            println!("Unknown instruction");
             break;
         }
 
         // Process mod rm byte, if it exists
         if inst.mod_rm_byte.is_some() {
             if iter.peek().is_none() {
-                println!("; End of instruction stream");
+                println!("Unexpected end of instruction stream");
                 break;
             };
             // Get the next (mod r/m) byte in the stream
@@ -131,7 +131,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         // Get extra bytes and store in inst
         for byte_type in &inst.extra_bytes {
             if iter.peek().is_none() {
-                println!("; End of instruction stream");
+                println!("Unexpected end of instruction stream");
                 continue;
             };
             let byte = iter.next().unwrap();
@@ -159,7 +159,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         let source_text = concat_texts(&inst.source_text, &inst.source_text_end);
         let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
 
-        println!("; {}", inst_text);
+        println!("{}", inst_text);
         inst.text = Some(inst_text);
         insts.push(inst);
         // On to the next instruction...
@@ -466,7 +466,7 @@ fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
 
 /// Print out the hex and binary of a byte in an assembly comment
 fn debug_byte(byte: &u8) {
-    println!("; processing byte 0x{byte:02X} (0b{byte:08b})");
+    println!("Processing byte 0x{byte:02X} (0b{byte:08b})");
 }
 
 /// MOD (Mode) Field Encoding
