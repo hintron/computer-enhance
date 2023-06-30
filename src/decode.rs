@@ -126,7 +126,7 @@ pub fn decode(inst_stream: Vec<u8>) {
             decode_mod_rm_byte(*byte, &mut inst);
         }
 
-        // Process data bytes
+        // Get data bytes and store in inst
         for byte_type in &inst.data_bytes {
             if iter.peek().is_none() {
                 println!("; End of instruction stream");
@@ -144,87 +144,15 @@ pub fn decode(inst_stream: Vec<u8>) {
             }
         }
 
-        // Add in displacement bytes to the source or dest text
+        // Process data bytes
         if inst.add_disp_to.is_some() {
-            let disp_bytes_text = match (inst.disp_lo, inst.disp_hi) {
-                (Some(lo), None) => {
-                    // Print as signed 8 bit
-                    format!("{:+}", lo as i8)
-                }
-                (Some(lo), Some(hi)) => {
-                    match inst.disp_direct_address {
-                        false => {
-                            // If not direct address, print as signed 16 bit
-                            let lo_hi = lo as u16 | ((hi as u16) << 8);
-                            format!("{:+}", lo_hi as i16)
-                        }
-                        true => {
-                            // If direct address, print in hex for convenience
-                            format!("0x{hi:02X}{lo:02X}")
-                        }
-                    }
-                }
-                (None, None) => {
-                    unreachable!("ERROR: No disp bytes found")
-                }
-                (None, Some(_)) => {
-                    unreachable!("ERROR: Low disp byte not")
-                }
-            };
-            match (&mut inst.dest_text, &mut inst.source_text, inst.add_disp_to) {
-                (_, Some(source_text), Some(AddTo::Source)) => {
-                    source_text.push_str(&disp_bytes_text);
-                }
-                (Some(dest_text), _, Some(AddTo::Dest)) => {
-                    dest_text.push_str(&disp_bytes_text);
-                }
-                (_, _, _) => {
-                    unreachable!("Unhandled combo for dest_text, source_text, add_disp_to")
-                }
-            };
+            process_disp_bytes(&mut inst);
+        }
+        if inst.add_data_to.is_some() {
+            process_data_bytes(&mut inst);
         }
 
-        // Add in data/immediate bytes to the source or dest text
-        if inst.add_data_to.is_some() {
-            // Add a size prefix to an immediate source if dest is not a reg
-            let size_prefix = match (inst.data_needs_size, inst.data_hi) {
-                (false, _) => "",
-                (true, Some(_)) => "word ",
-                (true, None) => "byte ",
-            };
-            let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-                (Some(lo), None) => format!("{size_prefix}{}", lo as i8),
-                (Some(lo), Some(hi)) => {
-                    let lo_hi = lo as u16 | ((hi as u16) << 8);
-                    format!("{size_prefix}{}", lo_hi as i16)
-                }
-                (None, None) => {
-                    unreachable!("ERROR: No data bytes found")
-                }
-                (None, Some(_)) => {
-                    unreachable!("ERROR: Low data byte not set")
-                }
-            };
-
-            match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
-                (_, Some(source_text), Some(AddTo::Source)) => {
-                    source_text.push_str(&data_bytes_text);
-                }
-                (_, None, Some(AddTo::Source)) => {
-                    inst.source_text = Some(data_bytes_text);
-                }
-                (Some(dest_text), _, Some(AddTo::Dest)) => {
-                    dest_text.push_str(&data_bytes_text);
-                }
-                (None, _, Some(AddTo::Dest)) => {
-                    inst.dest_text = Some(data_bytes_text);
-                }
-                (_, _, _) => {
-                    unreachable!("Unhandled combo for source_text, add_data_to")
-                }
-            }
-        };
-
+        // Create instruction text
         let dest_text = concat_texts(inst.dest_text, inst.dest_text_end);
         let source_text = concat_texts(inst.source_text, inst.source_text_end);
         let inst_text = concat_operands(inst.op_type, dest_text, source_text);
@@ -407,6 +335,98 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 
     inst.mod_field = Some(mode);
     inst.rm_field = Some(rm_field);
+}
+
+/// Process the disp bytes by applying it to the needed fields in the
+/// instruction struct
+fn process_disp_bytes(inst: &mut InstType) {
+    let disp_bytes_text = match (inst.disp_lo, inst.disp_hi) {
+        (Some(lo), None) => {
+            // Print as signed 8 bit
+            format!("{:+}", lo as i8)
+        }
+        (Some(lo), Some(hi)) => {
+            match inst.disp_direct_address {
+                false => {
+                    // If not direct address, print as signed 16 bit
+                    let lo_hi = lo as u16 | ((hi as u16) << 8);
+                    format!("{:+}", lo_hi as i16)
+                }
+                true => {
+                    // If direct address, print in hex for convenience
+                    format!("0x{hi:02X}{lo:02X}")
+                }
+            }
+        }
+        (None, None) => {
+            unreachable!("ERROR: No disp bytes found")
+        }
+        (None, Some(_)) => {
+            unreachable!("ERROR: Low disp byte not")
+        }
+    };
+    match (
+        &mut inst.dest_text,
+        &mut inst.source_text,
+        &mut inst.add_disp_to,
+    ) {
+        (_, Some(source_text), Some(AddTo::Source)) => {
+            source_text.push_str(&disp_bytes_text);
+        }
+        (Some(dest_text), _, Some(AddTo::Dest)) => {
+            dest_text.push_str(&disp_bytes_text);
+        }
+        (_, _, _) => {
+            unreachable!("Unhandled combo for dest_text, source_text, add_disp_to")
+        }
+    };
+}
+
+/// Process the data bytes by applying it to the needed fields in the
+/// instruction struct
+fn process_data_bytes(inst: &mut InstType) {
+    // Add in data/immediate bytes to the source or dest text
+    // Add a size prefix to an immediate source if dest is not a reg
+    let size_prefix = match (inst.data_needs_size, inst.data_hi) {
+        (false, _) => "",
+        (true, Some(_)) => "word ",
+        (true, None) => "byte ",
+    };
+    let data_bytes_text = match (inst.data_lo, inst.data_hi) {
+        (Some(lo), None) => format!("{size_prefix}{}", lo as i8),
+        (Some(lo), Some(hi)) => {
+            let lo_hi = lo as u16 | ((hi as u16) << 8);
+            format!("{size_prefix}{}", lo_hi as i16)
+        }
+        (None, None) => {
+            unreachable!("ERROR: No data bytes found")
+        }
+        (None, Some(_)) => {
+            unreachable!("ERROR: Low data byte not set")
+        }
+    };
+
+    match (
+        &mut inst.dest_text,
+        &mut inst.source_text,
+        &mut inst.add_data_to,
+    ) {
+        (_, Some(source_text), Some(AddTo::Source)) => {
+            source_text.push_str(&data_bytes_text);
+        }
+        (_, None, Some(AddTo::Source)) => {
+            inst.source_text = Some(data_bytes_text);
+        }
+        (Some(dest_text), _, Some(AddTo::Dest)) => {
+            dest_text.push_str(&data_bytes_text);
+        }
+        (None, _, Some(AddTo::Dest)) => {
+            inst.dest_text = Some(data_bytes_text);
+        }
+        (_, _, _) => {
+            unreachable!("Unhandled combo for source_text, add_data_to")
+        }
+    }
 }
 
 /// Concat op code with optional operands
