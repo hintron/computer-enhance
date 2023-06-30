@@ -18,10 +18,11 @@ enum ModRmByteType {
     ModOpRm,
 }
 
-/// An enum representing the possible types of bytes containing data that come
-/// after the first byte and the mod r/m byte.
+/// An enum representing the possible types of "extra" bytes containing data
+/// that come after the first byte and the mod r/m byte. Extra bytes include
+/// displacement bytes and "data" bytes for immediate values.
 #[derive(Copy, Clone, Debug)]
-enum DataBytesType {
+enum ExtraBytesType {
     DataLo,
     DataHi,
     DispLo,
@@ -60,9 +61,9 @@ struct InstType {
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
-    /// The expected byte types to parse after we parse the 1st byte and the
-    /// mod/rm byte (if it exists).
-    data_bytes: Vec<DataBytesType>,
+    /// The expected "extra" byte types to parse after we parse the 1st byte and
+    /// the mod/rm byte (if it exists).
+    extra_bytes: Vec<ExtraBytesType>,
     /// The text for the source operand
     source_text: Option<String>,
     source_text_end: Option<String>,
@@ -126,8 +127,8 @@ pub fn decode(inst_stream: Vec<u8>) {
             decode_mod_rm_byte(*byte, &mut inst);
         }
 
-        // Get data bytes and store in inst
-        for byte_type in &inst.data_bytes {
+        // Get extra bytes and store in inst
+        for byte_type in &inst.extra_bytes {
             if iter.peek().is_none() {
                 println!("; End of instruction stream");
                 return;
@@ -137,14 +138,14 @@ pub fn decode(inst_stream: Vec<u8>) {
             inst.processed_bytes.push(*byte);
 
             match byte_type {
-                DataBytesType::DispLo => inst.disp_lo = Some(*byte),
-                DataBytesType::DispHi => inst.disp_hi = Some(*byte),
-                DataBytesType::DataLo => inst.data_lo = Some(*byte),
-                DataBytesType::DataHi => inst.data_hi = Some(*byte),
+                ExtraBytesType::DispLo => inst.disp_lo = Some(*byte),
+                ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
+                ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
+                ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
             }
         }
 
-        // Process data bytes
+        // Process extra bytes
         if inst.add_disp_to.is_some() {
             process_disp_bytes(&mut inst);
         }
@@ -202,9 +203,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // Indicate that there are source data bytes after this byte
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
-            inst.data_bytes.push(DataBytesType::DataLo);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
             if inst.w_field {
-                inst.data_bytes.push(DataBytesType::DataHi);
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
             }
         }
         // mov - Memory to accumulator or accumulator to memory
@@ -229,9 +230,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                     inst.dest_text_end = right_bracket;
                 }
             };
-            inst.data_bytes.push(DataBytesType::DataLo);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
             if inst.w_field {
-                inst.data_bytes.push(DataBytesType::DataHi);
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
             }
         }
         // TODO: Handle other mov variants:
@@ -279,11 +280,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Displacement bytes come before immediate/data bytes
     match (mode, rm_field) {
         (ModType::MemoryMode8, _) => {
-            inst.data_bytes.push(DataBytesType::DispLo);
+            inst.extra_bytes.push(ExtraBytesType::DispLo);
         }
         (ModType::MemoryMode16, _) | (ModType::MemoryMode0, DIRECT_ADDR) => {
-            inst.data_bytes.push(DataBytesType::DispLo);
-            inst.data_bytes.push(DataBytesType::DispHi);
+            inst.extra_bytes.push(ExtraBytesType::DispLo);
+            inst.extra_bytes.push(ExtraBytesType::DispHi);
         }
         _ => {}
     }
@@ -310,11 +311,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         Some(ModRmByteType::ModOpRm) => {
             match inst.w_field {
                 false => {
-                    inst.data_bytes.push(DataBytesType::DataLo);
+                    inst.extra_bytes.push(ExtraBytesType::DataLo);
                 }
                 true => {
-                    inst.data_bytes.push(DataBytesType::DataLo);
-                    inst.data_bytes.push(DataBytesType::DataHi);
+                    inst.extra_bytes.push(ExtraBytesType::DataLo);
+                    inst.extra_bytes.push(ExtraBytesType::DataHi);
                 }
             }
             inst.add_data_to = Some(AddTo::Source);
@@ -386,8 +387,8 @@ fn process_disp_bytes(inst: &mut InstType) {
     };
 }
 
-/// Process the data bytes by applying it to the needed fields in the
-/// instruction struct
+/// Process the data (immediate) bytes by applying it to the needed fields in
+/// the instruction struct
 fn process_data_bytes(inst: &mut InstType) {
     // Add in data/immediate bytes to the source or dest text
     // Add a size prefix to an immediate source if dest is not a reg
