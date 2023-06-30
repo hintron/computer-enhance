@@ -67,10 +67,9 @@ struct InstType {
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
-    /// If true, then we know the destination is a register and thus has a fixed
-    /// size, so we don't need to put a 'word' or 'byte' prefix in front of an
-    /// immediate source. If false, then an immediate will need a size prefix.
-    is_dest_reg: bool,
+    /// If true, then we need to add a 'word' or 'byte' prefix in front of an
+    /// immediate source (data).
+    data_needs_size: bool,
     /// The final instruction representation
     text: Option<String>,
 }
@@ -129,7 +128,9 @@ fn decode(inst_stream: Vec<u8>) {
             source_text_end: None,
             dest_text: None,
             dest_text_end: None,
-            is_dest_reg: false,
+            // Print size prefix by default unless we detect size is implied
+            // by e.g. a register destination.
+            data_needs_size: true,
             text: None,
         };
         let byte = iter.next().unwrap();
@@ -164,7 +165,7 @@ fn decode(inst_stream: Vec<u8>) {
                 let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
                 inst.reg_field = Some(reg_field.clone());
                 inst.dest_text = Some(reg_field);
-                inst.is_dest_reg = true;
+                inst.data_needs_size = false;
                 // No mod rm byte for this mov variant!
                 // Indicate that there are source data bytes after this byte
                 inst.add_data_to = Some(AddTo::Source);
@@ -236,8 +237,9 @@ fn decode(inst_stream: Vec<u8>) {
                         inst.dest_text = rm_text;
                         inst.dest_text_end = rm_text_end;
                         match inst.mod_field {
-                            // Mark dest as a reg to add size prefix to imm sources
-                            Some(ModType::RegisterMode) => inst.is_dest_reg = true,
+                            // Register dest implies a size, so size prefix
+                            // isn't needed
+                            Some(ModType::RegisterMode) => inst.data_needs_size = false,
                             _ => {}
                         }
                     }
@@ -376,11 +378,10 @@ fn decode(inst_stream: Vec<u8>) {
         // Add in data/immediate bytes to the source or dest text
         if inst.add_data_to.is_some() {
             // Add a size prefix to an immediate source if dest is not a reg
-            let size_prefix = match (inst.is_dest_reg, inst.data_hi) {
-                (false, Some(_)) => "word ",
-                (false, None) => "byte ",
-                // If dest is reg, size is implicit in reg size
-                (true, _) => "",
+            let size_prefix = match (inst.data_needs_size, inst.data_hi) {
+                (false, _) => "",
+                (true, Some(_)) => "word ",
+                (true, None) => "byte ",
             };
             let data_bytes_text = match (inst.data_lo, inst.data_hi) {
                 (Some(lo), None) => format!("{size_prefix}{lo}"),
