@@ -384,7 +384,7 @@ fn decode(inst_stream: Vec<u8>) {
                 (true, None) => "byte ",
             };
             let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-                (Some(lo), None) => format!("{size_prefix}{lo}"),
+                (Some(lo), None) => format!("{size_prefix}{}", lo as i8),
                 (Some(lo), Some(hi)) => {
                     let lo_hi = lo as u16 | ((hi as u16) << 8);
                     format!("{size_prefix}{}", lo_hi as i16)
