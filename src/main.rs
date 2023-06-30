@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io::{self, Read};
 
 mod decode;
+#[cfg(test)]
+mod tests;
 
 // Internal imports
 use crate::decode::decode;

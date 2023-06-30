@@ -74,7 +74,7 @@ pub struct InstType {
     /// immediate source (data).
     data_needs_size: bool,
     /// The final instruction representation
-    text: Option<String>,
+    pub text: Option<String>,
 }
 
 /// Decode an 8086 instruction stream
