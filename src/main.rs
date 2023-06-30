@@ -323,7 +323,7 @@ fn decode(inst_stream: Vec<u8>) {
                         }
                         true => {
                             // If direct address, print in hex for convenience
-                            format!("0x{hi:X}{lo:X}")
+                            format!("0x{hi:02X}{lo:02X}")
                         }
                     }
                 }
