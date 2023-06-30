@@ -108,79 +108,9 @@ pub fn decode(inst_stream: Vec<u8>) {
         debug_byte(byte);
         inst.processed_bytes.push(*byte);
 
-        // Decode the first byte of the instruction.
-        // For 8086 decoding help, see pg. 4-18 through 4-36.
-        match byte {
-            // mov - Register/memory to/from register
-            0x88..=0x8C => {
-                inst.op_type = Some("mov".to_string());
-                inst.w_field = (byte & 0x1) == 1;
-                inst.d_field = ((byte & 0x2) >> 1) == 1;
-                inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
-                // We need to see what mod is before we know what is the source
-                // and what is the destination
-            }
-            // mov - Immediate to register/memory
-            0xC6..=0xC7 => {
-                inst.op_type = Some("mov".to_string());
-                inst.w_field = (byte & 0x1) == 1;
-                // In effect, the d field is hard coded to 0: the destination is
-                // rm and the source is an immediate (which replaced reg from
-                // the above mov variant)
-                inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
-            }
-            // mov - Immediate to register
-            0xB0..=0xBF => {
-                inst.op_type = Some("mov".to_string());
-                inst.w_field = ((byte & 0b1000) >> 3) == 1;
-                let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
-                inst.reg_field = Some(reg_field.clone());
-                inst.dest_text = Some(reg_field);
-                inst.data_needs_size = false;
-                // No mod rm byte for this mov variant!
-                // Indicate that there are source data bytes after this byte
-                inst.add_data_to = Some(AddTo::Source);
-                // source_text will be filled in later
-                inst.data_bytes.push(DataBytesType::DataLo);
-                if inst.w_field {
-                    inst.data_bytes.push(DataBytesType::DataHi);
-                }
-            }
-            // mov - Memory to accumulator or accumulator to memory
-            0xA0..=0xA3 => {
-                inst.op_type = Some("mov".to_string());
-                inst.w_field = (byte & 0x1) == 1;
-                inst.data_needs_size = false;
-                let left_bracket = Some("[".to_string());
-                let right_bracket = Some("]".to_string());
-                let accumulator = Some("ax".to_string());
-                match ((byte & 0x2) >> 1) == 1 {
-                    false => {
-                        inst.dest_text = accumulator;
-                        inst.add_data_to = Some(AddTo::Source);
-                        inst.source_text = left_bracket;
-                        inst.source_text_end = right_bracket;
-                    }
-                    true => {
-                        inst.source_text = accumulator;
-                        inst.add_data_to = Some(AddTo::Dest);
-                        inst.dest_text = left_bracket;
-                        inst.dest_text_end = right_bracket;
-                    }
-                };
-                inst.data_bytes.push(DataBytesType::DataLo);
-                if inst.w_field {
-                    inst.data_bytes.push(DataBytesType::DataHi);
-                }
-            }
-            // TODO: Handle other mov variants:
-            // 0x8E
-            _ => {
-                inst.op_type = Some("; unknown instruction".to_string());
-                inst.text = inst.op_type.clone();
-                println!("{}", inst.text.unwrap());
-                continue;
-            }
+        if decode_first_byte(*byte, &mut inst) == false {
+            println!("; unknown instruction");
+            continue;
         }
 
         if iter.peek().is_none() {
@@ -189,104 +119,12 @@ pub fn decode(inst_stream: Vec<u8>) {
         };
 
         // Process mod rm byte, if it exists
-        match &inst.mod_rm_byte {
-            Some(mod_rm_byte) => {
-                // Get the next (mod rm) byte in the stream
-                let byte = iter.next().unwrap();
-                debug_byte(byte);
-                inst.processed_bytes.push(*byte);
-                // Decode the second byte of the instruction.
-                // Get the upper two bits
-                let mode = decode_mod_field((byte & 0b11000000) >> 6);
-                let rm_field = byte & 0b00000111;
-                if rm_field == DIRECT_ADDR {
-                    inst.disp_direct_address = true;
-                }
-                let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
-                match inst.d_field {
-                    false => {
-                        // Dest is rm field
-                        inst.dest_text = rm_text;
-                        inst.dest_text_end = rm_text_end;
-                        match inst.mod_field {
-                            // Register dest implies a size, so size prefix
-                            // isn't needed
-                            Some(ModType::RegisterMode) => inst.data_needs_size = false,
-                            _ => {}
-                        }
-                    }
-                    true => {
-                        // Source is rm field
-                        inst.source_text = rm_text;
-                        inst.source_text_end = rm_text_end;
-                    }
-                }
-
-                // Indicate that there are displacement bytes to process next
-                // Displacement bytes come before immediate/data bytes
-                match (mode, rm_field) {
-                    (ModType::MemoryMode8, _) => {
-                        inst.data_bytes.push(DataBytesType::DispLo);
-                    }
-                    (ModType::MemoryMode16, _) | (ModType::MemoryMode0, DIRECT_ADDR) => {
-                        inst.data_bytes.push(DataBytesType::DispLo);
-                        inst.data_bytes.push(DataBytesType::DispHi);
-                    }
-                    _ => {}
-                }
-
-                // Process the middle part of the mod rm byte
-                match mod_rm_byte {
-                    ModRmByteType::ModRegRm => {
-                        let reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
-                        // See if reg is specified as source or dest
-                        match inst.d_field {
-                            false => {
-                                // Source is REG field
-                                inst.source_text = Some(reg_field.clone());
-                                inst.source_text_end = None;
-                            }
-                            true => {
-                                // Destination is REG field
-                                inst.dest_text = Some(reg_field.clone());
-                                inst.dest_text_end = None;
-                            }
-                        };
-                        inst.reg_field = Some(reg_field);
-                    }
-                    ModRmByteType::ModOpRm => {
-                        match inst.w_field {
-                            false => {
-                                inst.data_bytes.push(DataBytesType::DataLo);
-                            }
-                            true => {
-                                inst.data_bytes.push(DataBytesType::DataLo);
-                                inst.data_bytes.push(DataBytesType::DataHi);
-                            }
-                        }
-                        inst.add_data_to = Some(AddTo::Source);
-                        // source_text will be filled in later
-                    }
-                }
-                // Indicate what displacement should be added to: src or dest
-                match (inst.d_field, mode, rm_field) {
-                    (false, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-                    | (false, ModType::MemoryMode0, DIRECT_ADDR) => {
-                        inst.add_disp_to = Some(AddTo::Dest);
-                    }
-                    (true, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-                    | (true, ModType::MemoryMode0, DIRECT_ADDR) => {
-                        inst.add_disp_to = Some(AddTo::Source);
-                    }
-                    (_, _, _) => {}
-                }
-
-                inst.mod_field = Some(mode);
-                inst.rm_field = Some(rm_field);
-            }
-            None => {
-                // No mod rm byte for this instruction. Continue
-            }
+        if inst.mod_rm_byte.is_some() {
+            // Get the next (mod r/m) byte in the stream
+            let byte = iter.next().unwrap();
+            debug_byte(byte);
+            inst.processed_bytes.push(*byte);
+            decode_mod_rm_byte(*byte, &mut inst);
         }
 
         // Process data bytes
@@ -397,6 +235,179 @@ pub fn decode(inst_stream: Vec<u8>) {
         // TODO: Record instruction
         // On to the next instruction...
     }
+}
+
+/// Decode the first byte of an 8086 instruction.
+///
+/// Returns true if there are more bytes left in the instruction, and false if
+/// not.
+fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
+    // Decode the first byte of the instruction.
+    // For 8086 decoding help, see pg. 4-18 through 4-36.
+    match byte {
+        // mov - Register/memory to/from register
+        0x88..=0x8C => {
+            inst.op_type = Some("mov".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+            // We need to see what mod is before we know what is the source
+            // and what is the destination
+        }
+        // mov - Immediate to register/memory
+        0xC6..=0xC7 => {
+            inst.op_type = Some("mov".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            // In effect, the d field is hard coded to 0: the destination is
+            // rm and the source is an immediate (which replaced reg from
+            // the above mov variant)
+            inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
+        }
+        // mov - Immediate to register
+        0xB0..=0xBF => {
+            inst.op_type = Some("mov".to_string());
+            inst.w_field = ((byte & 0b1000) >> 3) == 1;
+            let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
+            inst.reg_field = Some(reg_field.clone());
+            inst.dest_text = Some(reg_field);
+            inst.data_needs_size = false;
+            // No mod rm byte for this mov variant!
+            // Indicate that there are source data bytes after this byte
+            inst.add_data_to = Some(AddTo::Source);
+            // source_text will be filled in later
+            inst.data_bytes.push(DataBytesType::DataLo);
+            if inst.w_field {
+                inst.data_bytes.push(DataBytesType::DataHi);
+            }
+        }
+        // mov - Memory to accumulator or accumulator to memory
+        0xA0..=0xA3 => {
+            inst.op_type = Some("mov".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.data_needs_size = false;
+            let left_bracket = Some("[".to_string());
+            let right_bracket = Some("]".to_string());
+            let accumulator = Some("ax".to_string());
+            match ((byte & 0x2) >> 1) == 1 {
+                false => {
+                    inst.dest_text = accumulator;
+                    inst.add_data_to = Some(AddTo::Source);
+                    inst.source_text = left_bracket;
+                    inst.source_text_end = right_bracket;
+                }
+                true => {
+                    inst.source_text = accumulator;
+                    inst.add_data_to = Some(AddTo::Dest);
+                    inst.dest_text = left_bracket;
+                    inst.dest_text_end = right_bracket;
+                }
+            };
+            inst.data_bytes.push(DataBytesType::DataLo);
+            if inst.w_field {
+                inst.data_bytes.push(DataBytesType::DataHi);
+            }
+        }
+        // TODO: Handle other mov variants:
+        // 0x8E
+        _ => {
+            return false;
+        }
+    }
+    true
+}
+
+fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
+    // Decode the second byte of the instruction.
+    // Get the upper two bits
+    let mode = decode_mod_field((byte & 0b11000000) >> 6);
+    let rm_field = byte & 0b00000111;
+    if rm_field == DIRECT_ADDR {
+        inst.disp_direct_address = true;
+    }
+    let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
+    match inst.d_field {
+        false => {
+            // Dest is rm field
+            inst.dest_text = rm_text;
+            inst.dest_text_end = rm_text_end;
+            match inst.mod_field {
+                // Register dest implies a size, so size prefix
+                // isn't needed
+                Some(ModType::RegisterMode) => inst.data_needs_size = false,
+                _ => {}
+            }
+        }
+        true => {
+            // Source is rm field
+            inst.source_text = rm_text;
+            inst.source_text_end = rm_text_end;
+        }
+    }
+
+    // Indicate that there are displacement bytes to process next
+    // Displacement bytes come before immediate/data bytes
+    match (mode, rm_field) {
+        (ModType::MemoryMode8, _) => {
+            inst.data_bytes.push(DataBytesType::DispLo);
+        }
+        (ModType::MemoryMode16, _) | (ModType::MemoryMode0, DIRECT_ADDR) => {
+            inst.data_bytes.push(DataBytesType::DispLo);
+            inst.data_bytes.push(DataBytesType::DispHi);
+        }
+        _ => {}
+    }
+
+    // Process the middle part of the mod rm byte
+    match inst.mod_rm_byte {
+        Some(ModRmByteType::ModRegRm) => {
+            let reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
+            // See if reg is specified as source or dest
+            match inst.d_field {
+                false => {
+                    // Source is REG field
+                    inst.source_text = Some(reg_field.clone());
+                    inst.source_text_end = None;
+                }
+                true => {
+                    // Destination is REG field
+                    inst.dest_text = Some(reg_field.clone());
+                    inst.dest_text_end = None;
+                }
+            };
+            inst.reg_field = Some(reg_field);
+        }
+        Some(ModRmByteType::ModOpRm) => {
+            match inst.w_field {
+                false => {
+                    inst.data_bytes.push(DataBytesType::DataLo);
+                }
+                true => {
+                    inst.data_bytes.push(DataBytesType::DataLo);
+                    inst.data_bytes.push(DataBytesType::DataHi);
+                }
+            }
+            inst.add_data_to = Some(AddTo::Source);
+            // source_text will be filled in later
+        }
+        None => {
+            unreachable!()
+        }
+    }
+    // Indicate what displacement should be added to: src or dest
+    match (inst.d_field, mode, rm_field) {
+        (false, ModType::MemoryMode8 | ModType::MemoryMode16, _)
+        | (false, ModType::MemoryMode0, DIRECT_ADDR) => {
+            inst.add_disp_to = Some(AddTo::Dest);
+        }
+        (true, ModType::MemoryMode8 | ModType::MemoryMode16, _)
+        | (true, ModType::MemoryMode0, DIRECT_ADDR) => {
+            inst.add_disp_to = Some(AddTo::Source);
+        }
+        (_, _, _) => {}
+    }
+
+    inst.mod_field = Some(mode);
+    inst.rm_field = Some(rm_field);
 }
 
 /// Concat op code with optional operands
