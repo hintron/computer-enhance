@@ -26,7 +26,7 @@ rc=0
 for file in "$ASM_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
     BASE=$(basename $file)
-    if ! $BIN "$file" > "$ASM_BUILD_DIR/$BASE-tmp.asm" ; then
+    if ! $BIN "$file" "$ASM_BUILD_DIR/$BASE-tmp.asm" > "$ASM_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $file"
         rc=1
         break
