@@ -38,7 +38,7 @@ enum AddTo {
 
 /// A struct holding all the decoded data of a given instruction
 #[derive(Default, Debug)]
-struct InstType {
+pub struct InstType {
     d_field: bool,
     w_field: bool,
     mod_field: Option<ModType>,
@@ -96,8 +96,9 @@ struct InstType {
 ///     4) The final output text is assembled from the values in the `InstType`
 ///        struct.
 ///     5) The output text is printed to stdout.
-pub fn decode(inst_stream: Vec<u8>) {
+pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
+    let mut insts = vec![];
     while iter.peek().is_some() {
         let mut inst = InstType {
             // Print size prefix by default unless we detect size is implied
@@ -131,7 +132,7 @@ pub fn decode(inst_stream: Vec<u8>) {
         for byte_type in &inst.extra_bytes {
             if iter.peek().is_none() {
                 println!("; End of instruction stream");
-                return;
+                continue;
             };
             let byte = iter.next().unwrap();
             debug_byte(byte);
@@ -154,15 +155,18 @@ pub fn decode(inst_stream: Vec<u8>) {
         }
 
         // Create instruction text
-        let dest_text = concat_texts(inst.dest_text, inst.dest_text_end);
-        let source_text = concat_texts(inst.source_text, inst.source_text_end);
-        let inst_text = concat_operands(inst.op_type, dest_text, source_text);
+        let dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
+        let source_text = concat_texts(&inst.source_text, &inst.source_text_end);
+        let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
 
         println!("{}", inst_text);
         inst.text = Some(inst_text);
+
+        insts.push(inst);
         // TODO: Record instruction
         // On to the next instruction...
     }
+    insts
 }
 
 /// Decode the first byte of an 8086 instruction.
@@ -429,7 +433,7 @@ fn process_data_bytes(inst: &mut InstType) {
 /// Concat op code with optional operands
 /// op_type is required
 fn concat_operands(
-    op_type: Option<String>,
+    op_type: &Option<String>,
     dest_text: Option<String>,
     source_text: Option<String>,
 ) -> String {
@@ -453,11 +457,11 @@ fn concat_operands(
 }
 
 /// Concatenate two Option Strings
-fn concat_texts(a: Option<String>, b: Option<String>) -> Option<String> {
+fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
     match (a, b) {
         (Some(str_a), Some(str_b)) => Some(format!("{str_a}{str_b}")),
-        (Some(str_a), None) => Some(str_a),
-        (None, Some(str_b)) => Some(str_b),
+        (Some(str_a), None) => Some(str_a.clone()),
+        (None, Some(str_b)) => Some(str_b.clone()),
         (None, None) => None,
     }
 }

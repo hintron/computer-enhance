@@ -32,7 +32,7 @@ fn main() -> io::Result<()> {
     }
 
     println!("bits 16");
-    decode(inst_stream);
+    let _insts = decode(inst_stream);
 
     Ok(())
 }
