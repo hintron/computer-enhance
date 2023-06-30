@@ -159,11 +159,9 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         let source_text = concat_texts(&inst.source_text, &inst.source_text_end);
         let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
 
-        println!("{}", inst_text);
+        println!("; {}", inst_text);
         inst.text = Some(inst_text);
-
         insts.push(inst);
-        // TODO: Record instruction
         // On to the next instruction...
     }
     insts

@@ -20,8 +20,13 @@ fn main() -> io::Result<()> {
     let mut file = File::open(&args[1])?;
     file.read_to_end(&mut inst_stream)?;
 
+    let insts = decode(inst_stream);
+
+    // Print out instructions to the output file
     println!("bits 16");
-    let _insts = decode(inst_stream);
+    for inst in insts {
+        println!("{}", inst.text.unwrap());
+    }
 
     Ok(())
 }
