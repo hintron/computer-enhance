@@ -175,6 +175,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
     // Decode the first byte of the instruction.
     // For 8086 decoding help, see pg. 4-18 through 4-36.
     match byte {
+        // add - Reg/memory with register to either
+        0x00..=0x03 => {
+            inst.op_type = Some("add".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
