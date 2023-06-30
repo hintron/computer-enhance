@@ -221,7 +221,7 @@ fn decode(inst_stream: Vec<u8>) {
                     (ModType::MemoryMode8, _) => {
                         inst.data_bytes.push(DataBytesType::DispLo);
                     }
-                    (ModType::MemoryMode16, _) | (ModType::MemoryMode0, 0b110) => {
+                    (ModType::MemoryMode16, _) | (ModType::MemoryMode0, DIRECT_ADDR) => {
                         inst.data_bytes.push(DataBytesType::DispLo);
                         inst.data_bytes.push(DataBytesType::DispHi);
                     }
