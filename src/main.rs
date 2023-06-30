@@ -357,9 +357,10 @@ fn decode(inst_stream: Vec<u8>) {
                 (true, _) => "",
             };
             let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-                (Some(lo), None) => format!("{size_prefix}0x{lo:X}"),
+                (Some(lo), None) => format!("{size_prefix}{lo}"),
                 (Some(lo), Some(hi)) => {
-                    format!("{size_prefix}0x{hi:X}{lo:X}")
+                    let lo_hi = lo as u16 | ((hi as u16) << 8);
+                    format!("{size_prefix}{}", lo_hi as i16)
                 }
                 (None, None) => {
                     unreachable!("ERROR: No data bytes found")
