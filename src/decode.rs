@@ -25,6 +25,8 @@ enum ModRmByteType {
 enum ExtraBytesType {
     DataLo,
     DataHi,
+    /// If w=1 and s=1, then create a ephemeral DataHi by sign-extending DataLo
+    DataExtend,
     DispLo,
     DispHi,
 }
@@ -41,6 +43,8 @@ enum AddTo {
 pub struct InstType {
     d_field: bool,
     w_field: bool,
+    /// Sign extend field. If true, sign extend 8-bit immediate as needed
+    s_field: bool,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     reg_field: Option<String>,
@@ -134,6 +138,30 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 println!("Unexpected end of instruction stream");
                 continue;
             };
+
+            // If we are sign extending a low data byte, don't actually process
+            // a byte.
+            match byte_type {
+                // Sign extend data_lo into data_hi
+                ExtraBytesType::DataExtend => {
+                    let sign_byte = match inst.data_lo {
+                        Some(lo) => {
+                            if (lo & 0b10000000) == 0 {
+                                0x00
+                            } else {
+                                0xFF
+                            }
+                        }
+                        None => {
+                            panic!("DataExtend byte found no DataLo byte")
+                        }
+                    };
+                    inst.data_hi = Some(sign_byte);
+                    continue;
+                }
+                _ => {}
+            }
+
             let byte = iter.next().unwrap();
             debug_byte(byte);
             inst.processed_bytes.push(*byte);
@@ -143,6 +171,9 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
                 ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
                 ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
+                _ => {
+                    panic!("Unexpected ExtraBytesType!")
+                }
             }
         }
 
@@ -181,6 +212,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.w_field = (byte & 0x1) == 1;
             inst.d_field = ((byte & 0x2) >> 1) == 1;
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
+        0x80..=0x83 => {
+            inst.op_type = Some("add".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.s_field = ((byte & 0x2) >> 1) == 1;
+            // d field is hard coded to 0: dest is rm and source is immediate
+            inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
@@ -318,11 +356,15 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.reg_field = Some(reg_field);
         }
         Some(ModRmByteType::ModOpRm) => {
-            match inst.w_field {
-                false => {
+            match (inst.w_field, inst.s_field) {
+                (false, _) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                 }
-                true => {
+                (true, true) => {
+                    inst.extra_bytes.push(ExtraBytesType::DataLo);
+                    inst.extra_bytes.push(ExtraBytesType::DataExtend);
+                }
+                (true, false) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataHi);
                 }
