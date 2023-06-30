@@ -179,6 +179,7 @@ fn decode(inst_stream: Vec<u8>) {
             0xA0..=0xA3 => {
                 inst.op_type = Some("mov".to_string());
                 inst.w_field = (byte & 0x1) == 1;
+                inst.data_needs_size = false;
                 let left_bracket = Some("[".to_string());
                 let right_bracket = Some("]".to_string());
                 let accumulator = Some("ax".to_string());
