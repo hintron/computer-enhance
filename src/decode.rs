@@ -112,7 +112,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
 
         if decode_first_byte(*byte, &mut inst) == false {
             println!("; unknown instruction");
-            continue;
+            break;
         }
 
         // Process mod rm byte, if it exists
