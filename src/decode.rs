@@ -36,7 +36,7 @@ enum AddTo {
 }
 
 /// A struct holding all the decoded data of a given instruction
-#[derive(Debug)]
+#[derive(Default, Debug)]
 struct InstType {
     d_field: bool,
     w_field: bool,
@@ -99,30 +99,10 @@ pub fn decode(inst_stream: Vec<u8>) {
     let mut iter = inst_stream.iter().peekable();
     while iter.peek().is_some() {
         let mut inst = InstType {
-            d_field: false,
-            w_field: false,
-            mod_field: None,
-            rm_field: None,
-            reg_field: None,
-            op_type: None,
-            processed_bytes: vec![],
-            mod_rm_byte: None,
-            data_lo: None,
-            data_hi: None,
-            add_data_to: None,
-            disp_lo: None,
-            disp_hi: None,
-            add_disp_to: None,
-            disp_direct_address: false,
-            data_bytes: vec![],
-            source_text: None,
-            source_text_end: None,
-            dest_text: None,
-            dest_text_end: None,
             // Print size prefix by default unless we detect size is implied
             // by e.g. a register destination.
             data_needs_size: true,
-            text: None,
+            ..Default::default()
         };
         let byte = iter.next().unwrap();
         debug_byte(byte);
