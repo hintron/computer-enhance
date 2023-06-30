@@ -174,8 +174,34 @@ fn decode(inst_stream: Vec<u8>) {
                     inst.data_bytes.push(DataBytesType::DataHi);
                 }
             }
+            // mov - Memory to accumulator or accumulator to memory
+            0xA0..=0xA3 => {
+                inst.op_type = Some("mov".to_string());
+                inst.w_field = (byte & 0x1) == 1;
+                let left_bracket = Some("[".to_string());
+                let right_bracket = Some("]".to_string());
+                let accumulator = Some("ax".to_string());
+                match ((byte & 0x2) >> 1) == 1 {
+                    false => {
+                        inst.dest_text = accumulator;
+                        inst.add_data_to = Some(AddTo::Source);
+                        inst.source_text = left_bracket;
+                        inst.source_text_end = right_bracket;
+                    }
+                    true => {
+                        inst.source_text = accumulator;
+                        inst.add_data_to = Some(AddTo::Dest);
+                        inst.dest_text = left_bracket;
+                        inst.dest_text_end = right_bracket;
+                    }
+                };
+                inst.data_bytes.push(DataBytesType::DataLo);
+                if inst.w_field {
+                    inst.data_bytes.push(DataBytesType::DataHi);
+                }
+            }
             // TODO: Handle other mov variants:
-            // 0x8E | 0xA0..=0xA3 | 0xC6..=0xC7
+            // 0x8E
             _ => {
                 inst.op_type = Some("; unknown instruction".to_string());
                 inst.text = inst.op_type.clone();
@@ -370,14 +396,20 @@ fn decode(inst_stream: Vec<u8>) {
                 }
             };
 
-            match (&mut inst.source_text, inst.add_data_to) {
-                (Some(source_text), Some(AddTo::Source)) => {
+            match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
+                (_, Some(source_text), Some(AddTo::Source)) => {
                     source_text.push_str(&data_bytes_text);
                 }
-                (None, Some(AddTo::Source)) => {
+                (_, None, Some(AddTo::Source)) => {
                     inst.source_text = Some(data_bytes_text);
                 }
-                (_, _) => {
+                (Some(dest_text), _, Some(AddTo::Dest)) => {
+                    dest_text.push_str(&data_bytes_text);
+                }
+                (None, _, Some(AddTo::Dest)) => {
+                    inst.dest_text = Some(data_bytes_text);
+                }
+                (_, _, _) => {
                     unreachable!("Unhandled combo for source_text, add_data_to")
                 }
             }
