@@ -30,7 +30,7 @@ enum ExtraBytesType {
 }
 
 /// Indicates whether to apply some data to the source or the destination
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 enum AddTo {
     Dest,
     Source,
@@ -370,11 +370,7 @@ fn process_disp_bytes(inst: &mut InstType) {
             unreachable!("ERROR: Low disp byte not")
         }
     };
-    match (
-        &mut inst.dest_text,
-        &mut inst.source_text,
-        &mut inst.add_disp_to,
-    ) {
+    match (&mut inst.dest_text, &mut inst.source_text, inst.add_disp_to) {
         (_, Some(source_text), Some(AddTo::Source)) => {
             source_text.push_str(&disp_bytes_text);
         }
@@ -411,11 +407,7 @@ fn process_data_bytes(inst: &mut InstType) {
         }
     };
 
-    match (
-        &mut inst.dest_text,
-        &mut inst.source_text,
-        &mut inst.add_data_to,
-    ) {
+    match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
         (_, Some(source_text), Some(AddTo::Source)) => {
             source_text.push_str(&data_bytes_text);
         }
