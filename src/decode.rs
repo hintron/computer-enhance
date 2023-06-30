@@ -1,6 +1,7 @@
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
 
+/// The four types of modes in the mod field of "mod r/m" bytes
 #[derive(Copy, Clone, Debug)]
 enum ModType {
     MemoryMode0,
@@ -9,12 +10,16 @@ enum ModType {
     RegisterMode,
 }
 
+/// The possible types of "mod r/m" bytes, which is the second byte in many
+/// instructions.
 #[derive(Copy, Clone, Debug)]
 enum ModRmByteType {
     ModRegRm,
     ModOpRm,
 }
 
+/// An enum representing the possible types of bytes containing data that come
+/// after the first byte and the mod r/m byte.
 #[derive(Copy, Clone, Debug)]
 enum DataBytesType {
     DataLo,
@@ -23,13 +28,14 @@ enum DataBytesType {
     DispHi,
 }
 
-// This tells us whether to add the displacement to the source or destination
+/// Indicates whether to apply some data to the source or the destination
 #[derive(Debug)]
 enum AddTo {
     Dest,
     Source,
 }
 
+/// A struct holding all the decoded data of a given instruction
 #[derive(Debug)]
 struct InstType {
     d_field: bool,
@@ -449,11 +455,13 @@ fn concat_texts(a: Option<String>, b: Option<String>) -> Option<String> {
     }
 }
 
+/// Print out the hex and binary of a byte in an assembly comment
 fn debug_byte(byte: &u8) {
     println!("; processing byte 0x{byte:02X} (0b{byte:08b})");
 }
 
 /// MOD (Mode) Field Encoding
+///
 /// See table 4-8
 fn decode_mod_field(mode: u8) -> ModType {
     match mode {
@@ -465,8 +473,9 @@ fn decode_mod_field(mode: u8) -> ModType {
     }
 }
 
-// REG (Register) Field Encoding
-// See table 4-9
+/// REG (Register) Field Encoding
+///
+/// See table 4-9
 fn decode_reg_field(reg: u8, w: bool) -> String {
     match (reg, w) {
         (0b000, false) => "al".to_string(),
@@ -489,8 +498,9 @@ fn decode_reg_field(reg: u8, w: bool) -> String {
     }
 }
 
-// R/M (Register/Memory) Field Encoding
-// See table 4-10
+/// R/M (Register/Memory) Field Encoding
+///
+/// See table 4-10
 /// Return a tuple of the first part of the text and the last part of the text,
 /// so the displacement can be optionally inserted in later. If the last part of
 /// the text is None, then there should be no insertion.
