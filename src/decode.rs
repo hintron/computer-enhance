@@ -221,6 +221,20 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // d field is hard coded to 0: dest is rm and source is immediate
             inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
         }
+        // add - Immediate to accumulator
+        0x04..=0x05 => {
+            inst.op_type = Some("add".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.data_needs_size = false;
+            if inst.w_field {
+                inst.dest_text = Some("ax".to_string());
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
