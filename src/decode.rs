@@ -213,6 +213,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = ((byte & 0x2) >> 1) == 1;
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // add - Immediate to register/memory
         0x80..=0x83 => {
             inst.op_type = Some("add".to_string());
             inst.w_field = (byte & 0x1) == 1;
