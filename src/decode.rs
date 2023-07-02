@@ -365,8 +365,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
-        // TODO: Handle other mov variants:
-        // 0x8E
         _ => {
             return false;
         }
