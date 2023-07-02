@@ -98,8 +98,8 @@ test_label1:
 jnz test_label0
 jnz test_label1
 
-; label:
-; je label
+label:
+je label
 ; jl label
 ; jle label
 ; jb label

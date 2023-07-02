@@ -402,6 +402,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // je/jz
+        0x74 => {
+            inst.op_type = Some("je".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         // jne/jnz
         0x75 => {
             inst.op_type = Some("jne".to_string());
