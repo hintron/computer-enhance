@@ -331,6 +331,27 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             }
         }
+        // sub - Reg/memory and register to either
+        0x28..=0x2B => {
+            inst.op_type = Some("sub".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
+        // sub - Immediate from accumulator
+        0x2C..=0x2D => {
+            inst.op_type = Some("sub".to_string());
+            inst.w_field = (byte & 0x1) == 1;
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.data_needs_size = false;
+            if inst.w_field {
+                inst.dest_text = Some("ax".to_string());
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+        }
         // TODO: Handle other mov variants:
         // 0x8E
         _ => {
