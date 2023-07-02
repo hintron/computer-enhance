@@ -1,3 +1,11 @@
+//! This module implements the 8086 decoding logic.
+//!
+//! It will be difficult to follow along what is going on in this file without
+//! referencing the 8086 manual (available in this code repo at
+//! docs/8086_family_Users_Manual_1_.pdf, or found online at various places).
+//! The manual describes instruction encoding and decoding from pages 4-18 to
+//! 4-36.
+
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
 

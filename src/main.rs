@@ -1,3 +1,10 @@
+//! # 8086 Decoder and Simulator
+//!
+//! This is an 8086 instruction decoder and simulator, implemented by following
+//! the [Computer Enhance][1] performance awareness course.
+//!
+//! [1]: https://www.computerenhance.com/.
+
 use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
