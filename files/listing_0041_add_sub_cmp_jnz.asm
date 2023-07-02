@@ -114,7 +114,7 @@ jnb label
 ja label
 jnp label
 jno label
-; jns label
+jns label
 ; loop label
 ; loopz label
 ; loopnz label
