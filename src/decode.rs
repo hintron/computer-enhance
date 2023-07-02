@@ -515,6 +515,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        0xE3 => {
+            inst.op_type = Some("jcxz".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         _ => {
             return false;
         }

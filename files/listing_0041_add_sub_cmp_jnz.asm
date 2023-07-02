@@ -118,4 +118,4 @@ jns label
 loop label
 loopz label
 loopnz label
-; jcxz label
+jcxz label
