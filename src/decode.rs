@@ -5,6 +5,15 @@
 //! docs/8086_family_Users_Manual_1_.pdf, or found online at various places).
 //! The manual describes instruction encoding and decoding from pages 4-18 to
 //! 4-36.
+//!
+//! There are a few typos/errors in the manual, including:
+//! * table 4-11, pg. 4-21: (DISP-LO) says that the disp byte is unsigned. In
+//! effect, it is signed. I can't reconcile how it can be unsigned.
+//! * table 4-12, pg. 4-24: Immediate with accumulator variant of cmp does not
+//! show the high data byte.
+//! * table 4-12, pg. 4-24: Immediate with register/memory variant of cmp should
+//! show s:w=01 for the high data byte.
+//! * table 4-12, pg. 4-25: STOS is misspelled as STDS.
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
