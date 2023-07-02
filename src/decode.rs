@@ -432,6 +432,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        // jp/jpe - jump on parity/parity even
+        0x7A => {
+            inst.op_type = Some("jp".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         // jne/jnz
         0x75 => {
             inst.op_type = Some("jne".to_string());
