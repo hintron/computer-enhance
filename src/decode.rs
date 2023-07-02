@@ -12,10 +12,43 @@ enum ModType {
 
 /// The possible types of "mod r/m" bytes, which is the second byte in many
 /// instructions.
+///
+/// See table 4-14 on pg 4-36 for the 4 types of mod r/m bytes. This shows the
+/// four types of 'mod op rm' bytes:
+///
+/// | mod X rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+/// | Immed    | ADD | OR  | ADC | SBB | AND | SUB | XOR | CMP |
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+/// | Shift    | ROL | ROR | RCL | RCR |SHL/SAL|SHR|-----| SAR |
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+/// | Grp 1    |TEST |-----| NOT | NEG | MUL |IMUL | DIV |IDIV |
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+/// | Grp 2    | INC | DEC |CALL |CALL | JMP | JMP | PUSH|-----|
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+///
+/// Each of these groups have instructions starting with the following bits:
+/// Immed: 1000 00
+/// Shift: 1101 00
+/// Grp 1: 1111 011
+/// Grp 2: 1111 111
+///
+/// `ModMovRm` corresponds to a 'mod op r/m' byte that only applies to the
+/// mov instruction starting with 0b 1100 011, and would look like this if added
+/// to the table above:
+///
+/// | mod X rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+/// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
+/// | ImmedMov | mov |-----|-----|-----|-----|-----|-----|-----|
+///
 #[derive(Copy, Clone, Debug)]
 enum ModRmByteType {
     ModRegRm,
-    ModOpRm,
+    ModMovRm,
+    ModImmedRm,
+    // ModShiftRm,
+    // ModGrp1Rm,
+    // ModGrp2Rm,
 }
 
 /// An enum representing the possible types of "extra" bytes containing data
@@ -213,13 +246,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = ((byte & 0x2) >> 1) == 1;
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
-        // add - Immediate to register/memory
+        // Immediate to register/memory
+        // add, sub
         0x80..=0x83 => {
-            inst.op_type = Some("add".to_string());
+            // We don't know the op code yet - it's contained in the second byte
             inst.w_field = (byte & 0x1) == 1;
             inst.s_field = ((byte & 0x2) >> 1) == 1;
             // d field is hard coded to 0: dest is rm and source is immediate
-            inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
+            inst.mod_rm_byte = Some(ModRmByteType::ModImmedRm);
         }
         // add - Immediate to accumulator
         0x04..=0x05 => {
@@ -251,7 +285,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // In effect, the d field is hard coded to 0: the destination is
             // rm and the source is an immediate (which replaced reg from
             // the above mov variant)
-            inst.mod_rm_byte = Some(ModRmByteType::ModOpRm);
+            inst.mod_rm_byte = Some(ModRmByteType::ModMovRm);
         }
         // mov - Immediate to register
         0xB0..=0xBF => {
@@ -370,7 +404,16 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             };
             inst.reg_field = Some(reg_field);
         }
-        Some(ModRmByteType::ModOpRm) => {
+        Some(ModRmByteType::ModMovRm) => {
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            if inst.w_field {
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            }
+            inst.add_data_to = Some(AddTo::Source);
+            // source_text will be filled in later
+        }
+        Some(ModRmByteType::ModImmedRm) => {
+            inst.op_type = Some(decode_immed_op((byte & 0b00111000) >> 3));
             match (inst.w_field, inst.s_field) {
                 (false, _) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -634,5 +677,24 @@ fn decode_rm_field(rm: u8, mode: ModType, w: bool) -> (Option<String>, Option<St
         }
         (_, ModType::MemoryMode8, _) => unreachable!("ERROR: Unknown MemoryMode8 condition"),
         (_, ModType::MemoryMode16, _) => unreachable!("ERROR: Unknown MemoryMode16 condition"),
+    }
+}
+
+/// Get the op code an instruction starting with 0b100000. `bits` is the value
+/// of the middle 3 'op' bits in the second mod-op-r/m byte.
+fn decode_immed_op(bits: u8) -> String {
+    match bits {
+        0b000 => "add".to_string(),
+        0b001 => "or".to_string(),
+        // Add with carry
+        0b010 => "adc".to_string(),
+        // Subtract with borrow
+        0b011 => "sbb".to_string(),
+        0b100 => "and".to_string(),
+        0b101 => "sub".to_string(),
+        0b110 => panic!("Unknown/unused op in decode_immed_op()"),
+        // Compare - immediate with register/memory
+        0b111 => "cmp".to_string(),
+        _ => panic!("Bad bits specified in decode_immed_op()"),
     }
 }
