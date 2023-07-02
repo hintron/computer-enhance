@@ -111,7 +111,7 @@ jne label
 jnl label
 jg label
 jnb label
-; ja label
+ja label
 ; jnp label
 ; jno label
 ; jns label
