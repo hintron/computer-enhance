@@ -105,7 +105,7 @@ pub struct InstType {
     /// A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
     mod_rm_byte: Option<ModRmByteType>,
-    /// The actual data for the data bytes
+    /// The actual data for the extra bytes
     data_lo: Option<u8>,
     data_hi: Option<u8>,
     disp_lo: Option<u8>,
