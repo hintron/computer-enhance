@@ -75,7 +75,7 @@ enum AddTo {
 #[derive(Default, Debug)]
 pub struct InstType {
     d_field: Option<bool>,
-    w_field: bool,
+    w_field: Option<bool>,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
     s_field: bool,
     mod_field: Option<ModType>,
@@ -242,7 +242,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // add - Reg/memory with register to either
         0x00..=0x03 => {
             inst.op_type = Some("add".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
@@ -250,7 +250,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // add, sub
         0x80..=0x83 => {
             // We don't know the op code yet - it's contained in the second byte
-            inst.w_field = (byte & 0x1) == 1;
+            inst.w_field = Some((byte & 0x1) == 1);
             inst.s_field = ((byte & 0x2) >> 1) == 1;
             // d field is hard coded to 0: dest is rm and source is immediate
             inst.mod_rm_byte = Some(ModRmByteType::ModImmedRm);
@@ -258,21 +258,22 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // add - Immediate to accumulator
         0x04..=0x05 => {
             inst.op_type = Some("add".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             inst.data_needs_size = false;
-            if inst.w_field {
+            if w_field {
                 inst.dest_text = Some("ax".to_string());
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
                 inst.dest_text = Some("al".to_string());
             }
+            inst.w_field = Some(w_field);
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
             // We need to see what mod is before we know what is the source
@@ -281,7 +282,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // mov - Immediate to register/memory
         0xC6..=0xC7 => {
             inst.op_type = Some("mov".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            inst.w_field = Some((byte & 0x1) == 1);
             // In effect, the d field is hard coded to 0: the destination is
             // rm and the source is an immediate (which replaced reg from
             // the above mov variant)
@@ -290,7 +291,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // mov - Immediate to register
         0xB0..=0xBF => {
             inst.op_type = Some("mov".to_string());
-            inst.w_field = ((byte & 0b1000) >> 3) == 1;
+            inst.w_field = Some(((byte & 0b1000) >> 3) == 1);
             let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
             inst.reg_field = Some(reg_field.clone());
             inst.dest_text = Some(reg_field);
@@ -300,14 +301,15 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            if inst.w_field {
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            match inst.w_field {
+                Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
+                _ => {}
             }
         }
         // mov - Memory to accumulator or accumulator to memory
         0xA0..=0xA3 => {
             inst.op_type = Some("mov".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            let w_field = (byte & 0x1) == 1;
             inst.data_needs_size = false;
             let left_bracket = Some("[".to_string());
             let right_bracket = Some("]".to_string());
@@ -327,30 +329,32 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 }
             };
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            if inst.w_field {
+            if w_field {
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             }
+            inst.w_field = Some(w_field);
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // sub - Immediate from accumulator
         0x2C..=0x2D => {
             inst.op_type = Some("sub".to_string());
-            inst.w_field = (byte & 0x1) == 1;
+            let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             inst.data_needs_size = false;
-            if inst.w_field {
+            if w_field {
                 inst.dest_text = Some("ax".to_string());
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
                 inst.dest_text = Some("al".to_string());
             }
+            inst.w_field = Some(w_field);
         }
         // TODO: Handle other mov variants:
         // 0x8E
@@ -427,8 +431,9 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
         Some(ModRmByteType::ModMovRm) => {
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            if inst.w_field {
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            match inst.w_field {
+                Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
+                _ => {}
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
@@ -436,14 +441,17 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         Some(ModRmByteType::ModImmedRm) => {
             inst.op_type = Some(decode_immed_op((byte & 0b00111000) >> 3));
             match (inst.w_field, inst.s_field) {
-                (false, _) => {
+                (None, _) => {
+                    panic!("This ModImmedRm inst is missing the w field!")
+                }
+                (Some(false), _) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                 }
-                (true, true) => {
+                (Some(true), true) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataExtend);
                 }
-                (true, false) => {
+                (Some(true), false) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataHi);
                 }
@@ -613,24 +621,24 @@ fn decode_mod_field(mode: u8) -> ModType {
 /// REG (Register) Field Encoding
 ///
 /// See table 4-9
-fn decode_reg_field(reg: u8, w: bool) -> String {
+fn decode_reg_field(reg: u8, w: Option<bool>) -> String {
     match (reg, w) {
-        (0b000, false) => "al".to_string(),
-        (0b001, false) => "cl".to_string(),
-        (0b010, false) => "dl".to_string(),
-        (0b011, false) => "bl".to_string(),
-        (0b100, false) => "ah".to_string(),
-        (0b101, false) => "ch".to_string(),
-        (0b110, false) => "dh".to_string(),
-        (0b111, false) => "bh".to_string(),
-        (0b000, true) => "ax".to_string(),
-        (0b001, true) => "cx".to_string(),
-        (0b010, true) => "dx".to_string(),
-        (0b011, true) => "bx".to_string(),
-        (0b100, true) => "sp".to_string(),
-        (0b101, true) => "bp".to_string(),
-        (0b110, true) => "si".to_string(),
-        (0b111, true) => "di".to_string(),
+        (0b000, None | Some(false)) => "al".to_string(),
+        (0b001, None | Some(false)) => "cl".to_string(),
+        (0b010, None | Some(false)) => "dl".to_string(),
+        (0b011, None | Some(false)) => "bl".to_string(),
+        (0b100, None | Some(false)) => "ah".to_string(),
+        (0b101, None | Some(false)) => "ch".to_string(),
+        (0b110, None | Some(false)) => "dh".to_string(),
+        (0b111, None | Some(false)) => "bh".to_string(),
+        (0b000, Some(true)) => "ax".to_string(),
+        (0b001, Some(true)) => "cx".to_string(),
+        (0b010, Some(true)) => "dx".to_string(),
+        (0b011, Some(true)) => "bx".to_string(),
+        (0b100, Some(true)) => "sp".to_string(),
+        (0b101, Some(true)) => "bp".to_string(),
+        (0b110, Some(true)) => "si".to_string(),
+        (0b111, Some(true)) => "di".to_string(),
         _ => unreachable!(),
     }
 }
@@ -641,24 +649,24 @@ fn decode_reg_field(reg: u8, w: bool) -> String {
 /// Return a tuple of the first part of the text and the last part of the text,
 /// so the displacement can be optionally inserted in later. If the last part of
 /// the text is None, then there should be no insertion.
-fn decode_rm_field(rm: u8, mode: ModType, w: bool) -> (Option<String>, Option<String>) {
+fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> (Option<String>, Option<String>) {
     match (rm, mode, w) {
-        (0b000, ModType::RegisterMode, false) => (Some("al".to_string()), None),
-        (0b001, ModType::RegisterMode, false) => (Some("cl".to_string()), None),
-        (0b010, ModType::RegisterMode, false) => (Some("dl".to_string()), None),
-        (0b011, ModType::RegisterMode, false) => (Some("bl".to_string()), None),
-        (0b100, ModType::RegisterMode, false) => (Some("ah".to_string()), None),
-        (0b101, ModType::RegisterMode, false) => (Some("ch".to_string()), None),
-        (0b110, ModType::RegisterMode, false) => (Some("dh".to_string()), None),
-        (0b111, ModType::RegisterMode, false) => (Some("bh".to_string()), None),
-        (0b000, ModType::RegisterMode, true) => (Some("ax".to_string()), None),
-        (0b001, ModType::RegisterMode, true) => (Some("cx".to_string()), None),
-        (0b010, ModType::RegisterMode, true) => (Some("dx".to_string()), None),
-        (0b011, ModType::RegisterMode, true) => (Some("bx".to_string()), None),
-        (0b100, ModType::RegisterMode, true) => (Some("sp".to_string()), None),
-        (0b101, ModType::RegisterMode, true) => (Some("bp".to_string()), None),
-        (0b110, ModType::RegisterMode, true) => (Some("si".to_string()), None),
-        (0b111, ModType::RegisterMode, true) => (Some("di".to_string()), None),
+        (0b000, ModType::RegisterMode, None | Some(false)) => (Some("al".to_string()), None),
+        (0b001, ModType::RegisterMode, None | Some(false)) => (Some("cl".to_string()), None),
+        (0b010, ModType::RegisterMode, None | Some(false)) => (Some("dl".to_string()), None),
+        (0b011, ModType::RegisterMode, None | Some(false)) => (Some("bl".to_string()), None),
+        (0b100, ModType::RegisterMode, None | Some(false)) => (Some("ah".to_string()), None),
+        (0b101, ModType::RegisterMode, None | Some(false)) => (Some("ch".to_string()), None),
+        (0b110, ModType::RegisterMode, None | Some(false)) => (Some("dh".to_string()), None),
+        (0b111, ModType::RegisterMode, None | Some(false)) => (Some("bh".to_string()), None),
+        (0b000, ModType::RegisterMode, Some(true)) => (Some("ax".to_string()), None),
+        (0b001, ModType::RegisterMode, Some(true)) => (Some("cx".to_string()), None),
+        (0b010, ModType::RegisterMode, Some(true)) => (Some("dx".to_string()), None),
+        (0b011, ModType::RegisterMode, Some(true)) => (Some("bx".to_string()), None),
+        (0b100, ModType::RegisterMode, Some(true)) => (Some("sp".to_string()), None),
+        (0b101, ModType::RegisterMode, Some(true)) => (Some("bp".to_string()), None),
+        (0b110, ModType::RegisterMode, Some(true)) => (Some("si".to_string()), None),
+        (0b111, ModType::RegisterMode, Some(true)) => (Some("di".to_string()), None),
         (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
         (0b000, ModType::MemoryMode0, _) => (Some("[bx + si]".to_string()), None),
         (0b001, ModType::MemoryMode0, _) => (Some("[bx + di]".to_string()), None),
