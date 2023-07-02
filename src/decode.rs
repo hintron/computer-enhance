@@ -254,8 +254,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
-        // Immediate to register/memory
-        // add, sub
+        // Immediate to reg/mem for add, or, adc, sbb, and, sub, cmp
         0x80..=0x83 => {
             // We don't know the op code yet - it's contained in the second byte
             inst.w_field = Some((byte & 0x1) == 1);
