@@ -100,7 +100,7 @@ jnz test_label1
 
 label:
 je label
-; jl label
+jl label
 ; jle label
 ; jb label
 ; jbe label
