@@ -486,6 +486,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        // jno - jump on not overflow
+        0x71 => {
+            inst.op_type = Some("jno".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         _ => {
             return false;
         }
