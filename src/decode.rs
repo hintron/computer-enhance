@@ -365,6 +365,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // cmp - Register/memory and register
+        0x38..=0x3B => {
+            inst.op_type = Some("cmp".to_string());
+            inst.w_field = Some((byte & 0x1) == 1);
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
         _ => {
             return false;
         }
