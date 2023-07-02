@@ -74,7 +74,7 @@ enum AddTo {
 /// A struct holding all the decoded data of a given instruction
 #[derive(Default, Debug)]
 pub struct InstType {
-    d_field: bool,
+    d_field: Option<bool>,
     w_field: bool,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
     s_field: bool,
@@ -243,7 +243,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x00..=0x03 => {
             inst.op_type = Some("add".to_string());
             inst.w_field = (byte & 0x1) == 1;
-            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // Immediate to register/memory
@@ -273,7 +273,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
             inst.w_field = (byte & 0x1) == 1;
-            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
             // We need to see what mod is before we know what is the source
             // and what is the destination
@@ -335,7 +335,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
             inst.w_field = (byte & 0x1) == 1;
-            inst.d_field = ((byte & 0x2) >> 1) == 1;
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // sub - Immediate from accumulator
@@ -375,7 +375,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     }
     let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
     match inst.d_field {
-        false => {
+        None | Some(false) => {
             // Dest is rm field
             inst.dest_text = rm_text;
             inst.dest_text_end = rm_text_end;
@@ -386,7 +386,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 _ => {}
             }
         }
-        true => {
+        Some(true) => {
             // Source is rm field
             inst.source_text = rm_text;
             inst.source_text_end = rm_text_end;
@@ -412,12 +412,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             let reg_field = decode_reg_field((byte & 0b00111000) >> 3, inst.w_field);
             // See if reg is specified as source or dest
             match inst.d_field {
-                false => {
+                None | Some(false) => {
                     // Source is REG field
                     inst.source_text = Some(reg_field.clone());
                     inst.source_text_end = None;
                 }
-                true => {
+                Some(true) => {
                     // Destination is REG field
                     inst.dest_text = Some(reg_field.clone());
                     inst.dest_text_end = None;
@@ -457,12 +457,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     }
     // Indicate what displacement should be added to: src or dest
     match (inst.d_field, mode, rm_field) {
-        (false, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-        | (false, ModType::MemoryMode0, DIRECT_ADDR) => {
+        (None | Some(false), ModType::MemoryMode8 | ModType::MemoryMode16, _)
+        | (None | Some(false), ModType::MemoryMode0, DIRECT_ADDR) => {
             inst.add_disp_to = Some(AddTo::Dest);
         }
-        (true, ModType::MemoryMode8 | ModType::MemoryMode16, _)
-        | (true, ModType::MemoryMode0, DIRECT_ADDR) => {
+        (Some(true), ModType::MemoryMode8 | ModType::MemoryMode16, _)
+        | (Some(true), ModType::MemoryMode0, DIRECT_ADDR) => {
             inst.add_disp_to = Some(AddTo::Source);
         }
         (_, _, _) => {}
