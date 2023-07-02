@@ -12,3 +12,9 @@ if ! cargo fmt -- --check > /dev/null; then
     cargo fmt -- --check
     exit 1
 fi
+
+# Run all rust tests to make sure things succeed
+if ! cargo test -q; then
+    echo "Commit ABORTED: \`cargo test\` failed."
+    exit 1
+fi
