@@ -79,6 +79,8 @@ enum ExtraBytesType {
     DataExtend,
     DispLo,
     DispHi,
+    /// An 8-bit signed increment offset to the instruction pointer
+    IpInc8,
 }
 
 /// Indicates whether to apply some data to the source or the destination
@@ -108,6 +110,7 @@ pub struct InstType {
     data_hi: Option<u8>,
     disp_lo: Option<u8>,
     disp_hi: Option<u8>,
+    ip_inc8: Option<u8>,
     /// If set, we expect to add displacement bytes to what AddTo specifies
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
@@ -221,6 +224,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
                 ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
                 ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
+                ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
                 _ => {
                     panic!("Unexpected ExtraBytesType!")
                 }
@@ -233,6 +237,9 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         }
         if inst.add_data_to.is_some() {
             process_data_bytes(&mut inst);
+        }
+        if inst.ip_inc8.is_some() {
+            process_ip_bytes(&mut inst);
         }
 
         // Create instruction text
@@ -394,6 +401,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.dest_text = Some("al".to_string());
             }
             inst.w_field = Some(w_field);
+        }
+        // jne/jnz
+        0x75 => {
+            inst.op_type = Some("jne".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
         }
         _ => {
             return false;
@@ -599,6 +612,24 @@ fn process_data_bytes(inst: &mut InstType) {
             unreachable!("Unhandled combo for source_text, add_data_to")
         }
     }
+}
+
+/// Process any IP offset bytes.
+///
+/// The tricky part is that we can't recreate label text - but all labels are
+/// just translated into relative offsets to the IP. So we use `$` in NASM to
+/// encode this relative offset. $ refers to the IP of the current assembly
+/// line. However, while executing an instruction, the IP always refers to the
+/// next instruction. Thus, $ == IP - 2. So when a jump instruction does IP =
+/// IP + X, that is really IP = ($ + 2) + X, which is why we add 2 to ip_inc8
+/// below.
+fn process_ip_bytes(inst: &mut InstType) {
+    inst.dest_text = match inst.ip_inc8 {
+        Some(ip_inc8) => Some(format!("${:+}", ip_inc8 as i8 + 2)),
+        None => {
+            unreachable!()
+        }
+    };
 }
 
 /// Concat op code with optional operands
