@@ -110,7 +110,7 @@ js label
 jne label
 jnl label
 jg label
-; jnb label
+jnb label
 ; ja label
 ; jnp label
 ; jno label
