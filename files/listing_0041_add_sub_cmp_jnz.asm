@@ -106,7 +106,7 @@ jb label
 jbe label
 jp label
 jo label
-; js label
+js label
 ; jne label
 ; jnl label
 ; jg label
