@@ -509,6 +509,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        // loopnz/loopne - loop while not zero/equal
+        0xE0 => {
+            inst.op_type = Some("loopnz".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         _ => {
             return false;
         }

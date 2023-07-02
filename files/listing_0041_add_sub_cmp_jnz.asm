@@ -117,5 +117,5 @@ jno label
 jns label
 loop label
 loopz label
-; loopnz label
+loopnz label
 ; jcxz label
