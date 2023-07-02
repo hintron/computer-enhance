@@ -402,123 +402,52 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
-        // je/jz
-        0x74 => {
-            inst.op_type = Some("je".to_string());
+        0x70..=0x7F | 0xE0..=0xE3 => {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
-        }
-        // jl/jnge - jump less/not greater or equal
-        0x7C => {
-            inst.op_type = Some("jl".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jle/jng - jump less or equal/not greater
-        0x7E => {
-            inst.op_type = Some("jle".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jb/jnae - jump below/not above or equal
-        0x72 => {
-            inst.op_type = Some("jb".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jbe/jna - jump below or equal/not above
-        0x76 => {
-            inst.op_type = Some("jbe".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jp/jpe - jump on parity/parity even
-        0x7A => {
-            inst.op_type = Some("jp".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jo - jump on overflow
-        0x70 => {
-            inst.op_type = Some("jo".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // js - jump on sign
-        0x78 => {
-            inst.op_type = Some("js".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jne/jnz - jump not equal/zero
-        0x75 => {
-            inst.op_type = Some("jne".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jnl/jge - jump not less or greater+equal
-        0x7D => {
-            inst.op_type = Some("jnl".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jg/jnle - jump greater or not less+equal
-        0x7F => {
-            inst.op_type = Some("jg".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jnb/jae - jump on not below or above+equal
-        0x73 => {
-            inst.op_type = Some("jnb".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // ja/jnbe - jump above or not below+equal
-        0x77 => {
-            inst.op_type = Some("ja".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jnp/jpo - jump not par or par odd
-        0x7B => {
-            inst.op_type = Some("jnp".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jno - jump on not overflow
-        0x71 => {
-            inst.op_type = Some("jno".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // jns - jump on not overflow
-        0x79 => {
-            inst.op_type = Some("jns".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        0xE2 => {
-            inst.op_type = Some("loop".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // loopz/loope - loop while zero/equal
-        0xE1 => {
-            inst.op_type = Some("loopz".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        // loopnz/loopne - loop while not zero/equal
-        0xE0 => {
-            inst.op_type = Some("loopnz".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
-        }
-        0xE3 => {
-            inst.op_type = Some("jcxz".to_string());
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
+            match byte {
+                // je/jz
+                0x74 => inst.op_type = Some("je".to_string()),
+                // jl/jnge - jump less/not greater or equal
+                0x7C => inst.op_type = Some("jl".to_string()),
+                // jle/jng - jump less or equal/not greater
+                0x7E => inst.op_type = Some("jle".to_string()),
+                // jb/jnae - jump below/not above or equal
+                0x72 => inst.op_type = Some("jb".to_string()),
+                // jbe/jna - jump below or equal/not above
+                0x76 => inst.op_type = Some("jbe".to_string()),
+                // jp/jpe - jump on parity/parity even
+                0x7A => inst.op_type = Some("jp".to_string()),
+                // jo - jump on overflow
+                0x70 => inst.op_type = Some("jo".to_string()),
+                // js - jump on sign
+                0x78 => inst.op_type = Some("js".to_string()),
+                // jne/jnz - jump not equal/zero
+                0x75 => inst.op_type = Some("jne".to_string()),
+                // jnl/jge - jump not less or greater+equal
+                0x7D => inst.op_type = Some("jnl".to_string()),
+                // jg/jnle - jump greater or not less+equal
+                0x7F => inst.op_type = Some("jg".to_string()),
+                // jnb/jae - jump on not below or above+equal
+                0x73 => inst.op_type = Some("jnb".to_string()),
+                // ja/jnbe - jump above or not below+equal
+                0x77 => inst.op_type = Some("ja".to_string()),
+                // jnp/jpo - jump not par or par odd
+                0x7B => inst.op_type = Some("jnp".to_string()),
+                // jno - jump on not overflow
+                0x71 => inst.op_type = Some("jno".to_string()),
+                // jns - jump on not overflow
+                0x79 => inst.op_type = Some("jns".to_string()),
+                0xE2 => inst.op_type = Some("loop".to_string()),
+                // loopz/loope - loop while zero/equal
+                0xE1 => inst.op_type = Some("loopz".to_string()),
+                // loopnz/loopne - loop while not zero/equal
+                0xE0 => inst.op_type = Some("loopnz".to_string()),
+                0xE3 => inst.op_type = Some("jcxz".to_string()),
+                _ => {
+                    unreachable!()
+                }
+            }
         }
         _ => {
             return false;
