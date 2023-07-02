@@ -426,11 +426,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 0x75 => inst.op_type = Some("jne".to_string()),
                 // jnl/jge - jump not less or greater+equal
                 0x7D => inst.op_type = Some("jnl".to_string()),
-                // jg/jnle - jump greater or not less+equal
+                // jnle/jg - jump greater or not less+equal
                 0x7F => inst.op_type = Some("jg".to_string()),
                 // jnb/jae - jump on not below or above+equal
                 0x73 => inst.op_type = Some("jnb".to_string()),
-                // ja/jnbe - jump above or not below+equal
+                // jnbe/ja - jump above or not below+equal
                 0x77 => inst.op_type = Some("ja".to_string()),
                 // jnp/jpo - jump not par or par odd
                 0x7B => inst.op_type = Some("jnp".to_string()),
