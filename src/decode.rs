@@ -480,6 +480,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        // jnp/jpo - jump not par or par odd
+        0x7B => {
+            inst.op_type = Some("jnp".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         _ => {
             return false;
         }

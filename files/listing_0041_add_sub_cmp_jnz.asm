@@ -112,7 +112,7 @@ jnl label
 jg label
 jnb label
 ja label
-; jnp label
+jnp label
 ; jno label
 ; jns label
 ; loop label
