@@ -103,7 +103,7 @@ je label
 jl label
 jle label
 jb label
-; jbe label
+jbe label
 ; jp label
 ; jo label
 ; js label

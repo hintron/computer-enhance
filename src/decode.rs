@@ -426,6 +426,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             inst.data_needs_size = false;
         }
+        // jbe/jna - jump below or equal/not above
+        0x76 => {
+            inst.op_type = Some("jbe".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.data_needs_size = false;
+        }
         // jne/jnz
         0x75 => {
             inst.op_type = Some("jne".to_string());
