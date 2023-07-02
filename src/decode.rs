@@ -77,7 +77,7 @@ pub struct InstType {
     d_field: Option<bool>,
     w_field: Option<bool>,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
-    s_field: bool,
+    s_field: Option<bool>,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     reg_field: Option<String>,
@@ -251,7 +251,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x80..=0x83 => {
             // We don't know the op code yet - it's contained in the second byte
             inst.w_field = Some((byte & 0x1) == 1);
-            inst.s_field = ((byte & 0x2) >> 1) == 1;
+            // TODO: OR, AND, XOR do not use this s_field, so don't set it
+            inst.s_field = Some(((byte & 0x2) >> 1) == 1);
             // d field is hard coded to 0: dest is rm and source is immediate
             inst.mod_rm_byte = Some(ModRmByteType::ModImmedRm);
         }
@@ -447,11 +448,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (Some(false), _) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                 }
-                (Some(true), true) => {
+                (Some(true), Some(true)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataExtend);
                 }
-                (Some(true), false) => {
+                (Some(true), None | Some(false)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataHi);
                 }
