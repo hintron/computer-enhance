@@ -320,8 +320,8 @@ cmp ax, 23909
 ; xor [bx + di + 1000], dx
 ; xor bx, [bp]
 ; xor cx, [4384]
-; xor byte [bp - 39], 239
-; xor word [bx + si - 4332], 10328
+xor byte [bp - 39], 239
+xor word [bx + si - 4332], 10328
 
 ; rep movsb
 ; rep cmpsb

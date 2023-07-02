@@ -13,6 +13,9 @@
 //! show the high data byte.
 //! * table 4-12, pg. 4-24: Immediate with register/memory variant of cmp should
 //! show s:w=01 for the high data byte.
+//! * table 4-12, pg. 4-25: XOR immediate to register/memory's second byte
+//! should say "mod 1 1 0 r/m" instead of "data". This is corroborated by table
+//! 4-14, and the data bytes are already at the end.
 //! * table 4-12, pg. 4-25: STOS is misspelled as STDS.
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
@@ -830,7 +833,7 @@ fn decode_immed_op(bits: u8) -> String {
         0b011 => "sbb".to_string(),
         0b100 => "and".to_string(),
         0b101 => "sub".to_string(),
-        0b110 => panic!("Unknown/unused op in decode_immed_op()"),
+        0b110 => "xor".to_string(),
         // Compare - immediate with register/memory
         0b111 => "cmp".to_string(),
         _ => panic!("Bad bits specified in decode_immed_op()"),
