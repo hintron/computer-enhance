@@ -67,6 +67,9 @@ enum ModType {
 enum ModRmByteType {
     ModRegRm,
     ModMovRm,
+    /// Corresponds to a 'mod op rm' byte for the pop instruction starting with
+    /// byte 0x8F.
+    ModPopRm,
     ModImmedRm,
     // ModShiftRm,
     // ModGrp1Rm,
@@ -384,6 +387,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.sr_field = Some(sr_field.clone());
             inst.dest_text = Some(sr_field);
         }
+        // pop - Register/memory
+        0x8F => {
+            inst.op_type = Some("pop".to_string());
+            inst.mod_rm_byte = Some(ModRmByteType::ModPopRm);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
@@ -594,6 +602,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, None) => {
                     unreachable!()
                 }
+            }
+        }
+        Some(ModRmByteType::ModPopRm) => {
+            match mode {
+                ModType::RegisterMode => {}
+                _ => inst.dest_prefix = Some("word ".to_string()),
             }
         }
         None => {
