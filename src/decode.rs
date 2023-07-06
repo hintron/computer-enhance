@@ -366,6 +366,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // the operand is always 16 bits.
             inst.w_field = Some((byte & 0x1) == 1);
         }
+        // push - Register
+        0x50..=0x57 => {
+            inst.op_type = Some("push".to_string());
+            // Hardcode registers to 16-bit widths
+            let reg_field = decode_reg_field(byte & 0b111, Some(true));
+            inst.reg_field = Some(reg_field.clone());
+            inst.dest_text = Some(reg_field);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
