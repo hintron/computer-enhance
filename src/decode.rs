@@ -246,8 +246,16 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         }
 
         // Create instruction text
-        let dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
-        let source_text = concat_texts(&inst.source_text, &inst.source_text_end);
+        let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
+        let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
+
+        // Handle any word or byte prefixes
+        if inst.data_needs_size {
+            let (dest_prefix, source_prefix) = get_size_prefixes(&mut inst);
+            dest_text = concat_texts(&dest_prefix, &dest_text);
+            source_text = concat_texts(&source_prefix, &source_text);
+        }
+
         let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
 
         println!("{}", inst_text);
@@ -617,18 +625,11 @@ fn process_disp_bytes(inst: &mut InstType) {
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
 fn process_data_bytes(inst: &mut InstType) {
-    // Add in data/immediate bytes to the source or dest text
-    // Add a size prefix to an immediate source if dest is not a reg
-    let size_prefix = match (inst.data_needs_size, inst.data_hi) {
-        (false, _) => "",
-        (true, Some(_)) => "word ",
-        (true, None) => "byte ",
-    };
     let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-        (Some(lo), None) => format!("{size_prefix}{}", lo as i8),
+        (Some(lo), None) => format!("{}", lo as i8),
         (Some(lo), Some(hi)) => {
             let lo_hi = lo as u16 | ((hi as u16) << 8);
-            format!("{size_prefix}{}", lo_hi as i16)
+            format!("{}", lo_hi as i16)
         }
         (None, None) => {
             unreachable!("ERROR: No data bytes found")
@@ -709,6 +710,21 @@ fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
         (None, Some(str_b)) => Some(str_b.clone()),
         (None, None) => None,
     }
+}
+
+/// Return (dest_prefix, source_prefix), if any, depending on disp and data
+/// bytes. By default, add prefix to data byte, unless only disp byte exists.
+fn get_size_prefixes(inst: &mut InstType) -> (Option<String>, Option<String>) {
+    // Add in data/immediate bytes to the source or dest text
+    // Add a size prefix to an immediate source if dest is not a reg
+    match (inst.add_data_to, inst.data_hi) {
+        (Some(AddTo::Source), Some(_)) => return (None, Some("word ".to_string())),
+        (Some(AddTo::Source), None) => return (None, Some("byte ".to_string())),
+        (Some(AddTo::Dest), Some(_)) => return (Some("word ".to_string()), None),
+        (Some(AddTo::Dest), None) => return (Some("byte ".to_string()), None),
+        (_, _) => (None, None),
+    }
+
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
