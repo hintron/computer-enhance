@@ -66,7 +66,7 @@ pop word [bx + di - 3000]
 pop sp
 pop di
 pop si
-; pop ds
+pop ds
 
 ; xchg ax, [bp - 1000]
 ; xchg [bx + 50], bp

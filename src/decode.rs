@@ -410,6 +410,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field.clone());
             inst.dest_text = Some(reg_field);
         }
+        // push - segment register - 0x06,0x0E,0x86,0x8E
+        0b000_00_111 | 0b000_01_111 | 0b000_10_111 | 0b000_11_111 => {
+            inst.op_type = Some("pop".to_string());
+            let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
+            inst.sr_field = Some(sr_field.clone());
+            inst.dest_text = Some(sr_field);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
