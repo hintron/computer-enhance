@@ -111,6 +111,8 @@ enum AddTo {
 /// A struct holding all the decoded data of a given instruction
 #[derive(Default, Debug)]
 pub struct InstType {
+    /// If true, the REG field is the destination, otherwise it is the source.
+    /// See table 4-7 on pg. 4-19.
     d_field: Option<bool>,
     w_field: Option<bool>,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
