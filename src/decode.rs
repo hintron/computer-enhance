@@ -105,6 +105,7 @@ pub struct InstType {
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     reg_field: Option<String>,
+    sr_field: Option<String>,
     /// A string containing the registers but NOT the src/dst
     op_type: Option<String>,
     /// A list of all bytes processed for this instruction
@@ -375,6 +376,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
             inst.dest_text = Some(reg_field);
+        }
+        // push - segment register - 0x06,0x0E,0x86,0x8E
+        0b000_00_110 | 0b000_01_110 | 0b000_10_110 | 0b000_11_110 => {
+            inst.op_type = Some("push".to_string());
+            let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
+            inst.sr_field = Some(sr_field.clone());
+            inst.dest_text = Some(sr_field);
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
@@ -779,6 +787,19 @@ fn decode_reg_field(reg: u8, w: Option<bool>) -> String {
         (0b101, Some(true)) => "bp".to_string(),
         (0b110, Some(true)) => "si".to_string(),
         (0b111, Some(true)) => "di".to_string(),
+        _ => unreachable!(),
+    }
+}
+
+/// SR (Segment Register) Field Encoding
+///
+/// See table 4-11
+fn decode_sr_field(sr: u8) -> String {
+    match sr {
+        0b00 => "es".to_string(),
+        0b01 => "cs".to_string(),
+        0b10 => "ss".to_string(),
+        0b11 => "ds".to_string(),
         _ => unreachable!(),
     }
 }

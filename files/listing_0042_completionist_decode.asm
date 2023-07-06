@@ -58,7 +58,7 @@ push word [bx + di - 30]
 push cx
 push ax
 push dx
-; push cs
+push cs
 
 ; pop word [bp + si]
 ; pop word [3]
