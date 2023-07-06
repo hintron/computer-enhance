@@ -467,6 +467,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Decode the second byte of the instruction.
     // Get the upper two bits
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
+    match mode {
+        // Register Mode implies a register with a size, so prefix isn't needed
+        ModType::RegisterMode => inst.data_needs_size = false,
+        _ => {}
+    }
     let rm_field = byte & 0b00000111;
     if rm_field == DIRECT_ADDR {
         inst.disp_direct_address = true;
@@ -477,12 +482,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             // Dest is rm field
             inst.dest_text = rm_text;
             inst.dest_text_end = rm_text_end;
-            match inst.mod_field {
-                // Register dest implies a size, so size prefix
-                // isn't needed
-                Some(ModType::RegisterMode) => inst.data_needs_size = false,
-                _ => {}
-            }
         }
         Some(true) => {
             // Source is rm field
