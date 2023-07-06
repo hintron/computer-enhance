@@ -32,13 +32,17 @@ enum ModType {
     RegisterMode,
 }
 
-/// The possible types of "mod r/m" bytes, which is the second byte in many
+/// The possible types of 'mod r/m' bytes, which is the second byte in many
 /// instructions.
 ///
-/// See table 4-14 on pg 4-36 for the 4 types of mod r/m bytes. This shows the
-/// four types of 'mod op rm' bytes:
+/// `ModRegRm` is a standalone 'mod r/m' byte that is relatively
+/// straight-forward. The other "mod r/m" bytes are more complicated and
+/// factor in to what the overall op code of the instruction is.
 ///
-/// | mod X rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+/// See table 4-14 on pg 4-36 for the four official types of 'mod op r/m' bytes:
+///
+/// ```text
+/// | mod □ rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
 /// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
 /// | Immed    | ADD | OR  | ADC | SBB | AND | SUB | XOR | CMP |
 /// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
@@ -49,26 +53,32 @@ enum ModType {
 /// | Grp 2    | INC | DEC |CALL |CALL | JMP | JMP | PUSH|-----|
 /// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
 ///
-/// Each of these groups have instructions starting with the following bits:
-/// Immed: 1000 00
-/// Shift: 1101 00
-/// Grp 1: 1111 011
-/// Grp 2: 1111 111
+/// ```
+/// The following are not official 'mod op rm' bytes in the docs, but are
+/// groupings I created to track instructions that have a similar 'mod op rm'
+/// structure:
 ///
-/// `ModMovRm` corresponds to a 'mod op r/m' byte that only applies to the
-/// mov instruction starting with 0b 1100 011, and would look like this if added
-/// to the table above:
-///
-/// | mod X rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+/// ```text
+/// | mod □ rm | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
 /// |----------+-----+-----+-----+-----+-----+-----+-----+-----+
-/// | ImmedMov | mov |-----|-----|-----|-----|-----|-----|-----|
+/// | ModMovRm | mov |-----|-----|-----|-----|-----|-----|-----|
+/// | ModPopRm | pop |-----|-----|-----|-----|-----|-----|-----|
+/// ```
+///
+/// Each group has a first byte that starts with the following bits:
+/// ```text
+/// Immed:    1000 00
+/// Shift:    1101 00
+/// Grp 1:    1111 011
+/// Grp 2:    1111 111
+/// ModMovRm: 1100 011
+/// ModPopRm: 1000 1111 (0x8F)
+/// ```
 ///
 #[derive(Copy, Clone, Debug)]
 enum ModRmByteType {
     ModRegRm,
     ModMovRm,
-    /// Corresponds to a 'mod op rm' byte for the pop instruction starting with
-    /// byte 0x8F.
     ModPopRm,
     ModImmedRm,
     // ModShiftRm,
@@ -604,12 +614,10 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
             }
         }
-        Some(ModRmByteType::ModPopRm) => {
-            match mode {
-                ModType::RegisterMode => {}
-                _ => inst.dest_prefix = Some("word ".to_string()),
-            }
-        }
+        Some(ModRmByteType::ModPopRm) => match mode {
+            ModType::RegisterMode => {}
+            _ => inst.dest_prefix = Some("word ".to_string()),
+        },
         None => {
             unreachable!()
         }
