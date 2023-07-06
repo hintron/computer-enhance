@@ -91,6 +91,9 @@ enum ModRmByteType {
 /// displacement bytes and "data" bytes for immediate values.
 #[derive(Copy, Clone, Debug)]
 enum ExtraBytesType {
+    /// An 8-bit unsigned value.
+    Data8,
+    /// An 8-bit signed value, optionally extended by DataHi
     DataLo,
     DataHi,
     /// If w=1 and s=1, then create a ephemeral DataHi by sign-extending DataLo
@@ -127,6 +130,7 @@ pub struct InstType {
     processed_bytes: Vec<u8>,
     mod_rm_byte: Option<ModRmByteType>,
     /// The actual data for the extra bytes
+    data_8: Option<u8>,
     data_lo: Option<u8>,
     data_hi: Option<u8>,
     disp_lo: Option<u8>,
@@ -240,6 +244,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 ExtraBytesType::DispLo => inst.disp_lo = Some(*byte),
                 ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
                 ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
+                ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
                 ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
                 ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
                 _ => {
@@ -433,6 +438,19 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
             inst.source_text = Some(reg_field);
+        }
+        // in - fixed port
+        0xE4..=0xE5 => {
+            inst.op_type = Some("in".to_string());
+            let w_field = (byte & 0x1) == 1;
+            if w_field {
+                inst.dest_text = Some("ax".to_string());
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+            inst.extra_bytes.push(ExtraBytesType::Data8);
+            inst.add_data_to = Some(AddTo::Source);
+            inst.w_field = Some(w_field);
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
@@ -717,17 +735,21 @@ fn process_disp_bytes(inst: &mut InstType) {
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
 fn process_data_bytes(inst: &mut InstType) {
-    let data_bytes_text = match (inst.data_lo, inst.data_hi) {
-        (Some(lo), None) => format!("{}", lo as i8),
-        (Some(lo), Some(hi)) => {
+    let data_bytes_text = match (inst.data_lo, inst.data_hi, inst.data_8) {
+        (Some(lo), None, None) => format!("{}", lo as i8),
+        (Some(lo), Some(hi), None) => {
             let lo_hi = lo as u16 | ((hi as u16) << 8);
             format!("{}", lo_hi as i16)
         }
-        (None, None) => {
+        (None, None, Some(data8)) => format!("{data8}"),
+        (None, None, None) => {
             unreachable!("ERROR: No data bytes found")
         }
-        (None, Some(_)) => {
+        (None, Some(_), _) => {
             unreachable!("ERROR: Low data byte not set")
+        }
+        (_, _, _) => {
+            panic!("Unhandled case in process_data_bytes()")
         }
     };
 
