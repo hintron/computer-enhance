@@ -521,9 +521,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Get the upper two bits
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
     let rm_field = byte & 0b00000111;
-    if rm_field == DIRECT_ADDR {
-        inst.disp_direct_address = true;
-    }
     let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
     match inst.d_field {
         None | Some(false) => {
@@ -544,9 +541,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         (ModType::MemoryMode8, _) => {
             inst.extra_bytes.push(ExtraBytesType::DispLo);
         }
-        (ModType::MemoryMode16, _) | (ModType::MemoryMode0, DIRECT_ADDR) => {
+        (ModType::MemoryMode16, _) => {
             inst.extra_bytes.push(ExtraBytesType::DispLo);
             inst.extra_bytes.push(ExtraBytesType::DispHi);
+        }
+        (ModType::MemoryMode0, DIRECT_ADDR) => {
+            inst.extra_bytes.push(ExtraBytesType::DispLo);
+            inst.extra_bytes.push(ExtraBytesType::DispHi);
+            inst.disp_direct_address = true;
         }
         _ => {}
     }
