@@ -9,6 +9,8 @@
 //! There are a few typos/errors in the manual, including:
 //! * table 4-11, pg. 4-21: (DISP-LO) says that the disp byte is unsigned. In
 //! effect, it is signed. I can't reconcile how it can be unsigned.
+//! * table 4-12, pg. 4-22: Both the 'Segment register' variants of push and pop
+//! should show `sr` but instead show `reg`.
 //! * table 4-12, pg. 4-24: Immediate with accumulator variant of cmp does not
 //! show the high data byte.
 //! * table 4-12, pg. 4-24: Immediate with register/memory variant of cmp should
