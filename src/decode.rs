@@ -127,9 +127,11 @@ pub struct InstType {
     /// The text for the source operand
     source_text: Option<String>,
     source_text_end: Option<String>,
+    source_prefix: Option<String>,
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
+    dest_prefix: Option<String>,
     /// If true, then we need to add a 'word' or 'byte' prefix in front of an
     /// immediate source (data).
     data_needs_size: bool,
@@ -251,9 +253,9 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
 
         // Handle any word or byte prefixes
         if inst.data_needs_size {
-            let (dest_prefix, source_prefix) = get_size_prefixes(&mut inst);
-            dest_text = concat_texts(&dest_prefix, &dest_text);
-            source_text = concat_texts(&source_prefix, &source_text);
+            set_size_prefix_for_data(&mut inst);
+            dest_text = concat_texts(&inst.dest_prefix, &dest_text);
+            source_text = concat_texts(&inst.source_prefix, &source_text);
         }
 
         let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
@@ -712,19 +714,25 @@ fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
     }
 }
 
-/// Return (dest_prefix, source_prefix), if any, depending on disp and data
-/// bytes. By default, add prefix to data byte, unless only disp byte exists.
-fn get_size_prefixes(inst: &mut InstType) -> (Option<String>, Option<String>) {
+/// Set the size prefix of the operand according to the data byte, unless the
+/// prefix already exists
+fn set_size_prefix_for_data(inst: &mut InstType) {
+    // Don't set prefix if already set
+    match (&inst.source_prefix, &inst.dest_prefix) {
+        (Some(_), _) => return,
+        (_, Some(_)) => return,
+        _ => {}
+    };
+
     // Add in data/immediate bytes to the source or dest text
     // Add a size prefix to an immediate source if dest is not a reg
     match (inst.add_data_to, inst.data_hi) {
-        (Some(AddTo::Source), Some(_)) => return (None, Some("word ".to_string())),
-        (Some(AddTo::Source), None) => return (None, Some("byte ".to_string())),
-        (Some(AddTo::Dest), Some(_)) => return (Some("word ".to_string()), None),
-        (Some(AddTo::Dest), None) => return (Some("byte ".to_string()), None),
-        (_, _) => (None, None),
-    }
-
+        (Some(AddTo::Source), Some(_)) => inst.source_prefix = Some("word ".to_string()),
+        (Some(AddTo::Source), None) => inst.source_prefix = Some("byte ".to_string()),
+        (Some(AddTo::Dest), Some(_)) => inst.dest_prefix = Some("word ".to_string()),
+        (Some(AddTo::Dest), None) => inst.dest_prefix = Some("byte ".to_string()),
+        (_, _) => {}
+    };
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
