@@ -423,6 +423,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.w_field = Some((byte & 0x1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // xchg - Register with accumulator
+        0x90..=0x97 => {
+            inst.op_type = Some("xchg".to_string());
+            inst.dest_text = Some("ax".to_string());
+            let reg_field = decode_reg_field(byte & 0b111, Some(true));
+            inst.reg_field = Some(reg_field.clone());
+            inst.source_text = Some(reg_field);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
