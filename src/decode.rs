@@ -163,9 +163,6 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut insts = vec![];
     while iter.peek().is_some() {
         let mut inst = InstType {
-            // Print size prefix by default unless we detect size is implied
-            // by e.g. a register destination.
-            data_needs_size: true,
             ..Default::default()
         };
         let byte = iter.next().unwrap();
@@ -298,7 +295,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            inst.data_needs_size = false;
             if w_field {
                 inst.dest_text = Some("ax".to_string());
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
@@ -332,7 +328,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
             inst.reg_field = Some(reg_field.clone());
             inst.dest_text = Some(reg_field);
-            inst.data_needs_size = false;
             // No mod rm byte for this mov variant!
             // Indicate that there are source data bytes after this byte
             inst.add_data_to = Some(AddTo::Source);
@@ -347,7 +342,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xA0..=0xA3 => {
             inst.op_type = Some("mov".to_string());
             let w_field = (byte & 0x1) == 1;
-            inst.data_needs_size = false;
             let left_bracket = Some("[".to_string());
             let right_bracket = Some("]".to_string());
             let accumulator = Some("ax".to_string());
@@ -384,7 +378,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            inst.data_needs_size = false;
             if w_field {
                 inst.dest_text = Some("ax".to_string());
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
@@ -406,7 +399,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
-            inst.data_needs_size = false;
             if w_field {
                 inst.dest_text = Some("ax".to_string());
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
@@ -417,7 +409,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.data_needs_size = false;
             match byte {
                 // je/jz
                 0x74 => inst.op_type = Some("je".to_string()),
@@ -479,8 +470,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
     match mode {
         // Register Mode implies a register with a size, so prefix isn't needed
-        ModType::RegisterMode => inst.data_needs_size = false,
-        _ => {}
+        ModType::RegisterMode => {}
+        _ => inst.data_needs_size = true,
     }
     let rm_field = byte & 0b00000111;
     if rm_field == DIRECT_ADDR {
