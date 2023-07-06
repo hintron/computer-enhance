@@ -132,9 +132,6 @@ pub struct InstType {
     dest_text: Option<String>,
     dest_text_end: Option<String>,
     dest_prefix: Option<String>,
-    /// If true, then we need to add a 'word' or 'byte' prefix in front of an
-    /// immediate source (data).
-    data_needs_size: bool,
     /// The final instruction representation
     pub text: Option<String>,
 }
@@ -248,12 +245,9 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
         let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
 
-        // Handle any word or byte prefixes
-        if inst.data_needs_size {
-            set_size_prefix_for_data(&mut inst);
-            dest_text = concat_texts(&inst.dest_prefix, &dest_text);
-            source_text = concat_texts(&inst.source_prefix, &source_text);
-        }
+        // Concatenate any word or byte prefixes
+        dest_text = concat_texts(&inst.dest_prefix, &dest_text);
+        source_text = concat_texts(&inst.source_prefix, &source_text);
 
         let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
 
@@ -468,11 +462,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Decode the second byte of the instruction.
     // Get the upper two bits
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
-    match mode {
-        // Register Mode implies a register with a size, so prefix isn't needed
-        ModType::RegisterMode => {}
-        _ => inst.data_needs_size = true,
-    }
     let rm_field = byte & 0b00000111;
     if rm_field == DIRECT_ADDR {
         inst.disp_direct_address = true;
@@ -522,6 +511,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
             };
             inst.reg_field = Some(reg_field);
+            // We need no byte/word prefix for ModRegRm, since there is always
+            // a register source/dest to indicate size
         }
         Some(ModRmByteType::ModMovRm) => {
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -531,6 +522,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
+            match (mode, inst.w_field) {
+                // We know the size if Register Mode
+                (ModType::RegisterMode, _) => {}
+                (_, Some(false)) => inst.source_prefix = Some("byte ".to_string()),
+                (_, Some(true)) => inst.source_prefix = Some("word ".to_string()),
+                (_, _) => {}
+            }
         }
         Some(ModRmByteType::ModImmedRm) => {
             inst.op_type = Some(decode_immed_op((byte & 0b00111000) >> 3));
@@ -552,6 +550,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
+            match (mode, inst.w_field) {
+                // We know the size if Register Mode
+                (ModType::RegisterMode, _) => {}
+                (_, Some(false)) => inst.source_prefix = Some("byte ".to_string()),
+                (_, Some(true)) => inst.source_prefix = Some("word ".to_string()),
+                (_, _) => {}
+            }
         }
         None => {
             unreachable!()
@@ -703,27 +708,6 @@ fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
         (None, Some(str_b)) => Some(str_b.clone()),
         (None, None) => None,
     }
-}
-
-/// Set the size prefix of the operand according to the data byte, unless the
-/// prefix already exists
-fn set_size_prefix_for_data(inst: &mut InstType) {
-    // Don't set prefix if already set
-    match (&inst.source_prefix, &inst.dest_prefix) {
-        (Some(_), _) => return,
-        (_, Some(_)) => return,
-        _ => {}
-    };
-
-    // Add in data/immediate bytes to the source or dest text
-    // Add a size prefix to an immediate source if dest is not a reg
-    match (inst.add_data_to, inst.data_hi) {
-        (Some(AddTo::Source), Some(_)) => inst.source_prefix = Some("word ".to_string()),
-        (Some(AddTo::Source), None) => inst.source_prefix = Some("byte ".to_string()),
-        (Some(AddTo::Dest), Some(_)) => inst.dest_prefix = Some("word ".to_string()),
-        (Some(AddTo::Dest), None) => inst.dest_prefix = Some("byte ".to_string()),
-        (_, _) => {}
-    };
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
