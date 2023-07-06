@@ -402,6 +402,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some("pop".to_string());
             inst.mod_rm_byte = Some(ModRmByteType::ModPopRm);
         }
+        // pop - Register
+        0x58..=0x5F => {
+            inst.op_type = Some("pop".to_string());
+            // Hardcode registers to 16-bit widths
+            let reg_field = decode_reg_field(byte & 0b111, Some(true));
+            inst.reg_field = Some(reg_field.clone());
+            inst.dest_text = Some(reg_field);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
