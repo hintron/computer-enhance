@@ -423,6 +423,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x86..=0x87 => {
             inst.op_type = Some("xchg".to_string());
             inst.w_field = Some((byte & 0x1) == 1);
+            inst.d_field = Some(true);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // xchg - Register with accumulator
