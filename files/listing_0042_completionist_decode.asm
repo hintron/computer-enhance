@@ -68,8 +68,8 @@ pop di
 pop si
 pop ds
 
-; xchg ax, [bp - 1000]
-; xchg [bx + 50], bp
+xchg ax, [bp - 1000]
+xchg [bx + 50], bp
 
 ; xchg ax, ax
 ; xchg ax, dx
