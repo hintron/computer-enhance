@@ -489,6 +489,16 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.dest_text = Some("dx".to_string());
             inst.w_field = Some(w_field);
         }
+        // xlat
+        0xD7 => {
+            // "xlat (translate) replaces a byte in the AL register with a byte
+            // from a 256-byte, user-coded translation tablet (source table).
+            // Register BX is assumed to point to the beginning of the table.
+            // The byte in AL is used as an index into the table and is replaced
+            // by the byte as the offset in the table corresponding to AL's
+            // binary value"
+            inst.op_type = Some("xlat".to_string());
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());

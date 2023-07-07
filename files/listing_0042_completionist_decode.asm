@@ -90,7 +90,7 @@ in ax, dx
 out 44, ax
 out dx, al
 
-; xlat
+xlat
 ; lea ax, [bx + di + 1420]
 ; lea bx, [bp - 50]
 ; lea sp, [bp - 1003]
