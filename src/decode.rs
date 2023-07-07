@@ -464,6 +464,31 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.source_text = Some("dx".to_string());
             inst.w_field = Some(w_field);
         }
+        // out - fixed port
+        0xE6..=0xE7 => {
+            inst.op_type = Some("out".to_string());
+            let w_field = (byte & 0x1) == 1;
+            if w_field {
+                inst.source_text = Some("ax".to_string());
+            } else {
+                inst.source_text = Some("al".to_string());
+            }
+            inst.extra_bytes.push(ExtraBytesType::Data8);
+            inst.add_data_to = Some(AddTo::Dest);
+            inst.w_field = Some(w_field);
+        }
+        // out - variable port
+        0xEE..=0xEF => {
+            inst.op_type = Some("out".to_string());
+            let w_field = (byte & 0x1) == 1;
+            if w_field {
+                inst.source_text = Some("ax".to_string());
+            } else {
+                inst.source_text = Some("al".to_string());
+            }
+            inst.dest_text = Some("dx".to_string());
+            inst.w_field = Some(w_field);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());

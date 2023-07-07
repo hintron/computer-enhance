@@ -87,8 +87,8 @@ in al, 200
 in al, dx
 in ax, dx
 
-; out 44, ax
-; out dx, al
+out 44, ax
+out dx, al
 
 ; xlat
 ; lea ax, [bx + di + 1420]
