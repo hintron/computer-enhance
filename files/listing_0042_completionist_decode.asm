@@ -84,8 +84,8 @@ xchg si, cx
 xchg cl, ah
 
 in al, 200
-; in al, dx
-; in ax, dx
+in al, dx
+in ax, dx
 
 ; out 44, ax
 ; out dx, al
