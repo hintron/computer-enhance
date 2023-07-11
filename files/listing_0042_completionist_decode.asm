@@ -123,10 +123,10 @@ add al, 9
 add cx, bx
 add ch, al
 
-; adc cx, [bp]
-; adc dx, [bx + si]
-; adc [bp + di + 5000], ah
-; adc [bx], al
+adc cx, [bp]
+adc dx, [bx + si]
+adc [bp + di + 5000], ah
+adc [bx], al
 adc sp, 392
 adc si, 5
 ; adc ax, 1000

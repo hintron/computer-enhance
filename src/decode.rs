@@ -320,6 +320,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // adc (add w/ carry) - Reg/mem with register to either
+        0x10..=0x13 => {
+            inst.op_type = Some("adc".to_string());
+            inst.w_field = Some((byte & 0x1) == 1);
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
