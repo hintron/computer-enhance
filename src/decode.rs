@@ -499,6 +499,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // binary value"
             inst.op_type = Some("xlat".to_string());
         }
+        // lea - Load EA (effective address) to register
+        0x8D => {
+            inst.op_type = Some("lea".to_string());
+            // Hardcode registers to 16 bits, and REG as destination
+            inst.w_field = Some(true);
+            inst.d_field = Some(true);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
