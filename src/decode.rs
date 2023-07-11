@@ -23,7 +23,8 @@
 //! * table 4-12, pg. 4-25: XOR immediate to register/memory's second byte
 //! should say "mod 1 1 0 r/m" instead of "data". This is corroborated by table
 //! 4-14, and the data bytes are already at the end.
-//! * table 4-12, pg. 4-25: STOS is misspelled as STDS.
+//! * table 4-12, pg. 4-25: STOS is misspelled as STDS. Also, Stor -> Store
+//! and AL/A -> AL/AX.
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
@@ -131,6 +132,9 @@ pub struct InstType {
     v_field: Option<bool>,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
     s_field: Option<bool>,
+    /// If true, repeat/loop while zero flag is set, otherwise repeat while zero
+    /// flag is clear.
+    z_field: Option<bool>,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     reg_field: Option<String>,
@@ -140,6 +144,9 @@ pub struct InstType {
     /// A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
     mod_rm_byte: Option<ModRmByteType>,
+    /// If true, then the first byte was a REP and there is a second string
+    /// manipulation byte to follow.
+    has_string_byte: Option<bool>,
     /// The actual data for the extra bytes
     data_8: Option<u8>,
     data_lo: Option<u8>,
@@ -215,6 +222,19 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
             debug_byte(byte);
             inst.processed_bytes.push(*byte);
             decode_mod_rm_byte(*byte, &mut inst);
+        }
+
+        // Process second string byte, if it exists
+        if inst.has_string_byte.is_some() {
+            if iter.peek().is_none() {
+                println!("Unexpected end of instruction stream");
+                break;
+            };
+            // Get the next string byte in the stream
+            let byte = iter.next().unwrap();
+            debug_byte(byte);
+            inst.processed_bytes.push(*byte);
+            decode_string_byte(*byte, &mut inst);
         }
 
         // Get extra bytes and store in inst
@@ -466,6 +486,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.dest_text = Some("al".to_string());
             }
             inst.w_field = Some(w_field);
+        }
+        // rep - Repeat
+        0xF2..=0xF3 => {
+            inst.op_type = Some("rep ".to_string());
+            // The second byte of the rep string instruction will be parsed
+            // in the main decode loop via decode_string_byte()
+            inst.has_string_byte = Some(true);
+            inst.z_field = Some((byte & 0x1) == 1);
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
@@ -1073,6 +1101,29 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 
     inst.mod_field = Some(mode);
     inst.rm_field = Some(rm_field);
+}
+
+/// Decode the second "string manipulation" byte that comes after a `REP`
+/// instruction.
+fn decode_string_byte(byte: u8, inst: &mut InstType) {
+    let w_field = (byte & 0x1) == 1;
+    let second_op = match byte {
+        0xA4..=0xA5 => "movs",
+        0xA6..=0xA7 => "cmps",
+        0xAE..=0xAF => "scas",
+        0xAC..=0xAD => "lods",
+        0xAA..=0xAB => "stos",
+        _ => panic!("Unknown string manipulation byte encoding (byte after REP)"),
+    };
+    let suffix = if w_field { "w" } else { "b" };
+    inst.w_field = Some(w_field);
+    match &mut inst.op_type {
+        Some(op) => {
+            op.push_str(second_op);
+            op.push_str(suffix);
+        }
+        None => panic!("REP string not decoded before decode_string_byte()!"),
+    };
 }
 
 /// Process the disp bytes by applying it to the needed fields in the
