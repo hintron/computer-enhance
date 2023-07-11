@@ -295,8 +295,8 @@ and word [bx + si - 4332], 10328
 ; test bx, cx
 ; test dh, [bp + 390]
 ; test [bp + 2], si
-; test bl, 20
-; test byte [bx], 34
+test bl, 20
+test byte [bx], 34
 ; test ax, 23909
 
 ; or al, ah

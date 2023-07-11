@@ -691,11 +691,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field);
             inst.w_field = w_field;
         }
-        // test,not,neg,mul,imul,div,idiv
+        // test,not,neg,mul,imul,div,idiv - immediate data and register/memory
         0xF6..=0xF7 => {
             inst.mod_rm_byte = Some(ModRmByteType::ModGrp1Rm);
-            // NOTE: The first byte hardcodes w to 1 for pushes and pops, since
-            // the operand is always 16 bits.
             inst.w_field = Some((byte & 0x1) == 1);
         }
         // cmp - Register/memory and register
@@ -897,7 +895,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
         }
         Some(ModRmByteType::ModGrp1Rm) => {
-            inst.op_type = Some(decode_grp1_op((byte & 0b00111000) >> 3));
+            let (op_type, is_test_inst) = decode_grp1_op((byte & 0b00111000) >> 3);
+            inst.op_type = Some(op_type);
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
@@ -906,6 +905,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
                 (_, None) => {
                     unreachable!()
+                }
+            }
+            if is_test_inst {
+                inst.add_data_to = Some(AddTo::Source);
+                inst.extra_bytes.push(ExtraBytesType::DataLo);
+                match inst.w_field {
+                    Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
+                    _ => {}
                 }
             }
         }
@@ -1241,16 +1248,18 @@ fn decode_shift_op(bits: u8) -> String {
 
 /// Get the op code an instruction starting with 0b 1111 011. `bits` is the
 /// value of the middle 3 'op' bits in the second mod-op-r/m byte.
-fn decode_grp1_op(bits: u8) -> String {
+/// In addition, return true for the second value if the instruction requires
+/// a data/immediate operand (i.e. the test instruction)
+fn decode_grp1_op(bits: u8) -> (String, bool) {
     match bits {
-        0b000 => "test".to_string(),
+        0b000 => ("test".to_string(), true),
         0b001 => panic!("Unused field 0b001 in decode_grp1_op()"),
-        0b010 => "not".to_string(),
-        0b011 => "neg".to_string(),
-        0b100 => "mul".to_string(),
-        0b101 => "imul".to_string(),
-        0b110 => "div".to_string(),
-        0b111 => "idiv".to_string(),
+        0b010 => ("not".to_string(), false),
+        0b011 => ("neg".to_string(), false),
+        0b100 => ("mul".to_string(), false),
+        0b101 => ("imul".to_string(), false),
+        0b110 => ("div".to_string(), false),
+        0b111 => ("idiv".to_string(), false),
         _ => panic!("Bad bits specified in decode_grp_op()"),
     }
 }
