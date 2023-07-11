@@ -575,6 +575,17 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
         }
+        // retf - Intersegment ret
+        0xCB => {
+            inst.op_type = Some("retf".to_string());
+        }
+        // retf - Intersegment ret adding immediate to SP
+        0xCA => {
+            inst.op_type = Some("retf".to_string());
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.extra_bytes.push(ExtraBytesType::DataHi);
+            inst.add_data_to = Some(AddTo::Source);
+        }
         // push - Register
         0x50..=0x57 => {
             inst.op_type = Some("push".to_string());

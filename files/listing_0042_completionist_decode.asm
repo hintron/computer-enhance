@@ -424,9 +424,9 @@ wait
 ; jmp 2620
 ; call 11804
 
-; retf 17556
+retf 17556
 ret 17560
-; retf
+retf
 ret
 
 call [bp+si-0x3a]
