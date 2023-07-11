@@ -454,6 +454,6 @@ jmp [di]
 ; TODO(casey): According to NASM, "rep movsb" is "not lockable". However the 8086 manual seems to think it is, and
 ; even describes what happens when you you lock a rep: the lock is held for the duration of the rep operation. So...
 ; yeah. Not sure why this doesn't work in NASM:
-;
-; lock rep movsb
+; MGH NOTE: This works on my academic version of NASM!
+lock rep movsb
 ;
