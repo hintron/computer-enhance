@@ -15,6 +15,7 @@
 //! show the high data byte.
 //! * table 4-12, pg. 4-24: Immediate with register/memory variant of cmp should
 //! show s:w=01 for the high data byte.
+//! * table 4-12, pg. 4-24: AAM and AAD should not have DISP-LO or DISP-HI.
 //! * table 4-12, pg. 4-25: XOR immediate to register/memory's second byte
 //! should say "mod 1 1 0 r/m" instead of "data". This is corroborated by table
 //! 4-14, and the data bytes are already at the end.
@@ -102,6 +103,9 @@ enum ExtraBytesType {
     DispHi,
     /// An 8-bit signed increment offset to the instruction pointer
     IpInc8,
+    /// The following byte can be ignored (e.g. the second byte of aam/aad
+    /// apparently provides no additional data)
+    DoNotCare,
 }
 
 /// Indicates whether to apply some data to the source or the destination
@@ -247,6 +251,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
                 ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
                 ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
+                ExtraBytesType::DoNotCare => {}
                 _ => {
                     panic!("Unexpected ExtraBytesType!")
                 }
@@ -365,6 +370,18 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // das - Decimal adjust for subtract
         0x2F => {
             inst.op_type = Some("das".to_string());
+        }
+        // aam - ASCII adjust for multiply
+        0xD4 => {
+            inst.op_type = Some("aam".to_string());
+            // The second byte doesn't add anything. Ignore it for now.
+            inst.extra_bytes.push(ExtraBytesType::DoNotCare)
+        }
+        // aad - ASCII adjust for divide
+        0xD5 => {
+            inst.op_type = Some("aad".to_string());
+            // The second byte doesn't add anything. Ignore it for now.
+            inst.extra_bytes.push(ExtraBytesType::DoNotCare)
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {

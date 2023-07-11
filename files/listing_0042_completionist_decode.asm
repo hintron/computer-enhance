@@ -224,7 +224,7 @@ imul dx
 imul byte [bx]
 imul word [9483]
 
-; aam
+aam
 
 div bl
 div sp
@@ -236,7 +236,7 @@ idiv si
 idiv byte [bp + si]
 idiv word [bx + 493]
 
-; aad
+aad
 ; cbw
 ; cwd
 
