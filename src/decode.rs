@@ -135,6 +135,10 @@ pub struct InstType {
     /// If true, repeat/loop while zero flag is set, otherwise repeat while zero
     /// flag is clear.
     z_field: Option<bool>,
+    /// A LOCK prefix was part of the instruction
+    lock_prefix: Option<bool>,
+    /// A string of all prefixes concatenated together in the order parsed
+    prefixes: Option<String>,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     reg_field: Option<String>,
@@ -202,10 +206,22 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         let mut inst = InstType {
             ..Default::default()
         };
-        let byte = iter.next().unwrap();
+
+        let mut byte = iter.next().unwrap();
         debug_byte(byte);
         inst.processed_bytes.push(*byte);
 
+        // Decode any prefix bytes
+        let mut decode_prefix = decode_prefix_bytes(*byte, &mut inst);
+        while decode_prefix {
+            // The first byte was a prefix. Are there more?
+            byte = iter.next().unwrap();
+            debug_byte(byte);
+            inst.processed_bytes.push(*byte);
+            decode_prefix = decode_prefix_bytes(*byte, &mut inst);
+        }
+
+        // Decode first non-prefix byte
         if decode_first_byte(*byte, &mut inst) == false {
             println!("Unknown instruction");
             break;
@@ -297,6 +313,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         }
 
         // Create instruction text
+        let op_text = concat_texts(&inst.prefixes, &inst.op_type);
         let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
         let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
 
@@ -304,7 +321,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         dest_text = concat_texts(&inst.dest_prefix, &dest_text);
         source_text = concat_texts(&inst.source_prefix, &source_text);
 
-        let inst_text = concat_operands(&inst.op_type, dest_text, source_text);
+        let inst_text = concat_operands(&op_text, dest_text, source_text);
 
         println!("{}", inst_text);
         inst.text = Some(inst_text);
@@ -312,6 +329,32 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         // On to the next instruction...
     }
     insts
+}
+
+/// Decode any "prefix" bytes to a given instruction, like LOCK.
+/// Return true if a prefix byte is found in this byte, and false otherwise.
+/// Since we know these are prefixes, we can always add a trailing space.
+fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
+    let prefix = match byte {
+        // lock
+        0xF0 => {
+            inst.lock_prefix = Some(true);
+            "lock "
+        }
+        _ => {
+            // This byte isn't a prefix...
+            return false;
+        }
+    };
+    match &mut inst.prefixes {
+        None => {
+            inst.prefixes = Some(prefix.to_string());
+        }
+        Some(prefixes) => {
+            prefixes.push_str(prefix);
+        }
+    }
+    true
 }
 
 /// Decode the first byte of an 8086 instruction.

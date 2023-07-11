@@ -393,8 +393,8 @@ sti
 hlt
 wait
 
-; lock not byte [bp + 9905]
-; lock xchg [100], al
+lock not byte [bp + 9905]
+lock xchg [100], al
 
 ; mov al, cs:[bx + si]
 ; mov bx, ds:[bp + di]
