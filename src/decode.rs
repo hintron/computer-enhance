@@ -446,6 +446,27 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // xor - reg/mem with register to either
+        0x30..=0x33 => {
+            inst.op_type = Some("xor".to_string());
+            inst.w_field = Some((byte & 0x1) == 1);
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
+        // xor - Immediate to accumulator
+        0x34..=0x35 => {
+            inst.op_type = Some("xor".to_string());
+            let w_field = (byte & 0x1) == 1;
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            if w_field {
+                inst.dest_text = Some("ax".to_string());
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+            inst.w_field = Some(w_field);
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
