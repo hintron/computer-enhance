@@ -350,6 +350,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field);
             inst.w_field = w_field;
         }
+        // aaa - ASCII adjust for add
+        0x37 => {
+            inst.op_type = Some("aaa".to_string());
+        }
+        // aaa - Decimal adjust for add
+        0x27 => {
+            inst.op_type = Some("daa".to_string());
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());

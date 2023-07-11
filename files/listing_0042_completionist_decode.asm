@@ -149,8 +149,8 @@ inc word [bp + di - 10044]
 inc word [9349]
 inc byte [bp]
 
-; aaa
-; daa
+aaa
+daa
 
 sub cx, [bp]
 sub dx, [bx + si]
