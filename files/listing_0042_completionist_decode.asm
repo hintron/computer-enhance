@@ -380,8 +380,8 @@ jcxz label
 int 13
 int3
     
-; into
-; iret
+into
+iret
 
 ; clc
 ; cmc

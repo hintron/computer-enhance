@@ -798,6 +798,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xCC => {
             inst.op_type = Some("int3".to_string());
         }
+        // into - Interrupt on overflow
+        0xCE => {
+            inst.op_type = Some("into".to_string());
+        }
+        // iret - Interrupt return
+        0xCF => {
+            inst.op_type = Some("iret".to_string());
+        }
         _ => {
             return false;
         }
