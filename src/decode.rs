@@ -82,7 +82,7 @@ enum ModRmByteType {
     ModPopRm,
     ModImmedRm,
     // ModShiftRm,
-    // ModGrp1Rm,
+    ModGrp1Rm,
     ModGrp2Rm,
 }
 
@@ -628,6 +628,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field);
             inst.w_field = w_field;
         }
+        // test,not,neg,mul,imul,div,idiv
+        0xF6..=0xF7 => {
+            inst.mod_rm_byte = Some(ModRmByteType::ModGrp1Rm);
+            // NOTE: The first byte hardcodes w to 1 for pushes and pops, since
+            // the operand is always 16 bits.
+            inst.w_field = Some((byte & 0x1) == 1);
+        }
         // cmp - Register/memory and register
         0x38..=0x3B => {
             inst.op_type = Some("cmp".to_string());
@@ -806,6 +813,19 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(false)) => inst.source_prefix = Some("byte ".to_string()),
                 (_, Some(true)) => inst.source_prefix = Some("word ".to_string()),
                 (_, _) => {}
+            }
+        }
+        Some(ModRmByteType::ModGrp1Rm) => {
+            inst.op_type = Some(decode_grp1_op((byte & 0b00111000) >> 3));
+            match (mode, inst.w_field) {
+                // We know the size if Register Mode
+                (ModType::RegisterMode, _) => {}
+                // ModGrp1Rm instructions are 1-operand, so add prefix to dest
+                (_, Some(false)) => inst.dest_prefix = Some("byte ".to_string()),
+                (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
+                (_, None) => {
+                    unreachable!()
+                }
             }
         }
         Some(ModRmByteType::ModGrp2Rm) => {
@@ -1119,6 +1139,22 @@ fn decode_immed_op(bits: u8) -> String {
         // Compare - immediate with register/memory
         0b111 => "cmp".to_string(),
         _ => panic!("Bad bits specified in decode_immed_op()"),
+    }
+}
+
+/// Get the op code an instruction starting with 0b 1111 011. `bits` is the
+/// value of the middle 3 'op' bits in the second mod-op-r/m byte.
+fn decode_grp1_op(bits: u8) -> String {
+    match bits {
+        0b000 => "test".to_string(),
+        0b001 => panic!("Unused field 0b001 in decode_grp1_op()"),
+        0b010 => "not".to_string(),
+        0b011 => "neg".to_string(),
+        0b100 => "mul".to_string(),
+        0b101 => "imul".to_string(),
+        0b110 => "div".to_string(),
+        0b111 => "idiv".to_string(),
+        _ => panic!("Bad bits specified in decode_grp_op()"),
     }
 }
 
