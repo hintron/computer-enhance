@@ -564,6 +564,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // the operand is always 16 bits.
             inst.w_field = Some((byte & 0x1) == 1);
         }
+        // ret - Within segment
+        0xC3 => {
+            inst.op_type = Some("ret".to_string());
+        }
         // push - Register
         0x50..=0x57 => {
             inst.op_type = Some("push".to_string());

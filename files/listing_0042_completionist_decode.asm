@@ -353,7 +353,7 @@ jmp [4395]
     
 ; ret -7
 ; ret 500
-; ret
+ret
     
 label:
 je label
@@ -427,7 +427,7 @@ wait
 ; retf 17556
 ; ret 17560
 ; retf
-; ret
+ret
 
 call [bp+si-0x3a]
 ; call far [bp+si-0x3a]
