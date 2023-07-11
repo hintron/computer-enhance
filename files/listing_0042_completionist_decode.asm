@@ -205,7 +205,7 @@ neg word [9349]
 neg byte [bp]
 
 cmp bx, cx
-; cmp dh, [bp + 390]
+cmp dh, [bp + 390]
 cmp [bp + 2], si
 cmp bl, 20
 cmp byte [bx], 34
@@ -289,8 +289,8 @@ not byte [bp + 9905]
 ; and [bx + di + 1000], dx
 ; and bx, [bp]
 ; and cx, [4384]
-; and byte [bp - 39], 239
-; and word [bx + si - 4332], 10328
+and byte [bp - 39], 239
+and word [bx + si - 4332], 10328
 
 ; test bx, cx
 ; test dh, [bp + 390]
@@ -309,8 +309,8 @@ not byte [bp + 9905]
 ; or [bx + di + 1000], dx
 ; or bx, [bp]
 ; or cx, [4384]
-; or byte [bp - 39], 239
-; or word [bx + si - 4332], 10328
+or byte [bp - 39], 239
+or word [bx + si - 4332], 10328
 
 ; xor al, ah
 ; xor ch, cl
