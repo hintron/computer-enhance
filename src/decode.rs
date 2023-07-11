@@ -16,6 +16,10 @@
 //! * table 4-12, pg. 4-24: Immediate with register/memory variant of cmp should
 //! show s:w=01 for the high data byte.
 //! * table 4-12, pg. 4-24: AAM and AAD should not have DISP-LO or DISP-HI.
+//! * table 4-12, pg. 4-25: TEST register/memory and register variant
+//! erroneously shows the opcode byte starting with 0b 0001 00, which is
+//! actually instruction adc. It should be 0b 1000 01 instead. This is
+//! corroborated by table 4-13.
 //! * table 4-12, pg. 4-25: XOR immediate to register/memory's second byte
 //! should say "mod 1 1 0 r/m" instead of "data". This is corroborated by table
 //! 4-14, and the data bytes are already at the end.
@@ -762,6 +766,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                     unreachable!()
                 }
             }
+        }
+        // test - Register/memory and register
+        0x84..=0x87 => {
+            inst.op_type = Some("test".to_string());
+            inst.w_field = Some((byte & 0x1) == 1);
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         _ => {
             return false;
