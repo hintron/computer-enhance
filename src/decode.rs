@@ -788,6 +788,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // int - Type specified
+        0xCD => {
+            inst.op_type = Some("int".to_string());
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::Data8);
+        }
         _ => {
             return false;
         }
