@@ -383,15 +383,15 @@ int3
 into
 iret
 
-; clc
-; cmc
-; stc
-; cld
-; std
-; cli
-; sti
-; hlt
-; wait
+clc
+cmc
+stc
+cld
+std
+cli
+sti
+hlt
+wait
 
 ; lock not byte [bp + 9905]
 ; lock xchg [100], al

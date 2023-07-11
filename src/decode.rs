@@ -806,6 +806,42 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xCF => {
             inst.op_type = Some("iret".to_string());
         }
+        // clc - Clear carry
+        0xF8 => {
+            inst.op_type = Some("clc".to_string());
+        }
+        // cmc - Complement carry
+        0xF5 => {
+            inst.op_type = Some("cmc".to_string());
+        }
+        // stc - Set carry
+        0xF9 => {
+            inst.op_type = Some("stc".to_string());
+        }
+        // cld - Clear direction
+        0xFC => {
+            inst.op_type = Some("cld".to_string());
+        }
+        // std - Set direction
+        0xFD => {
+            inst.op_type = Some("std".to_string());
+        }
+        // cli - Clear interrupt
+        0xFA => {
+            inst.op_type = Some("cli".to_string());
+        }
+        // sti - Set interrupt
+        0xFB => {
+            inst.op_type = Some("sti".to_string());
+        }
+        // hlt - Halt
+        0xF4 => {
+            inst.op_type = Some("hlt".to_string());
+        }
+        // wait
+        0x9B => {
+            inst.op_type = Some("wait".to_string());
+        }
         _ => {
             return false;
         }
