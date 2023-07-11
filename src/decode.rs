@@ -860,11 +860,9 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
         Some(ModRmByteType::ModShiftRm) => {
             inst.op_type = Some(decode_shift_op((byte & 0b00111000) >> 3));
-            match (inst.v_field, inst.w_field) {
-                (Some(false) | None, _) => inst.source_text = Some("1".to_string()),
-                (Some(true), Some(false)) => inst.source_text = Some("cl".to_string()),
-                (Some(true), Some(true)) => inst.source_text = Some("cx".to_string()),
-                (_, _) => {}
+            match inst.v_field {
+                Some(false) | None => inst.source_text = Some("1".to_string()),
+                Some(true) => inst.source_text = Some("cl".to_string()),
             }
 
             match (mode, inst.w_field) {

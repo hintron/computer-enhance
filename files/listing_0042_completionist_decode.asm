@@ -263,21 +263,21 @@ ror word [4938], 1
 rcl byte [3], 1
 rcr word [bx], 1
 
-; shl ah, cl
-; shr ax, cl
-; sar bx, cl
-; rol cx, cl
-; ror dh, cl
-; rcl sp, cl
-; rcr bp, cl
+shl ah, cl
+shr ax, cl
+sar bx, cl
+rol cx, cl
+ror dh, cl
+rcl sp, cl
+rcr bp, cl
 
-; shl word [bp + 5], cl
-; shr word [bx + si - 199], cl
-; sar byte [bx + di - 300], cl
-; rol byte [bp], cl
-; ror byte [4938], cl
-; rcl byte [3], cl
-; rcr word [bx], cl
+shl word [bp + 5], cl
+shr word [bx + si - 199], cl
+sar byte [bx + di - 300], cl
+rol byte [bp], cl
+ror byte [4938], cl
+rcl byte [3], cl
+rcr word [bx], cl
 
 ; and al, ah
 ; and ch, cl
