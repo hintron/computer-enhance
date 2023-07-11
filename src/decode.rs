@@ -327,6 +327,20 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // adc - Immediate to accumulator
+        0x14..=0x15 => {
+            inst.op_type = Some("adc".to_string());
+            let w_field = (byte & 0x1) == 1;
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            if w_field {
+                inst.dest_text = Some("ax".to_string());
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+            inst.w_field = Some(w_field);
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());

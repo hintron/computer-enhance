@@ -129,11 +129,11 @@ adc [bp + di + 5000], ah
 adc [bx], al
 adc sp, 392
 adc si, 5
-; adc ax, 1000
-; adc ah, 30
-; adc al, 9
-; adc cx, bx
-; adc ch, al
+adc ax, 1000
+adc ah, 30
+adc al, 9
+adc cx, bx
+adc ch, al
 
 ; inc ax
 ; inc cx
