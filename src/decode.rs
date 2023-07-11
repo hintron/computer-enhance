@@ -794,6 +794,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::Data8);
         }
+        // int - Type 3
+        0xCC => {
+            inst.op_type = Some("int3".to_string());
+        }
         _ => {
             return false;
         }

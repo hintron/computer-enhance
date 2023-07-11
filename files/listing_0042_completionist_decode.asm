@@ -378,7 +378,7 @@ loopnz label
 jcxz label
     
 int 13
-; int3
+int3
     
 ; into
 ; iret
