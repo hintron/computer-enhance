@@ -523,6 +523,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = Some(true);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // lahf - Load AH with flags
+        0x9F => {
+            inst.op_type = Some("lahf".to_string());
+        }
+        // sahf - Store AH into flags
+        0x9E => {
+            inst.op_type = Some("sahf".to_string());
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());

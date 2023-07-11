@@ -106,8 +106,8 @@ les bx, [bp - 50]
 les sp, [bp - 1003]
 les di, [bx + si - 7]
 
-; lahf
-; sahf
+lahf
+sahf
 ; pushf
 ; popf
 
