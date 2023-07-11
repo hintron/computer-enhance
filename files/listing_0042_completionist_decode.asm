@@ -351,8 +351,8 @@ jmp di
 jmp [12]
 jmp [4395]
     
-; ret -7
-; ret 500
+ret -7
+ret 500
 ret
     
 label:
@@ -425,7 +425,7 @@ wait
 ; call 11804
 
 ; retf 17556
-; ret 17560
+ret 17560
 ; retf
 ret
 

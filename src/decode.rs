@@ -568,6 +568,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xC3 => {
             inst.op_type = Some("ret".to_string());
         }
+        // ret - Within segment adding immediate to SP
+        0xC2 => {
+            inst.op_type = Some("ret".to_string());
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.extra_bytes.push(ExtraBytesType::DataHi);
+            inst.add_data_to = Some(AddTo::Source);
+        }
         // push - Register
         0x50..=0x57 => {
             inst.op_type = Some("push".to_string());
