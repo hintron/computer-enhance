@@ -135,8 +135,8 @@ adc al, 9
 adc cx, bx
 adc ch, al
 
-; inc ax
-; inc cx
+inc ax
+inc cx
 ; inc dh
 ; inc al
 ; inc ah

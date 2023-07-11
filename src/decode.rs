@@ -341,6 +341,15 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // inc - register
+        0x40..=0x47 => {
+            inst.op_type = Some("inc".to_string());
+            let w_field = Some(true);
+            let reg_field = decode_reg_field(byte & 0b111, w_field);
+            inst.dest_text = Some(reg_field.clone());
+            inst.reg_field = Some(reg_field);
+            inst.w_field = w_field;
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
