@@ -412,7 +412,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
-        // push - Register/memory
+        // inc/dec/call/jmp/push - Register/memory
         0xFE..=0xFF => {
             inst.mod_rm_byte = Some(ModRmByteType::ModGrp2Rm);
             // NOTE: The first byte hardcodes w to 1 for pushes and pops, since

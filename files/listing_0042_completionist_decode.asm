@@ -137,17 +137,17 @@ adc ch, al
 
 inc ax
 inc cx
-; inc dh
-; inc al
-; inc ah
-; inc sp
-; inc di
-; inc byte [bp + 1002]
-; inc word [bx + 39]
-; inc byte [bx + si + 5]
-; inc word [bp + di - 10044]
-; inc word [9349]
-; inc byte [bp]
+inc dh
+inc al
+inc ah
+inc sp
+inc di
+inc byte [bp + 1002]
+inc word [bx + 39]
+inc byte [bx + si + 5]
+inc word [bp + di - 10044]
+inc word [9349]
+inc byte [bp]
 
 ; aaa
 ; daa
@@ -178,9 +178,9 @@ sbb si, 5
 
 ; dec ax
 ; dec cx
-; dec dh
-; dec al
-; dec ah
+dec dh
+dec al
+dec ah
 ; dec sp
 ; dec di
 ; dec byte [bp + 1002]
@@ -341,15 +341,15 @@ xor word [bx + si - 4332], 10328
 ; rep stosb
 ; rep stosw
 
-; call [39201]
-; call [bp - 100]
-; call sp
-; call ax
+call [39201]
+call [bp - 100]
+call sp
+call ax
 
-; jmp ax
-; jmp di
-; jmp [12]
-; jmp [4395]
+jmp ax
+jmp di
+jmp [12]
+jmp [4395]
     
 ; ret -7
 ; ret 500
@@ -429,9 +429,9 @@ xor word [bx + si - 4332], 10328
 ; retf
 ; ret
 
-; call [bp+si-0x3a]
+call [bp+si-0x3a]
 ; call far [bp+si-0x3a]
-; jmp [di]
+jmp [di]
 ; jmp far [di]
 
 ; jmp 21862:30600
