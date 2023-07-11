@@ -396,6 +396,10 @@ wait
 lock not byte [bp + 9905]
 lock xchg [100], al
 
+; NOTE(mgh): the following 11 instructions don't compile with my version of
+; NASM! Perhaps it's because it's an older/academic NASM that doesn't support
+; these types of segmented instructions. At any rate, ignore them for now.
+
 ; mov al, cs:[bx + si]
 ; mov bx, ds:[bp + di]
 ; mov dx, es:[bp]
@@ -415,6 +419,8 @@ lock xchg [100], al
 ; ; found instruction encodings that were not previously covered. Thank you to everyone who
 ; ; submitted test cases!
 ; ;
+
+; MGH TODO: Finish implementing the following instructions:
 
 ; call 123:456
 ; jmp 789:34
