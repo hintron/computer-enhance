@@ -358,6 +358,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x27 => {
             inst.op_type = Some("daa".to_string());
         }
+        // aas - ASCII adjust for subtract
+        0x3F => {
+            inst.op_type = Some("aas".to_string());
+        }
+        // das - Decimal adjust for subtract
+        0x2F => {
+            inst.op_type = Some("das".to_string());
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());

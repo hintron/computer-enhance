@@ -211,8 +211,8 @@ cmp bl, 20
 cmp byte [bx], 34
 cmp ax, 23909
 
-; aas
-; das
+aas
+das
 
 mul al
 mul cx
