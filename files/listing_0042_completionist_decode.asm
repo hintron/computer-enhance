@@ -164,10 +164,10 @@ sub al, 9
 sub cx, bx
 sub ch, al
 
-; sbb cx, [bp]
-; sbb dx, [bx + si]
-; sbb [bp + di + 5000], ah
-; sbb [bx], al
+sbb cx, [bp]
+sbb dx, [bx + si]
+sbb [bp + di + 5000], ah
+sbb [bx], al
 sbb sp, 392
 sbb si, 5
 ; sbb ax, 1000
