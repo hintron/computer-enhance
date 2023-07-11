@@ -866,6 +866,17 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (Some(true), Some(true)) => inst.source_text = Some("cx".to_string()),
                 (_, _) => {}
             }
+
+            match (mode, inst.w_field) {
+                // We know the size if Register Mode
+                (ModType::RegisterMode, _) => {}
+                // ModGrp2Rm instructions are 1-operand, so add prefix to dest
+                (_, Some(false)) => inst.dest_prefix = Some("byte ".to_string()),
+                (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
+                (_, None) => {
+                    unreachable!()
+                }
+            }
         }
         Some(ModRmByteType::ModGrp1Rm) => {
             inst.op_type = Some(decode_grp1_op((byte & 0b00111000) >> 3));

@@ -255,13 +255,13 @@ ror dh, 1
 rcl sp, 1
 rcr bp, 1
 
-; shl word [bp + 5], 1
-; shr byte [bx + si - 199], 1
-; sar byte [bx + di - 300], 1
-; rol word [bp], 1
-; ror word [4938], 1
-; rcl byte [3], 1
-; rcr word [bx], 1
+shl word [bp + 5], 1
+shr byte [bx + si - 199], 1
+sar byte [bx + di - 300], 1
+rol word [bp], 1
+ror word [4938], 1
+rcl byte [3], 1
+rcr word [bx], 1
 
 ; shl ah, cl
 ; shr ax, cl
