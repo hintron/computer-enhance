@@ -605,6 +605,20 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // sbb - Immediate from accumulator
+        0x1C..=0x1D => {
+            inst.op_type = Some("sbb".to_string());
+            let w_field = (byte & 0x1) == 1;
+            inst.add_data_to = Some(AddTo::Source);
+            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            if w_field {
+                inst.dest_text = Some("ax".to_string());
+                inst.extra_bytes.push(ExtraBytesType::DataHi);
+            } else {
+                inst.dest_text = Some("al".to_string());
+            }
+            inst.w_field = Some(w_field);
+        }
         // cmp - Register/memory and register
         0x38..=0x3B => {
             inst.op_type = Some("cmp".to_string());
