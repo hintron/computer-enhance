@@ -82,7 +82,7 @@ enum ModRmByteType {
     ModMovRm,
     ModPopRm,
     ModImmedRm,
-    // ModShiftRm,
+    ModShiftRm,
     ModGrp1Rm,
     ModGrp2Rm,
 }
@@ -122,6 +122,9 @@ pub struct InstType {
     /// See table 4-7 on pg. 4-19.
     d_field: Option<bool>,
     w_field: Option<bool>,
+    /// If true, shift/rotate count is specified in the CL register. Otherwise,
+    /// it is 1.
+    v_field: Option<bool>,
     /// Sign extend field. If true, sign extend 8-bit immediate as needed
     s_field: Option<bool>,
     mod_field: Option<ModType>,
@@ -391,6 +394,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x99 => {
             inst.op_type = Some("cwd".to_string());
         }
+        // rol, ror, rcl, rcr, shl/sal, shr, sar
+        0xD0..=0xD3 => {
+            inst.w_field = Some((byte & 0x1) == 1);
+            inst.v_field = Some(((byte & 0x2) >> 1) == 1);
+            inst.mod_rm_byte = Some(ModRmByteType::ModShiftRm);
+        }
+
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
@@ -848,6 +858,15 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, _) => {}
             }
         }
+        Some(ModRmByteType::ModShiftRm) => {
+            inst.op_type = Some(decode_shift_op((byte & 0b00111000) >> 3));
+            match (inst.v_field, inst.w_field) {
+                (Some(false) | None, _) => inst.source_text = Some("1".to_string()),
+                (Some(true), Some(false)) => inst.source_text = Some("cl".to_string()),
+                (Some(true), Some(true)) => inst.source_text = Some("cx".to_string()),
+                (_, _) => {}
+            }
+        }
         Some(ModRmByteType::ModGrp1Rm) => {
             inst.op_type = Some(decode_grp1_op((byte & 0b00111000) >> 3));
             match (mode, inst.w_field) {
@@ -1172,6 +1191,22 @@ fn decode_immed_op(bits: u8) -> String {
         // Compare - immediate with register/memory
         0b111 => "cmp".to_string(),
         _ => panic!("Bad bits specified in decode_immed_op()"),
+    }
+}
+
+/// Get the op code an instruction starting with 0b 1101 00. `bits` is the
+/// value of the middle 3 'op' bits in the second mod-op-r/m byte.
+fn decode_shift_op(bits: u8) -> String {
+    match bits {
+        0b000 => "rol".to_string(),
+        0b001 => "ror".to_string(),
+        0b010 => "rcl".to_string(),
+        0b011 => "rcr".to_string(),
+        0b100 => "shl".to_string(),
+        0b101 => "shr".to_string(),
+        0b110 => panic!("Unused field 0b001 in decode_shift_op()"),
+        0b111 => "sar".to_string(),
+        _ => panic!("Bad bits specified in decode_shift_op()"),
     }
 }
 
