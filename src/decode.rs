@@ -531,6 +531,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x9E => {
             inst.op_type = Some("sahf".to_string());
         }
+        // pushf - Push flags
+        0x9C => {
+            inst.op_type = Some("pushf".to_string());
+        }
+        // popf - Pop flags
+        0x9D => {
+            inst.op_type = Some("popf".to_string());
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());

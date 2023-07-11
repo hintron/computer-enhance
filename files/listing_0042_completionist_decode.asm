@@ -108,8 +108,8 @@ les di, [bx + si - 7]
 
 lahf
 sahf
-; pushf
-; popf
+pushf
+popf
 
 add cx, [bp]
 add dx, [bx + si]
