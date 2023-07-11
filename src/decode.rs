@@ -515,6 +515,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.d_field = Some(true);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
+        // lds - Load 32-bit pointer to ES (high 16 bits) and REG (low 16 bits)
+        0xC4 => {
+            inst.op_type = Some("les".to_string());
+            // Hardcode registers to 16 bits, and REG as destination
+            inst.w_field = Some(true);
+            inst.d_field = Some(true);
+            inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
+        }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
             inst.op_type = Some("sub".to_string());
