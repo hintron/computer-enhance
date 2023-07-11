@@ -1260,7 +1260,7 @@ fn decode_grp1_op(bits: u8) -> (String, bool) {
         0b101 => ("imul".to_string(), false),
         0b110 => ("div".to_string(), false),
         0b111 => ("idiv".to_string(), false),
-        _ => panic!("Bad bits specified in decode_grp_op()"),
+        _ => panic!("Bad bits specified in decode_grp1_op()"),
     }
 }
 
