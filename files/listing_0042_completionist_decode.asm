@@ -237,8 +237,8 @@ idiv byte [bp + si]
 idiv word [bx + 493]
 
 aad
-; cbw
-; cwd
+cbw
+cwd
 
 not ah
 not bl

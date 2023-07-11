@@ -383,6 +383,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // The second byte doesn't add anything. Ignore it for now.
             inst.extra_bytes.push(ExtraBytesType::DoNotCare)
         }
+        // cbw - Convert byte to word
+        0x98 => {
+            inst.op_type = Some("cbw".to_string());
+        }
+        // cwd - Convert word to double word
+        0x99 => {
+            inst.op_type = Some("cwd".to_string());
+        }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
             inst.op_type = Some("mov".to_string());
