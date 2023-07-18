@@ -49,6 +49,16 @@ for file in "$ASM_BUILD_DIR"/*; do
     fi
 done
 
+# TODO: Assemble individual files, not final rtos file
+# TODO: In handlers_simptris.s, there is:
+    # L_handlers_simptris_5:
+    # 	DB	".",0
+# This looks like an 0x2E, which is an ES segment overide prefix (not sure what that does)
+# So the problem is that my decoder can't know that this is data rather than an
+# instruction. But NASM does when it assembles it. So perhaps this blind decode
+# may not work well.
+# How do real decoders handle data bytes?
+
 # Use while loop to easily break out
 while [ "$CHECK_RTOS" == "true" ]; do
     # Try decoding my ECEn 425 RTOS
