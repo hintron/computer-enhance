@@ -108,6 +108,8 @@ enum ExtraBytesType {
     DispHi,
     /// An 8-bit signed increment offset to the instruction pointer
     IpInc8,
+    IpIncLo,
+    IpIncHi,
     /// The following byte can be ignored (e.g. the second byte of aam/aad
     /// apparently provides no additional data)
     DoNotCare,
@@ -158,6 +160,8 @@ pub struct InstType {
     disp_lo: Option<u8>,
     disp_hi: Option<u8>,
     ip_inc8: Option<u8>,
+    ip_inc_lo: Option<u8>,
+    ip_inc_hi: Option<u8>,
     /// If set, we expect to add displacement bytes to what AddTo specifies
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
@@ -294,6 +298,8 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
                 ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
                 ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
                 ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
+                ExtraBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
+                ExtraBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
                 ExtraBytesType::DoNotCare => {}
                 _ => {
                     panic!("Unexpected ExtraBytesType!")
@@ -308,7 +314,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
         if inst.add_data_to.is_some() {
             process_data_bytes(&mut inst);
         }
-        if inst.ip_inc8.is_some() {
+        if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
             process_ip_bytes(&mut inst);
         }
 
@@ -606,6 +612,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // NOTE: The first byte hardcodes w to 1 for pushes and pops, since
             // the operand is always 16 bits.
             inst.w_field = Some((byte & 0x1) == 1);
+        }
+        // jmp - Direct within segment
+        0xE9 => {
+            inst.op_type = Some("jmp".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpIncLo);
+            inst.extra_bytes.push(ExtraBytesType::IpIncHi);
         }
         // ret - Within segment
         0xC3 => {
@@ -1282,9 +1294,17 @@ fn process_data_bytes(inst: &mut InstType) {
 /// IP + X, that is really IP = ($ + 2) + X, which is why we add 2 to ip_inc8
 /// below.
 fn process_ip_bytes(inst: &mut InstType) {
-    inst.dest_text = match inst.ip_inc8 {
-        Some(ip_inc8) => Some(format!("${:+}", ip_inc8 as i8 + 2)),
-        None => {
+    inst.dest_text = match (inst.ip_inc8, inst.ip_inc_lo, inst.ip_inc_hi) {
+        (Some(ip_inc8), _, _) => Some(format!("${:+}", ip_inc8 as i8 + 2)),
+        (None, Some(lo), Some(hi)) => {
+            // Combine lo and hi
+            let ip_inc = ((hi as i16) << 8) | (lo as i16);
+            // TODO: I'm not sure why we need to add three , not two. I think it
+            // has to do with the fact that there was a no op byte for
+            // alignment.
+            Some(format!("${:+}", ip_inc + 3))
+        }
+        _ => {
             unreachable!()
         }
     };
