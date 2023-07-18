@@ -619,6 +619,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpIncLo);
             inst.extra_bytes.push(ExtraBytesType::IpIncHi);
         }
+        // jmp - Direct within segment-short
+        0xEB => {
+            inst.op_type = Some("jmp".to_string());
+            inst.extra_bytes.push(ExtraBytesType::IpInc8);
+        }
         // call - Direct within segment
         0xE8 => {
             inst.op_type = Some("call".to_string());
