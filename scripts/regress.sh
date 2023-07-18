@@ -44,6 +44,46 @@ for file in "$ASM_BUILD_DIR"/*; do
     fi
 done
 
+# Use while loop to easily break out
+while [ 1 ]; do
+    # Try decoding my ECEn 425 RTOS
+    RTOS_DIR="$HOME/code/425_artoss/labs/lab8"
+    RTOS_ASM="$RTOS_DIR/artossfinal.s"
+    RTOS_BIN="$RTOS_DIR/artoss.bin"
+    RTOS_BIN_TRUNC="$ASM_BUILD_DIR/artoss.bin.truncated"
+    cd $RTOS_DIR
+    make clean
+    if ! make; then
+        echo "ERROR: Failed to build RTOS"
+        rc=1
+        break
+    fi
+    cd $FILE_DIR
+
+    # https://unix.stackexchange.com/questions/13907/delete-the-first-n-bytes-of-files
+    echo "Stripping off the first 100 data bytes $RTOS_BIN..."
+    tail +257c $RTOS_BIN > $RTOS_BIN_TRUNC
+
+    echo "Checking decode of $RTOS_BIN_TRUNC..."
+    BASE=$(basename $RTOS_BIN_TRUNC)
+    if ! $BIN "$RTOS_BIN_TRUNC" "$ASM_BUILD_DIR/$BASE-tmp.asm" > "$ASM_BUILD_DIR/$BASE-tmp.log"; then
+        echo "ERROR: Decode program failed for $RTOS_BIN_TRUNC"
+        rc=1
+        break
+    fi
+    nasm "$ASM_BUILD_DIR/$BASE-tmp.asm" -o "$ASM_BUILD_DIR/$BASE-tmp.o"
+    if ! diff "$ASM_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+        echo "ERROR: Assembly of decoded output failed for $file"
+        rc=1
+        break
+    fi
+    if ! diff "$ASM_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+        echo "ERROR: Decoded output didn't match golden for $file"
+        rc=1
+        break
+    fi
+done
+
 if [ "$rc" == "0" ]; then
     echo "All regressions passed"
 else
