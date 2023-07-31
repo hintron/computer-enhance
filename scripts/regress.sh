@@ -47,7 +47,16 @@ done
 # Use while loop to easily break out
 while [ 1 ]; do
     # Try decoding my ECEn 425 RTOS
-    RTOS_DIR="$HOME/code/425_artoss/labs/lab8"
+    if [ -d "$HOME/code/425_artoss/" ]; then
+        RTOS_REPO="$HOME/code/425_artoss/"
+    elif [ -d "$HOME/code/artoss/" ]; then
+        RTOS_REPO="$HOME/code/artoss/"
+    else
+        echo "ERROR: Unable to find RTOS dir!"
+        rc=1
+        break
+    fi
+    RTOS_DIR="$RTOS_REPO/labs/lab8"
     RTOS_ASM="$RTOS_DIR/artossfinal.s"
     RTOS_BIN="$RTOS_DIR/artoss.bin"
     RTOS_BIN_TRUNC="$ASM_BUILD_DIR/artoss.bin.truncated"
