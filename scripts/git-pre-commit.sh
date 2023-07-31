@@ -18,3 +18,9 @@ if ! cargo test -q; then
     echo "Commit ABORTED: \`cargo test\` failed."
     exit 1
 fi
+
+# Run all rust tests to make sure things succeed
+if ! ./scripts/regress.sh; then
+    echo "Commit ABORTED: \`regress.sh\` failed."
+    exit 1
+fi
