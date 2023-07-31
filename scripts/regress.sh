@@ -8,6 +8,11 @@ SRC_DIR="$PROJECT_DIR/src"
 TARGET_DIR="$PROJECT_DIR/target"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
+CHECK_RTOS="false"
+if [ "$1" == "rtos" ]; then
+    CHECK_RTOS="true"
+fi
+
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
 
@@ -45,7 +50,7 @@ for file in "$ASM_BUILD_DIR"/*; do
 done
 
 # Use while loop to easily break out
-while [ 1 ]; do
+while [ "$CHECK_RTOS" == "true" ]; do
     # Try decoding my ECEn 425 RTOS
     if [ -d "$HOME/code/425_artoss/" ]; then
         RTOS_REPO="$HOME/code/425_artoss/"
