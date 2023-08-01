@@ -3,7 +3,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
 FILE_DIR="$PROJECT_DIR/files"
-ASM_BUILD_DIR="$FILE_DIR/build"
+ASM_BUILD_DIR="$FILE_DIR/build-decode-regress"
 SRC_DIR="$PROJECT_DIR/src"
 TARGET_DIR="$PROJECT_DIR/target"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
