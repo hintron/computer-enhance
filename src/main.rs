@@ -5,11 +5,11 @@
 //!
 //! [1]: https://www.computerenhance.com/.
 
+use anyhow::{bail, Result};
 use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::{self, Read, Write};
-use std::io::{Error, ErrorKind};
+use std::io::{Read, Write};
 
 mod decode;
 #[cfg(test)]
@@ -52,7 +52,7 @@ fn print_help() {
 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
-fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> io::Result<bool> {
+fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<bool> {
     if arg.starts_with("-h") || arg.starts_with("--help") {
         parsed_args.help = true;
         Ok(false)
@@ -61,15 +61,12 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> io::Result<bool> {
         Ok(false)
     } else {
         print_help();
-        Err(Error::new(
-            ErrorKind::Other,
-            format!("ERROR: Unexpected optional arg '{arg}'..."),
-        ))
+        bail!("ERROR: Unexpected optional arg '{arg}'...");
     }
 }
 
 /// Take the given arg and parse it as a positional argument. Modify parsed_args
-fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> io::Result<()> {
+fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> Result<()> {
     match (&parsed_args.input_file, &parsed_args.output_file) {
         (None, _) => {
             parsed_args.input_file = Some(arg);
@@ -79,10 +76,7 @@ fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> io::Result<()> {
         }
         _ => {
             print_help();
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("ERROR: Unexpected positional arg '{arg}'..."),
-            ));
+            bail!("ERROR: Unexpected positional arg '{arg}'...");
         }
     }
 
@@ -91,7 +85,7 @@ fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> io::Result<()> {
 
 /// Parse command line arguments.
 /// Return an ArgsType struct
-fn parse_args() -> io::Result<ArgsType> {
+fn parse_args() -> Result<ArgsType> {
     let args: Vec<String> = env::args().collect();
     let mut parsed_args = ArgsType {
         ..Default::default()
@@ -115,7 +109,7 @@ fn parse_args() -> io::Result<ArgsType> {
     Ok(parsed_args)
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     let args = parse_args()?;
 
     // Now, *process* parsed args
@@ -129,10 +123,7 @@ fn main() -> io::Result<()> {
     let mut input_file = match &args.input_file {
         None => {
             print_help();
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("ERROR: Missing required positional arg <input-file>..."),
-            ));
+            bail!("ERROR: Missing required positional arg <input-file>...");
         }
         Some(file) => File::open(file)?,
     };
@@ -145,10 +136,7 @@ fn main() -> io::Result<()> {
     let mut output_file = match &args.output_file {
         None => {
             print_help();
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("ERROR: Missing required positional arg <output_file>..."),
-            ));
+            bail!("ERROR: Missing required positional arg <output_file>...");
         }
         Some(file) => OpenOptions::new().write(true).create_new(true).open(file)?,
     };
