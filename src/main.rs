@@ -22,9 +22,9 @@ use crate::decode::decode;
 #[derive(Default)]
 struct ArgsType {
     /// The File object to decode
-    input_file: Option<File>,
+    input_file: Option<String>,
     /// The File object to output decoded assembly to
-    output_file: Option<File>,
+    output_file: Option<String>,
     /// If true, execute the stream. If false, just decode it
     execute: bool,
     help: bool,
@@ -51,7 +51,7 @@ fn print_help() {
 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
-fn parse_optional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<bool> {
+fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> io::Result<bool> {
     if arg.starts_with("-h") || arg.starts_with("--help") {
         parsed_args.help = true;
         Ok(false)
@@ -68,17 +68,13 @@ fn parse_optional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<bool> {
 }
 
 /// Take the given arg and parse it as a positional argument. Modify parsed_args
-fn parse_positional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<()> {
+fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> io::Result<()> {
     match (&parsed_args.input_file, &parsed_args.output_file) {
         (None, _) => {
-            // Get the instruction stream from a file.
-            println!("Decoding instructions from file '{}'...", arg);
-            parsed_args.input_file = Some(File::open(arg)?);
+            parsed_args.input_file = Some(arg);
         }
         (_, None) => {
-            println!("Outputting decoded assembly to file '{}'...", arg);
-            parsed_args.output_file =
-                Some(OpenOptions::new().write(true).create_new(true).open(arg)?);
+            parsed_args.output_file = Some(arg);
         }
         _ => {
             print_help();
@@ -102,7 +98,7 @@ fn parse_args() -> io::Result<ArgsType> {
 
     let mut get_arg_value = false;
     // Now parse args, excluding the first arg
-    for arg in &args[1..] {
+    for arg in args {
         if get_arg_value {
             // This argument is a value for the last argument
             unimplemented!();
@@ -126,7 +122,7 @@ fn main() -> io::Result<()> {
     }
 
     // Make sure required args exist
-    let mut input_file = match args.input_file {
+    let mut input_file = match &args.input_file {
         None => {
             print_help();
             return Err(Error::new(
@@ -134,10 +130,15 @@ fn main() -> io::Result<()> {
                 format!("ERROR: Missing required positional arg <input-file>..."),
             ));
         }
-        Some(x) => x,
+        Some(file) => File::open(file)?,
     };
+    // Get the instruction stream from a file.
+    println!(
+        "Decoding instructions from file '{}'...",
+        args.input_file.unwrap()
+    );
 
-    let mut output_file = match args.output_file {
+    let mut output_file = match &args.output_file {
         None => {
             print_help();
             return Err(Error::new(
@@ -145,8 +146,12 @@ fn main() -> io::Result<()> {
                 format!("ERROR: Missing required positional arg <output_file>..."),
             ));
         }
-        Some(x) => x,
+        Some(file) => OpenOptions::new().write(true).create_new(true).open(file)?,
     };
+    println!(
+        "Outputting decoded assembly to file '{}'...",
+        args.output_file.unwrap()
+    );
 
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
