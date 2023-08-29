@@ -21,6 +21,7 @@ use crate::decode::decode;
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
 struct ArgsType {
+    first_arg: Option<String>,
     /// The File object to decode
     input_file: Option<String>,
     /// The File object to output decoded assembly to
@@ -99,7 +100,9 @@ fn parse_args() -> io::Result<ArgsType> {
     let mut get_arg_value = false;
     // Now parse args, excluding the first arg
     for arg in args {
-        if get_arg_value {
+        if parsed_args.first_arg.is_none() {
+            parsed_args.first_arg = Some(arg);
+        } else if get_arg_value {
             // This argument is a value for the last argument
             unimplemented!();
         } else if arg.starts_with("-") {
@@ -121,6 +124,7 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
+    println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
     let mut input_file = match &args.input_file {
         None => {
