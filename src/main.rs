@@ -125,11 +125,33 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
+    // Make sure required args exist
+    let mut input_file = match args.input_file {
+        None => {
+            print_help();
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("ERROR: Missing required positional arg <input-file>..."),
+            ));
+        }
+        Some(x) => x,
+    };
+
+    let mut output_file = match args.output_file {
+        None => {
+            print_help();
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("ERROR: Missing required positional arg <output_file>..."),
+            ));
+        }
+        Some(x) => x,
+    };
+
     let mut inst_stream: Vec<u8> = vec![];
-    args.input_file.unwrap().read_to_end(&mut inst_stream)?;
+    input_file.read_to_end(&mut inst_stream)?;
     let insts = decode(inst_stream);
 
-    let mut output_file = args.output_file.unwrap();
     // Print out instructions to the output file
     writeln!(output_file, "bits 16")?;
     for inst in insts {
