@@ -138,7 +138,7 @@ fn main() -> Result<()> {
             print_help();
             bail!("ERROR: Missing required positional arg <output_file>...");
         }
-        Some(file) => OpenOptions::new().write(true).create_new(true).open(file)?,
+        Some(file) => OpenOptions::new().write(true).create(true).open(file)?,
     };
     println!(
         "Outputting decoded assembly to file '{}'...",
