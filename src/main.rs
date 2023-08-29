@@ -60,8 +60,7 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<bool> {
         parsed_args.execute = true;
         Ok(false)
     } else {
-        print_help();
-        bail!("ERROR: Unexpected optional arg '{arg}'...");
+        bail!("ERROR: Unexpected optional arg '{arg}'\n{USAGE}");
     }
 }
 
@@ -75,8 +74,7 @@ fn parse_positional(arg: String, parsed_args: &mut ArgsType) -> Result<()> {
             parsed_args.output_file = Some(arg);
         }
         _ => {
-            print_help();
-            bail!("ERROR: Unexpected positional arg '{arg}'...");
+            bail!("ERROR: Unexpected positional arg '{arg}'\n{USAGE}");
         }
     }
 
@@ -122,8 +120,7 @@ fn main() -> Result<()> {
     // Make sure required args exist
     let mut input_file = match &args.input_file {
         None => {
-            print_help();
-            bail!("ERROR: Missing required positional arg <input-file>...");
+            bail!("ERROR: Missing required positional arg <input-file>\n{USAGE}");
         }
         Some(file) => File::open(file)?,
     };
@@ -135,8 +132,7 @@ fn main() -> Result<()> {
 
     let mut output_file = match &args.output_file {
         None => {
-            print_help();
-            bail!("ERROR: Missing required positional arg <output_file>...");
+            bail!("ERROR: Missing required positional arg <output_file>\n{USAGE}");
         }
         Some(file) => OpenOptions::new().write(true).create(true).open(file)?,
     };
