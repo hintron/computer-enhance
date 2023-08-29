@@ -27,15 +27,39 @@ struct ArgsType {
     output_file: Option<File>,
     /// If true, execute the stream. If false, just decode it
     execute: bool,
+    help: bool,
+}
+
+const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
+const HELP: &str = "
+The Computer Enhance x86 Decoder and Simulator
+
+Required Parameters:
+<input> : The input binary file containing x86 binary code.
+<output> : The output file to print decoded assembly to.
+
+Options:
+-e|--exec : If specified, simulate the input instruction stream in addition to
+decoding it.
+-h|--help : Print this help message.
+";
+
+fn print_help() {
+    println!("{USAGE}");
+    println!("{HELP}");
 }
 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
 fn parse_optional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<bool> {
-    if arg.starts_with("-e") || arg.starts_with("--exec") {
+    if arg.starts_with("-h") || arg.starts_with("--help") {
+        parsed_args.help = true;
+        Ok(false)
+    } else if arg.starts_with("-e") || arg.starts_with("--exec") {
         parsed_args.execute = true;
         Ok(false)
     } else {
+        print_help();
         Err(Error::new(
             ErrorKind::Other,
             format!("ERROR: Unexpected optional arg '{arg}'..."),
@@ -57,6 +81,7 @@ fn parse_positional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<()> {
                 Some(OpenOptions::new().write(true).create_new(true).open(arg)?);
         }
         _ => {
+            print_help();
             return Err(Error::new(
                 ErrorKind::Other,
                 format!("ERROR: Unexpected positional arg '{arg}'..."),
@@ -92,9 +117,14 @@ fn parse_args() -> io::Result<ArgsType> {
 }
 
 fn main() -> io::Result<()> {
-    println!("Welcome to the Computer Enhance homework program!");
-
     let args = parse_args()?;
+
+    // Now, *process* parsed args
+    if args.help {
+        print_help();
+        return Ok(());
+    }
+
     let mut inst_stream: Vec<u8> = vec![];
     args.input_file.unwrap().read_to_end(&mut inst_stream)?;
     let insts = decode(inst_stream);
