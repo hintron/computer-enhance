@@ -104,10 +104,27 @@ fn parse_args() -> Result<ArgsType> {
         }
     }
 
+    // Check to make sure all required args exist
+    match (
+        &parsed_args.input_file,
+        &parsed_args.output_file,
+        &parsed_args.help,
+    ) {
+        (_, _, true) => { /* Don't check with -h */ }
+        (None, _, _) => {
+            bail!("Missing required positional arg <input>\n{USAGE}");
+        }
+        (_, None, _) => {
+            bail!("Missing required positional arg <output>\n{USAGE}");
+        }
+        _ => {}
+    }
+
     Ok(parsed_args)
 }
 
 fn main() -> Result<()> {
+    // Parse args. Fail if incorrect args are given
     let args = parse_args()?;
 
     // Now, *process* parsed args
@@ -119,27 +136,21 @@ fn main() -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
     let mut input_file = match &args.input_file {
-        None => {
-            bail!("Missing required positional arg <input>\n{USAGE}");
+        Some(file) => {
+            // Get the instruction stream from a file.
+            println!("Decoding instructions from file '{file}'...",);
+            File::open(file)?
         }
-        Some(file) => File::open(file)?,
+        _ => unreachable!(),
     };
-    // Get the instruction stream from a file.
-    println!(
-        "Decoding instructions from file '{}'...",
-        args.input_file.unwrap()
-    );
 
     let mut output_file = match &args.output_file {
-        None => {
-            bail!("Missing required positional arg <output>\n{USAGE}");
+        Some(file) => {
+            println!("Outputting decoded assembly to file '{file}'...",);
+            OpenOptions::new().write(true).create(true).open(file)?
         }
-        Some(file) => OpenOptions::new().write(true).create(true).open(file)?,
+        _ => unreachable!(),
     };
-    println!(
-        "Outputting decoded assembly to file '{}'...",
-        args.output_file.unwrap()
-    );
 
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
