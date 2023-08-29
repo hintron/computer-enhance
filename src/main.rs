@@ -25,6 +25,22 @@ struct ArgsType {
     input_file: Option<File>,
     /// The File object to output decoded assembly to
     output_file: Option<File>,
+    /// If true, execute the stream. If false, just decode it
+    execute: bool,
+}
+
+/// Take a given arg and parse it as an optional argument. Modify parsed_args.
+/// Return true if the next argument is a value for this argument.
+fn parse_optional(arg: &str, parsed_args: &mut ArgsType) -> io::Result<bool> {
+    if arg.starts_with("-e") || arg.starts_with("--exec") {
+        parsed_args.execute = true;
+        Ok(false)
+    } else {
+        Err(Error::new(
+            ErrorKind::Other,
+            format!("ERROR: Unexpected optional arg '{arg}'..."),
+        ))
+    }
 }
 
 /// Take the given arg and parse it as a positional argument. Modify parsed_args
@@ -59,12 +75,14 @@ fn parse_args() -> io::Result<ArgsType> {
         ..Default::default()
     };
 
+    let mut get_arg_value = false;
     // Now parse args, excluding the first arg
     for arg in &args[1..] {
-        if arg.starts_with("-") {
+        if get_arg_value {
+            // This argument is a value for the last argument
             unimplemented!();
-        } else if arg.starts_with("--") {
-            unimplemented!();
+        } else if arg.starts_with("-") {
+            get_arg_value = parse_optional(arg, &mut parsed_args)?;
         } else {
             parse_positional(arg, &mut parsed_args)?;
         }
