@@ -29,6 +29,9 @@
 use core::slice::Iter;
 use std::iter::Peekable;
 
+// Make this type look nicer
+type ByteStreamIter<'o> = Peekable<Iter<'o, u8>>;
+
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
 
@@ -226,7 +229,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
 
 /// Decode a single instruction, advancing the byte stream iterator as needed.\
 /// Return the instruction.
-fn decode_single(iter: &mut Peekable<Iter<'_, u8>>) -> Option<InstType> {
+fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
     let mut inst = InstType {
         ..Default::default()
     };
