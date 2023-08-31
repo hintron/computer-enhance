@@ -26,6 +26,9 @@
 //! * table 4-12, pg. 4-25: STOS is misspelled as STDS. Also, Stor -> Store
 //! and AL/A -> AL/AX.
 
+use core::slice::Iter;
+use std::iter::Peekable;
+
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
 
@@ -207,134 +210,147 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
     while iter.peek().is_some() {
-        let mut inst = InstType {
-            ..Default::default()
+        // Decode one (possibly multi-byte) instruction at a time
+        match decode_single(&mut iter) {
+            Some(inst) => {
+                println!("{}", inst.text.as_ref().unwrap());
+                insts.push(inst);
+                // On to the next instruction...
+            }
+            // Done with the instruction stream
+            None => break,
+        };
+    }
+    insts
+}
+
+/// Decode a single instruction, advancing the byte stream iterator as needed.\
+/// Return the instruction.
+fn decode_single(iter: &mut Peekable<Iter<'_, u8>>) -> Option<InstType> {
+    let mut inst = InstType {
+        ..Default::default()
+    };
+
+    let mut byte = iter.next().unwrap();
+    debug_byte(byte);
+    inst.processed_bytes.push(*byte);
+
+    // Decode any prefix bytes
+    let mut decode_prefix = decode_prefix_bytes(*byte, &mut inst);
+    while decode_prefix {
+        // The first byte was a prefix. Are there more?
+        byte = iter.next().unwrap();
+        debug_byte(byte);
+        inst.processed_bytes.push(*byte);
+        decode_prefix = decode_prefix_bytes(*byte, &mut inst);
+    }
+
+    // Decode first non-prefix byte
+    if decode_first_byte(*byte, &mut inst) == false {
+        println!("Unknown instruction");
+        return None;
+    }
+
+    // Process mod rm byte, if it exists
+    if inst.mod_rm_byte.is_some() {
+        if iter.peek().is_none() {
+            println!("Unexpected end of instruction stream");
+            return None;
+        };
+        // Get the next (mod r/m) byte in the stream
+        let byte = iter.next().unwrap();
+        debug_byte(byte);
+        inst.processed_bytes.push(*byte);
+        decode_mod_rm_byte(*byte, &mut inst);
+    }
+
+    // Process second string byte, if it exists
+    if inst.has_string_byte.is_some() {
+        if iter.peek().is_none() {
+            println!("Unexpected end of instruction stream");
+            return None;
+        };
+        // Get the next string byte in the stream
+        let byte = iter.next().unwrap();
+        debug_byte(byte);
+        inst.processed_bytes.push(*byte);
+        decode_string_byte(*byte, &mut inst);
+    }
+
+    // Get extra bytes and store in inst
+    for byte_type in &inst.extra_bytes {
+        if iter.peek().is_none() {
+            println!("Unexpected end of instruction stream");
+            return None;
         };
 
-        let mut byte = iter.next().unwrap();
+        // If we are sign extending a low data byte, don't actually process
+        // a byte.
+        match byte_type {
+            // Sign extend data_lo into data_hi
+            ExtraBytesType::DataExtend => {
+                let sign_byte = match inst.data_lo {
+                    Some(lo) => {
+                        if (lo & 0b10000000) == 0 {
+                            0x00
+                        } else {
+                            0xFF
+                        }
+                    }
+                    None => {
+                        panic!("DataExtend byte found no DataLo byte")
+                    }
+                };
+                inst.data_hi = Some(sign_byte);
+                continue;
+            }
+            _ => {}
+        }
+
+        let byte = iter.next().unwrap();
         debug_byte(byte);
         inst.processed_bytes.push(*byte);
 
-        // Decode any prefix bytes
-        let mut decode_prefix = decode_prefix_bytes(*byte, &mut inst);
-        while decode_prefix {
-            // The first byte was a prefix. Are there more?
-            byte = iter.next().unwrap();
-            debug_byte(byte);
-            inst.processed_bytes.push(*byte);
-            decode_prefix = decode_prefix_bytes(*byte, &mut inst);
-        }
-
-        // Decode first non-prefix byte
-        if decode_first_byte(*byte, &mut inst) == false {
-            println!("Unknown instruction");
-            break;
-        }
-
-        // Process mod rm byte, if it exists
-        if inst.mod_rm_byte.is_some() {
-            if iter.peek().is_none() {
-                println!("Unexpected end of instruction stream");
-                break;
-            };
-            // Get the next (mod r/m) byte in the stream
-            let byte = iter.next().unwrap();
-            debug_byte(byte);
-            inst.processed_bytes.push(*byte);
-            decode_mod_rm_byte(*byte, &mut inst);
-        }
-
-        // Process second string byte, if it exists
-        if inst.has_string_byte.is_some() {
-            if iter.peek().is_none() {
-                println!("Unexpected end of instruction stream");
-                break;
-            };
-            // Get the next string byte in the stream
-            let byte = iter.next().unwrap();
-            debug_byte(byte);
-            inst.processed_bytes.push(*byte);
-            decode_string_byte(*byte, &mut inst);
-        }
-
-        // Get extra bytes and store in inst
-        for byte_type in &inst.extra_bytes {
-            if iter.peek().is_none() {
-                println!("Unexpected end of instruction stream");
-                continue;
-            };
-
-            // If we are sign extending a low data byte, don't actually process
-            // a byte.
-            match byte_type {
-                // Sign extend data_lo into data_hi
-                ExtraBytesType::DataExtend => {
-                    let sign_byte = match inst.data_lo {
-                        Some(lo) => {
-                            if (lo & 0b10000000) == 0 {
-                                0x00
-                            } else {
-                                0xFF
-                            }
-                        }
-                        None => {
-                            panic!("DataExtend byte found no DataLo byte")
-                        }
-                    };
-                    inst.data_hi = Some(sign_byte);
-                    continue;
-                }
-                _ => {}
-            }
-
-            let byte = iter.next().unwrap();
-            debug_byte(byte);
-            inst.processed_bytes.push(*byte);
-
-            match byte_type {
-                ExtraBytesType::DispLo => inst.disp_lo = Some(*byte),
-                ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
-                ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
-                ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
-                ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
-                ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
-                ExtraBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
-                ExtraBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
-                ExtraBytesType::DoNotCare => {}
-                _ => {
-                    panic!("Unexpected ExtraBytesType!")
-                }
+        match byte_type {
+            ExtraBytesType::DispLo => inst.disp_lo = Some(*byte),
+            ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
+            ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
+            ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
+            ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
+            ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
+            ExtraBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
+            ExtraBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
+            ExtraBytesType::DoNotCare => {}
+            _ => {
+                panic!("Unexpected ExtraBytesType!")
             }
         }
-
-        // Process extra bytes
-        if inst.add_disp_to.is_some() {
-            process_disp_bytes(&mut inst);
-        }
-        if inst.add_data_to.is_some() {
-            process_data_bytes(&mut inst);
-        }
-        if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-            process_ip_bytes(&mut inst);
-        }
-
-        // Create instruction text
-        let op_text = concat_texts(&inst.prefixes, &inst.op_type);
-        let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
-        let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
-
-        // Concatenate any word or byte prefixes
-        dest_text = concat_texts(&inst.dest_prefix, &dest_text);
-        source_text = concat_texts(&inst.source_prefix, &source_text);
-
-        let inst_text = concat_operands(&op_text, dest_text, source_text);
-
-        println!("{}", inst_text);
-        inst.text = Some(inst_text);
-        insts.push(inst);
-        // On to the next instruction...
     }
-    insts
+
+    // Process extra bytes
+    if inst.add_disp_to.is_some() {
+        process_disp_bytes(&mut inst);
+    }
+    if inst.add_data_to.is_some() {
+        process_data_bytes(&mut inst);
+    }
+    if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
+        process_ip_bytes(&mut inst);
+    }
+
+    // Create instruction text
+    let op_text = concat_texts(&inst.prefixes, &inst.op_type);
+    let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
+    let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
+
+    // Concatenate any word or byte prefixes
+    dest_text = concat_texts(&inst.dest_prefix, &dest_text);
+    source_text = concat_texts(&inst.source_prefix, &source_text);
+
+    let inst_text = concat_operands(&op_text, dest_text, source_text);
+    inst.text = Some(inst_text);
+
+    return Some(inst);
 }
 
 /// Decode any "prefix" bytes to a given instruction, like LOCK.
