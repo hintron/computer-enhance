@@ -12,11 +12,13 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
 mod decode;
+mod execute;
 #[cfg(test)]
 mod tests;
 
 // Internal imports
 use crate::decode::decode;
+use crate::decode::decode_execute;
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
@@ -154,7 +156,12 @@ fn main() -> Result<()> {
 
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
-    let insts = decode(inst_stream);
+
+    let insts = if args.execute {
+        decode_execute(inst_stream)
+    } else {
+        decode(inst_stream)
+    };
 
     // Print out instructions to the output file
     writeln!(output_file, "bits 16")?;

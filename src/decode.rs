@@ -29,6 +29,9 @@
 use core::slice::Iter;
 use std::iter::Peekable;
 
+use crate::execute::execute;
+use crate::execute::init_state;
+
 // Make this type look nicer
 type ByteStreamIter<'o> = Peekable<Iter<'o, u8>>;
 
@@ -188,6 +191,30 @@ pub struct InstType {
     dest_prefix: Option<String>,
     /// The final instruction representation
     pub text: Option<String>,
+}
+
+/// Decode and execute an 8086 instruction stream
+pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
+    let mut iter = inst_stream.iter().peekable();
+    let mut insts = vec![];
+    let mut cpu_state = init_state();
+
+    while iter.peek().is_some() {
+        // Decode one (possibly multi-byte) instruction at a time
+        match decode_single(&mut iter) {
+            Some(mut inst) => {
+                // Execute the instruction
+                execute(&mut inst, &mut cpu_state);
+                // Record the instruction
+                insts.push(inst);
+
+                // On to the next instruction...
+            }
+            // Done with the instruction stream
+            None => break,
+        };
+    }
+    insts
 }
 
 /// Decode an 8086 instruction stream
