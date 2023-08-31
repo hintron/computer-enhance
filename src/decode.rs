@@ -201,7 +201,7 @@ pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
 
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter) {
+        match decode_single(&mut iter, false) {
             Some(mut inst) => {
                 // Execute the instruction
                 execute(&mut inst, &mut cpu_state);
@@ -223,7 +223,7 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut insts = vec![];
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter) {
+        match decode_single(&mut iter, true) {
             Some(inst) => {
                 println!("{}", inst.text.as_ref().unwrap());
                 insts.push(inst);
@@ -256,13 +256,15 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
 ///     4) The final output text is assembled from the values in the `InstType`
 ///        struct.
 ///     5) The output text is printed to stdout.
-fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
+fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     let mut inst = InstType {
         ..Default::default()
     };
 
     let mut byte = iter.next().unwrap();
-    debug_byte(byte);
+    if debug {
+        debug_byte(byte);
+    }
     inst.processed_bytes.push(*byte);
 
     // Decode any prefix bytes
@@ -270,7 +272,9 @@ fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
     while decode_prefix {
         // The first byte was a prefix. Are there more?
         byte = iter.next().unwrap();
-        debug_byte(byte);
+        if debug {
+            debug_byte(byte);
+        }
         inst.processed_bytes.push(*byte);
         decode_prefix = decode_prefix_bytes(*byte, &mut inst);
     }
@@ -289,7 +293,9 @@ fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
         };
         // Get the next (mod r/m) byte in the stream
         let byte = iter.next().unwrap();
-        debug_byte(byte);
+        if debug {
+            debug_byte(byte);
+        }
         inst.processed_bytes.push(*byte);
         decode_mod_rm_byte(*byte, &mut inst);
     }
@@ -302,7 +308,9 @@ fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
         };
         // Get the next string byte in the stream
         let byte = iter.next().unwrap();
-        debug_byte(byte);
+        if debug {
+            debug_byte(byte);
+        }
         inst.processed_bytes.push(*byte);
         decode_string_byte(*byte, &mut inst);
     }
@@ -338,7 +346,9 @@ fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
         }
 
         let byte = iter.next().unwrap();
-        debug_byte(byte);
+        if debug {
+            debug_byte(byte);
+        }
         inst.processed_bytes.push(*byte);
 
         match byte_type {
