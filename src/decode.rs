@@ -191,24 +191,6 @@ pub struct InstType {
 }
 
 /// Decode an 8086 instruction stream
-///
-/// # Approach:
-/// An instruction stream is parsed byte by byte, as 8086 has variable-length
-/// instructions that require parsing the first and sometimes the second byte
-/// before knowing how many total bytes to parse.
-///
-/// As the instruction is decoded, a new `InstType` struct is filled out with
-/// all the decoded fields. This struct is passed to different stages, which
-/// update it as needed. The final decoded text is created using the data from
-/// this struct. The struct also holds some partially-built values as needed.
-///
-/// Instructions are decoded in the following stages:
-///     1) The first byte is decoded
-///     2) If needed, the "mod rm" byte is decoded next
-///     3) Any displacement or immediate/data bytes are decoded.
-///     4) The final output text is assembled from the values in the `InstType`
-///        struct.
-///     5) The output text is printed to stdout.
 pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
@@ -229,6 +211,24 @@ pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
 
 /// Decode a single instruction, advancing the byte stream iterator as needed.\
 /// Return the instruction.
+///
+/// # Approach:
+/// An instruction stream is parsed byte by byte, as 8086 has variable-length
+/// instructions that require parsing the first and sometimes the second byte
+/// before knowing how many total bytes to parse.
+///
+/// As the instruction is decoded, a new `InstType` struct is filled out with
+/// all the decoded fields. This struct is passed to different stages, which
+/// update it as needed. The final decoded text is created using the data from
+/// this struct. The struct also holds some partially-built values as needed.
+///
+/// Instructions are decoded in the following stages:
+///     1) The first byte is decoded
+///     2) If needed, the "mod rm" byte is decoded next
+///     3) Any displacement or immediate/data bytes are decoded.
+///     4) The final output text is assembled from the values in the `InstType`
+///        struct.
+///     5) The output text is printed to stdout.
 fn decode_single(iter: &mut ByteStreamIter) -> Option<InstType> {
     let mut inst = InstType {
         ..Default::default()
