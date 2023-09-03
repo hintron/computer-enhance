@@ -1,4 +1,5 @@
-//! This module implements the 8086 decoding logic.
+//! This module implements the 8086 decoding logic, and also calls into the
+//! execute module as needed to simulate the code being decoded..
 //!
 //! It will be difficult to follow along with what is going on in this file
 //! without referencing the 8086 manual (available in this code repo at
@@ -30,8 +31,7 @@ use core::slice::Iter;
 use std::fmt;
 use std::iter::Peekable;
 
-use crate::execute::execute;
-use crate::execute::init_state;
+use crate::execute::{execute, init_state, print_final_state};
 
 // Make this type look nicer
 type ByteStreamIter<'o> = Peekable<Iter<'o, u8>>;
@@ -134,7 +134,7 @@ enum AddTo {
 
 /// OpCode types containing a static string mapping
 #[derive(Copy, Clone, Debug)]
-enum OpCodeType {
+pub enum OpCodeType {
     Aaa,
     Aad,
     Aam,
@@ -322,8 +322,9 @@ impl fmt::Display for OpCodeType {
 }
 
 /// Register type uniquely identifying an addressable register.
-#[derive(Copy, Clone, Debug)]
-enum RegType {
+/// Derive Ord so we can create a map with RegType keys.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum RegType {
     Al,
     Ah,
     Ax,
@@ -378,6 +379,8 @@ impl fmt::Display for RegType {
 }
 
 /// A struct holding all the decoded data of a given instruction
+/// All public fields will be used in the execute module or printed out to the
+/// user.
 #[derive(Default, Debug)]
 pub struct InstType {
     /// If true, the REG field is the destination, otherwise it is the source.
@@ -406,7 +409,7 @@ pub struct InstType {
     sr_field: Option<RegType>,
     /// A string containing the registers but NOT the src/dst
     /// The op code type
-    op_type: Option<OpCodeType>,
+    pub op_type: Option<OpCodeType>,
     /// A suffix string to append to the opcode, like `b` for `movsb`
     op_type_suffix: Option<&'static str>,
     /// A string of the full op code plus any prefixes or suffixes
@@ -442,8 +445,9 @@ pub struct InstType {
     source_text: Option<String>,
     source_text_end: Option<String>,
     source_prefix: Option<String>,
+    pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
-    dest_reg: Option<RegType>,
+    pub dest_reg: Option<RegType>,
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
@@ -452,10 +456,11 @@ pub struct InstType {
     pub text: Option<String>,
 }
 
-/// Decode and execute an 8086 instruction stream
-pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
+/// Decode and execute an 8086 instruction stream. This will decode whatever
+/// the IP points to and simulates that instruction.
+pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<String> {
     let mut iter = inst_stream.iter().peekable();
-    let mut insts = vec![];
+    let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
     while iter.peek().is_some() {
@@ -463,20 +468,23 @@ pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
         match decode_single(&mut iter, false) {
             Some(mut inst) => {
                 // Execute the instruction
-                execute(&mut inst, &mut cpu_state);
-                // Record the instruction
-                insts.push(inst);
-
+                let text = execute(&mut inst, &mut cpu_state);
+                output_text_lines.push(text);
                 // On to the next instruction...
             }
             // Done with the instruction stream
             None => break,
         };
     }
-    insts
+
+    print_final_state(&cpu_state, &mut output_text_lines);
+    output_text_lines
 }
 
-/// Decode an 8086 instruction stream
+/// Decode an 8086 instruction stream. This is a dumb line-by-line decode of an
+/// instruction stream and does not take branches or do any simulation
+/// whatsoever. It prints processed bytes, prints the decoded instruction, and
+/// returns a vector of instructions.
 pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
@@ -648,6 +656,11 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     // Concatenate any word or byte prefixes
     dest_text = concat_texts(&inst.dest_prefix, &dest_text);
     source_text = concat_texts(&inst.source_prefix, &source_text);
+
+    inst.source_value = match &source_text {
+        Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
+        _ => None,
+    };
 
     let inst_text = concat_operands(&op_text, dest_text, source_text);
     inst.text = Some(inst_text);
