@@ -157,17 +157,19 @@ fn main() -> Result<()> {
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
 
-    let insts = if args.execute {
-        decode_execute(inst_stream)
+    if args.execute {
+        let text_lines = decode_execute(inst_stream);
+        for line in text_lines {
+            writeln!(output_file, "{}", line)?;
+        }
     } else {
-        decode(inst_stream)
+        let insts = decode(inst_stream);
+        // Print out instructions to the output file
+        writeln!(output_file, "bits 16")?;
+        for inst in insts {
+            writeln!(output_file, "{}", inst.text.unwrap())?;
+        }
     };
-
-    // Print out instructions to the output file
-    writeln!(output_file, "bits 16")?;
-    for inst in insts {
-        writeln!(output_file, "{}", inst.text.unwrap())?;
-    }
 
     Ok(())
 }

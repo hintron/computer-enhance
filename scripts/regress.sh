@@ -126,7 +126,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" ; then
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u; then
         echo "ERROR: Simulation output didn't match golden output"
         echo "$SIMULATE_OUTPUT != $SIMULATE_GOLDEN_OUTPUT"
         rc=1
