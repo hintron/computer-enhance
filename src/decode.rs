@@ -321,6 +321,50 @@ impl fmt::Display for OpCodeType {
     }
 }
 
+/// Register type uniquely identifying an addressable register.
+#[derive(Copy, Clone, Debug)]
+enum RegType {
+    Al,
+    Ah,
+    Ax,
+    Bl,
+    Bh,
+    Bx,
+    Cl,
+    Ch,
+    Cx,
+    Dl,
+    Dh,
+    Dx,
+    Sp,
+    Bp,
+    Si,
+    Di,
+}
+
+impl fmt::Display for RegType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RegType::Al => write!(f, "al"),
+            RegType::Ah => write!(f, "ah"),
+            RegType::Ax => write!(f, "ax"),
+            RegType::Bl => write!(f, "bl"),
+            RegType::Bh => write!(f, "bh"),
+            RegType::Bx => write!(f, "bx"),
+            RegType::Cl => write!(f, "cl"),
+            RegType::Ch => write!(f, "ch"),
+            RegType::Cx => write!(f, "cx"),
+            RegType::Dl => write!(f, "dl"),
+            RegType::Dh => write!(f, "dh"),
+            RegType::Dx => write!(f, "dx"),
+            RegType::Sp => write!(f, "sp"),
+            RegType::Bp => write!(f, "bp"),
+            RegType::Si => write!(f, "si"),
+            RegType::Di => write!(f, "di"),
+        }
+    }
+}
+
 /// A struct holding all the decoded data of a given instruction
 #[derive(Default, Debug)]
 pub struct InstType {
@@ -342,7 +386,9 @@ pub struct InstType {
     prefixes: Option<String>,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
-    reg_field: Option<String>,
+    /// This is "reg" in the ModRegRm byte. This will be copied into source_reg
+    /// or dest_reg, depending on d_field.
+    reg_field: Option<RegType>,
     sr_field: Option<String>,
     /// A string containing the registers but NOT the src/dst
     /// The op code type
@@ -376,10 +422,14 @@ pub struct InstType {
     /// The expected "extra" byte types to parse after we parse the 1st byte and
     /// the mod/rm byte (if it exists).
     extra_bytes: Vec<ExtraBytesType>,
+    /// The source register, if the source is a register
+    source_reg: Option<RegType>,
     /// The text for the source operand
     source_text: Option<String>,
     source_text_end: Option<String>,
     source_prefix: Option<String>,
+    /// The destination register, if the destination is a register
+    dest_reg: Option<RegType>,
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
@@ -564,6 +614,19 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         inst.op_type.unwrap(),
         inst.op_type_suffix.unwrap_or("")
     ));
+
+    // Move dest_reg into dest_text if dest_text hasn't been set yet
+    match (&mut inst.dest_text, inst.dest_reg) {
+        (None, Some(dest_reg)) => inst.dest_text = Some(format!("{dest_reg}")),
+        _ => {}
+    }
+
+    // Move source_reg into source_text if source_text hasn't been set yet
+    match (&mut inst.source_text, inst.source_reg) {
+        (None, Some(source_reg)) => inst.source_text = Some(format!("{source_reg}")),
+        _ => {}
+    }
+
     let op_text = concat_texts(&inst.prefixes, &inst.op_type_str);
     let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
     let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
@@ -641,10 +704,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -662,10 +725,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -674,7 +737,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Inc);
             let w_field = Some(true);
             let reg_field = decode_reg_field(byte & 0b111, w_field);
-            inst.dest_text = Some(reg_field.clone());
+            inst.dest_reg = Some(reg_field);
             inst.reg_field = Some(reg_field);
             inst.w_field = w_field;
         }
@@ -734,10 +797,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -755,10 +818,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -776,10 +839,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -807,7 +870,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.w_field = Some(((byte & 0b1000) >> 3) == 1);
             let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
             inst.reg_field = Some(reg_field.clone());
-            inst.dest_text = Some(reg_field);
+            inst.dest_reg = Some(reg_field);
             // No mod rm byte for this mov variant!
             // Indicate that there are source data bytes after this byte
             inst.add_data_to = Some(AddTo::Source);
@@ -824,16 +887,16 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let w_field = (byte & 0x1) == 1;
             let left_bracket = Some("[".to_string());
             let right_bracket = Some("]".to_string());
-            let accumulator = Some("ax".to_string());
+            let accumulator = Some(RegType::Ax);
             match ((byte & 0x2) >> 1) == 1 {
                 false => {
-                    inst.dest_text = accumulator;
+                    inst.dest_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Source);
                     inst.source_text = left_bracket;
                     inst.source_text_end = right_bracket;
                 }
                 true => {
-                    inst.source_text = accumulator;
+                    inst.source_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Dest);
                     inst.dest_text = left_bracket;
                     inst.dest_text_end = right_bracket;
@@ -897,7 +960,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // Hardcode registers to 16-bit widths
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
-            inst.dest_text = Some(reg_field);
+            inst.dest_reg = Some(reg_field);
         }
         // push - segment register - 0x06,0x0E,0x86,0x8E
         0b000_00_110 | 0b000_01_110 | 0b000_10_110 | 0b000_11_110 => {
@@ -917,7 +980,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // Hardcode registers to 16-bit widths
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
-            inst.dest_text = Some(reg_field);
+            inst.dest_reg = Some(reg_field);
         }
         // push - segment register - 0x06,0x0E,0x86,0x8E
         0b000_00_111 | 0b000_01_111 | 0b000_10_111 | 0b000_11_111 => {
@@ -936,19 +999,19 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // xchg - Register with accumulator
         0x90..=0x97 => {
             inst.op_type = Some(OpCodeType::Xchg);
-            inst.dest_text = Some("ax".to_string());
+            inst.dest_reg = Some(RegType::Ax);
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
-            inst.reg_field = Some(reg_field.clone());
-            inst.source_text = Some(reg_field);
+            inst.reg_field = Some(reg_field);
+            inst.source_reg = Some(reg_field);
         }
         // in - fixed port
         0xE4..=0xE5 => {
             inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.extra_bytes.push(ExtraBytesType::Data8);
             inst.add_data_to = Some(AddTo::Source);
@@ -959,11 +1022,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
-            inst.source_text = Some("dx".to_string());
+            inst.source_reg = Some(RegType::Dx);
             inst.w_field = Some(w_field);
         }
         // out - fixed port
@@ -971,9 +1034,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.source_text = Some("ax".to_string());
+                inst.source_reg = Some(RegType::Ax);
             } else {
-                inst.source_text = Some("al".to_string());
+                inst.source_reg = Some(RegType::Al);
             }
             inst.extra_bytes.push(ExtraBytesType::Data8);
             inst.add_data_to = Some(AddTo::Dest);
@@ -984,11 +1047,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.source_text = Some("ax".to_string());
+                inst.source_reg = Some(RegType::Ax);
             } else {
-                inst.source_text = Some("al".to_string());
+                inst.source_reg = Some(RegType::Al);
             }
-            inst.dest_text = Some("dx".to_string());
+            inst.dest_reg = Some(RegType::Dx);
             inst.w_field = Some(w_field);
         }
         // xlat
@@ -1055,10 +1118,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -1076,10 +1139,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -1088,7 +1151,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Dec);
             let w_field = Some(true);
             let reg_field = decode_reg_field(byte & 0b111, w_field);
-            inst.dest_text = Some(reg_field.clone());
+            inst.dest_reg = Some(reg_field);
             inst.reg_field = Some(reg_field);
             inst.w_field = w_field;
         }
@@ -1111,10 +1174,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -1178,10 +1241,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
-                inst.dest_text = Some("ax".to_string());
+                inst.dest_reg = Some(RegType::Ax);
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
             } else {
-                inst.dest_text = Some("al".to_string());
+                inst.dest_reg = Some(RegType::Al);
             }
             inst.w_field = Some(w_field);
         }
@@ -1330,12 +1393,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match inst.d_field {
                 None | Some(false) => {
                     // Source is REG field
-                    inst.source_text = Some(reg_field.clone());
+                    inst.source_reg = Some(reg_field);
                     inst.source_text_end = None;
                 }
                 Some(true) => {
                     // Destination is REG field
-                    inst.dest_text = Some(reg_field.clone());
+                    inst.dest_reg = Some(reg_field);
                     inst.dest_text_end = None;
                 }
             };
@@ -1630,24 +1693,24 @@ fn decode_mod_field(mode: u8) -> ModType {
 /// REG (Register) Field Encoding
 ///
 /// See table 4-9
-fn decode_reg_field(reg: u8, w: Option<bool>) -> String {
+fn decode_reg_field(reg: u8, w: Option<bool>) -> RegType {
     match (reg, w) {
-        (0b000, None | Some(false)) => "al".to_string(),
-        (0b001, None | Some(false)) => "cl".to_string(),
-        (0b010, None | Some(false)) => "dl".to_string(),
-        (0b011, None | Some(false)) => "bl".to_string(),
-        (0b100, None | Some(false)) => "ah".to_string(),
-        (0b101, None | Some(false)) => "ch".to_string(),
-        (0b110, None | Some(false)) => "dh".to_string(),
-        (0b111, None | Some(false)) => "bh".to_string(),
-        (0b000, Some(true)) => "ax".to_string(),
-        (0b001, Some(true)) => "cx".to_string(),
-        (0b010, Some(true)) => "dx".to_string(),
-        (0b011, Some(true)) => "bx".to_string(),
-        (0b100, Some(true)) => "sp".to_string(),
-        (0b101, Some(true)) => "bp".to_string(),
-        (0b110, Some(true)) => "si".to_string(),
-        (0b111, Some(true)) => "di".to_string(),
+        (0b000, None | Some(false)) => RegType::Al,
+        (0b001, None | Some(false)) => RegType::Cl,
+        (0b010, None | Some(false)) => RegType::Dl,
+        (0b011, None | Some(false)) => RegType::Bl,
+        (0b100, None | Some(false)) => RegType::Ah,
+        (0b101, None | Some(false)) => RegType::Ch,
+        (0b110, None | Some(false)) => RegType::Dh,
+        (0b111, None | Some(false)) => RegType::Bh,
+        (0b000, Some(true)) => RegType::Ax,
+        (0b001, Some(true)) => RegType::Cx,
+        (0b010, Some(true)) => RegType::Dx,
+        (0b011, Some(true)) => RegType::Bx,
+        (0b100, Some(true)) => RegType::Sp,
+        (0b101, Some(true)) => RegType::Bp,
+        (0b110, Some(true)) => RegType::Si,
+        (0b111, Some(true)) => RegType::Di,
         _ => unreachable!(),
     }
 }
