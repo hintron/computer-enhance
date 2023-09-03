@@ -976,7 +976,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field.clone());
             inst.dest_reg = Some(reg_field);
         }
-        // push - segment register - 0x06,0x0E,0x86,0x8E
+        // push - segment register - 0x06,0x0E,0x16,0x1E
         0b000_00_110 | 0b000_01_110 | 0b000_10_110 | 0b000_11_110 => {
             inst.op_type = Some(OpCodeType::Push);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
@@ -996,8 +996,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.reg_field = Some(reg_field.clone());
             inst.dest_reg = Some(reg_field);
         }
-        // push - segment register - 0x06,0x0E,0x86,0x8E
-        0b000_00_111 | 0b000_01_111 | 0b000_10_111 | 0b000_11_111 => {
+        // pop - segment register - 0x07,~0x0F~,0x17,0x1F
+        // pop CS (0x0f) isapparently not a thing in 8086
+        0b000_00_111 /*| 0b000_01_111*/ | 0b000_10_111 | 0b000_11_111 => {
             inst.op_type = Some(OpCodeType::Pop);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
             inst.sr_field = Some(sr_field.clone());
