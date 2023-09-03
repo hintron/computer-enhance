@@ -861,7 +861,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to/from register
-        0x88..=0x8C => {
+        0x88..=0x8B => {
             inst.op_type = Some(OpCodeType::Mov);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
