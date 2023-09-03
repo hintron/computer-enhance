@@ -340,6 +340,14 @@ enum RegType {
     Bp,
     Si,
     Di,
+    /// Segment register es
+    Es,
+    /// Segment register cs
+    Cs,
+    /// Segment register ss
+    Ss,
+    /// Segment register ds
+    Ds,
 }
 
 impl fmt::Display for RegType {
@@ -361,6 +369,10 @@ impl fmt::Display for RegType {
             RegType::Bp => write!(f, "bp"),
             RegType::Si => write!(f, "si"),
             RegType::Di => write!(f, "di"),
+            RegType::Es => write!(f, "es"),
+            RegType::Cs => write!(f, "cs"),
+            RegType::Ss => write!(f, "ss"),
+            RegType::Ds => write!(f, "ds"),
         }
     }
 }
@@ -389,7 +401,9 @@ pub struct InstType {
     /// This is "reg" in the ModRegRm byte. This will be copied into source_reg
     /// or dest_reg, depending on d_field.
     reg_field: Option<RegType>,
-    sr_field: Option<String>,
+    /// This is the segment register field, used with "segment register"
+    /// variants of push and pop, as well as
+    sr_field: Option<RegType>,
     /// A string containing the registers but NOT the src/dst
     /// The op code type
     op_type: Option<OpCodeType>,
@@ -967,7 +981,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Push);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
             inst.sr_field = Some(sr_field.clone());
-            inst.dest_text = Some(sr_field);
+            inst.dest_reg = Some(sr_field);
         }
         // pop - Register/memory
         0x8F => {
@@ -987,7 +1001,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Pop);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
             inst.sr_field = Some(sr_field.clone());
-            inst.dest_text = Some(sr_field);
+            inst.dest_reg = Some(sr_field);
         }
         // xchg - Reg/memory with register
         0x86..=0x87 => {
@@ -1718,12 +1732,12 @@ fn decode_reg_field(reg: u8, w: Option<bool>) -> RegType {
 /// SR (Segment Register) Field Encoding
 ///
 /// See table 4-11
-fn decode_sr_field(sr: u8) -> String {
+fn decode_sr_field(sr: u8) -> RegType {
     match sr {
-        0b00 => "es".to_string(),
-        0b01 => "cs".to_string(),
-        0b10 => "ss".to_string(),
-        0b11 => "ds".to_string(),
+        0b00 => RegType::Es,
+        0b01 => RegType::Cs,
+        0b10 => RegType::Ss,
+        0b11 => RegType::Ds,
         _ => unreachable!(),
     }
 }
