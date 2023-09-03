@@ -300,21 +300,6 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         decode_mod_rm_byte(*byte, &mut inst);
     }
 
-    // Process second string byte, if it exists
-    if inst.has_string_byte.is_some() {
-        if iter.peek().is_none() {
-            println!("Unexpected end of instruction stream");
-            return None;
-        };
-        // Get the next string byte in the stream
-        let byte = iter.next().unwrap();
-        if debug {
-            debug_byte(byte);
-        }
-        inst.processed_bytes.push(*byte);
-        decode_string_byte(*byte, &mut inst);
-    }
-
     // Get extra bytes and store in inst
     for byte_type in &inst.extra_bytes {
         if iter.peek().is_none() {
@@ -402,6 +387,12 @@ fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
         0xF0 => {
             inst.lock_prefix = Some(true);
             "lock "
+        }
+        // rep - string repeat
+        0xF2..=0xF3 => {
+            inst.has_string_byte = Some(true);
+            inst.z_field = Some((byte & 0x1) == 1);
+            "rep "
         }
         _ => {
             // This byte isn't a prefix...
@@ -591,14 +582,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.dest_text = Some("al".to_string());
             }
             inst.w_field = Some(w_field);
-        }
-        // rep - Repeat
-        0xF2..=0xF3 => {
-            inst.op_type = Some("rep ".to_string());
-            // The second byte of the rep string instruction will be parsed
-            // in the main decode loop via decode_string_byte()
-            inst.has_string_byte = Some(true);
-            inst.z_field = Some((byte & 0x1) == 1);
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
@@ -1056,6 +1039,56 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x9B => {
             inst.op_type = Some("wait".to_string());
         }
+        0xA4..=0xA5 => {
+            assert!(inst.has_string_byte.is_some());
+            let w_field = (byte & 0x1) == 1;
+            inst.op_type = if w_field {
+                Some("movsw".to_string())
+            } else {
+                Some("movsb".to_string())
+            };
+            inst.w_field = Some(w_field);
+        }
+        0xA6..=0xA7 => {
+            assert!(inst.has_string_byte.is_some());
+            let w_field = (byte & 0x1) == 1;
+            inst.op_type = if w_field {
+                Some("cmpsw".to_string())
+            } else {
+                Some("cmpsb".to_string())
+            };
+            inst.w_field = Some(w_field);
+        }
+        0xAE..=0xAF => {
+            assert!(inst.has_string_byte.is_some());
+            let w_field = (byte & 0x1) == 1;
+            inst.op_type = if w_field {
+                Some("scasw".to_string())
+            } else {
+                Some("scasb".to_string())
+            };
+            inst.w_field = Some(w_field);
+        }
+        0xAC..=0xAD => {
+            assert!(inst.has_string_byte.is_some());
+            let w_field = (byte & 0x1) == 1;
+            inst.op_type = if w_field {
+                Some("lodsw".to_string())
+            } else {
+                Some("lodsb".to_string())
+            };
+            inst.w_field = Some(w_field);
+        }
+        0xAA..=0xAB => {
+            assert!(inst.has_string_byte.is_some());
+            let w_field = (byte & 0x1) == 1;
+            inst.op_type = if w_field {
+                Some("stosw".to_string())
+            } else {
+                Some("stosb".to_string())
+            };
+            inst.w_field = Some(w_field);
+        }
         _ => {
             return false;
         }
@@ -1245,29 +1278,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 
     inst.mod_field = Some(mode);
     inst.rm_field = Some(rm_field);
-}
-
-/// Decode the second "string manipulation" byte that comes after a `REP`
-/// instruction.
-fn decode_string_byte(byte: u8, inst: &mut InstType) {
-    let w_field = (byte & 0x1) == 1;
-    let second_op = match byte {
-        0xA4..=0xA5 => "movs",
-        0xA6..=0xA7 => "cmps",
-        0xAE..=0xAF => "scas",
-        0xAC..=0xAD => "lods",
-        0xAA..=0xAB => "stos",
-        _ => panic!("Unknown string manipulation byte encoding (byte after REP)"),
-    };
-    let suffix = if w_field { "w" } else { "b" };
-    inst.w_field = Some(w_field);
-    match &mut inst.op_type {
-        Some(op) => {
-            op.push_str(second_op);
-            op.push_str(suffix);
-        }
-        None => panic!("REP string not decoded before decode_string_byte()!"),
-    };
 }
 
 /// Process the disp bytes by applying it to the needed fields in the
