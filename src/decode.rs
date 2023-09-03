@@ -27,6 +27,7 @@
 //! and AL/A -> AL/AX.
 
 use core::slice::Iter;
+use std::fmt;
 use std::iter::Peekable;
 
 use crate::execute::execute;
@@ -131,6 +132,195 @@ enum AddTo {
     Source,
 }
 
+/// OpCode types containing a static string mapping
+#[derive(Copy, Clone, Debug)]
+enum OpCodeType {
+    Aaa,
+    Aad,
+    Aam,
+    Aas,
+    Adc,
+    Add,
+    And,
+    Call,
+    Cbw,
+    Clc,
+    Cld,
+    Cli,
+    Cmc,
+    Cmp,
+    Cmps,
+    Cwd,
+    Daa,
+    Das,
+    Dec,
+    Div,
+    Hlt,
+    Idiv,
+    Imul,
+    In,
+    Inc,
+    Int,
+    Int3,
+    Into,
+    Iret,
+    Ja,
+    Jb,
+    Jbe,
+    Jcxz,
+    Je,
+    Jg,
+    Jl,
+    Jle,
+    Jmp,
+    Jnb,
+    Jne,
+    Jnl,
+    Jno,
+    Jnp,
+    Jns,
+    Jo,
+    Jp,
+    Js,
+    Lahf,
+    Lds,
+    Lea,
+    Les,
+    Lods,
+    Loop,
+    Loopnz,
+    Loopz,
+    Mov,
+    Movs,
+    Mul,
+    Neg,
+    Not,
+    Or,
+    Out,
+    Pop,
+    Popf,
+    Push,
+    Pushf,
+    Rcl,
+    Rcr,
+    Ret,
+    Retf,
+    Rol,
+    Ror,
+    Sahf,
+    Sar,
+    Sbb,
+    Scas,
+    Shl,
+    Shr,
+    Stc,
+    Std,
+    Sti,
+    Stos,
+    Sub,
+    Test,
+    Wait,
+    Xchg,
+    Xlat,
+    Xor,
+}
+
+/// Implement OpCodeType enum to string mapping, so OpCodeType can be printed
+impl fmt::Display for OpCodeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OpCodeType::Aaa => write!(f, "aaa"),
+            OpCodeType::Aad => write!(f, "aad"),
+            OpCodeType::Aam => write!(f, "aam"),
+            OpCodeType::Aas => write!(f, "aas"),
+            OpCodeType::Adc => write!(f, "adc"),
+            OpCodeType::Add => write!(f, "add"),
+            OpCodeType::And => write!(f, "and"),
+            OpCodeType::Call => write!(f, "call"),
+            OpCodeType::Cbw => write!(f, "cbw"),
+            OpCodeType::Clc => write!(f, "clc"),
+            OpCodeType::Cld => write!(f, "cld"),
+            OpCodeType::Cli => write!(f, "cli"),
+            OpCodeType::Cmc => write!(f, "cmc"),
+            OpCodeType::Cmp => write!(f, "cmp"),
+            OpCodeType::Cmps => write!(f, "cmps"),
+            OpCodeType::Cwd => write!(f, "cwd"),
+            OpCodeType::Daa => write!(f, "daa"),
+            OpCodeType::Das => write!(f, "das"),
+            OpCodeType::Dec => write!(f, "dec"),
+            OpCodeType::Div => write!(f, "div"),
+            OpCodeType::Hlt => write!(f, "hlt"),
+            OpCodeType::Idiv => write!(f, "idiv"),
+            OpCodeType::Imul => write!(f, "imul"),
+            OpCodeType::Inc => write!(f, "inc"),
+            OpCodeType::Int3 => write!(f, "int3"),
+            OpCodeType::Into => write!(f, "into"),
+            OpCodeType::Int => write!(f, "int"),
+            OpCodeType::In => write!(f, "in"),
+            OpCodeType::Iret => write!(f, "iret"),
+            OpCodeType::Ja => write!(f, "ja"),
+            OpCodeType::Jbe => write!(f, "jbe"),
+            OpCodeType::Jb => write!(f, "jb"),
+            OpCodeType::Jcxz => write!(f, "jcxz"),
+            OpCodeType::Je => write!(f, "je"),
+            OpCodeType::Jg => write!(f, "jg"),
+            OpCodeType::Jle => write!(f, "jle"),
+            OpCodeType::Jl => write!(f, "jl"),
+            OpCodeType::Jmp => write!(f, "jmp"),
+            OpCodeType::Jnb => write!(f, "jnb"),
+            OpCodeType::Jne => write!(f, "jne"),
+            OpCodeType::Jnl => write!(f, "jnl"),
+            OpCodeType::Jno => write!(f, "jno"),
+            OpCodeType::Jnp => write!(f, "jnp"),
+            OpCodeType::Jns => write!(f, "jns"),
+            OpCodeType::Jo => write!(f, "jo"),
+            OpCodeType::Jp => write!(f, "jp"),
+            OpCodeType::Js => write!(f, "js"),
+            OpCodeType::Lahf => write!(f, "lahf"),
+            OpCodeType::Lds => write!(f, "lds"),
+            OpCodeType::Lea => write!(f, "lea"),
+            OpCodeType::Les => write!(f, "les"),
+            OpCodeType::Lods => write!(f, "lods"),
+            OpCodeType::Loopnz => write!(f, "loopnz"),
+            OpCodeType::Loop => write!(f, "loop"),
+            OpCodeType::Loopz => write!(f, "loopz"),
+            OpCodeType::Mov => write!(f, "mov"),
+            OpCodeType::Movs => write!(f, "movs"),
+            OpCodeType::Mul => write!(f, "mul"),
+            OpCodeType::Neg => write!(f, "neg"),
+            OpCodeType::Not => write!(f, "not"),
+            OpCodeType::Or => write!(f, "or"),
+            OpCodeType::Out => write!(f, "out"),
+            OpCodeType::Popf => write!(f, "popf"),
+            OpCodeType::Pop => write!(f, "pop"),
+            OpCodeType::Pushf => write!(f, "pushf"),
+            OpCodeType::Push => write!(f, "push"),
+            OpCodeType::Rcl => write!(f, "rcl"),
+            OpCodeType::Rcr => write!(f, "rcr"),
+            OpCodeType::Retf => write!(f, "retf"),
+            OpCodeType::Ret => write!(f, "ret"),
+            OpCodeType::Rol => write!(f, "rol"),
+            OpCodeType::Ror => write!(f, "ror"),
+            OpCodeType::Sahf => write!(f, "sahf"),
+            OpCodeType::Sar => write!(f, "sar"),
+            OpCodeType::Sbb => write!(f, "sbb"),
+            OpCodeType::Scas => write!(f, "scas"),
+            OpCodeType::Shl => write!(f, "shl"),
+            OpCodeType::Shr => write!(f, "shr"),
+            OpCodeType::Stc => write!(f, "stc"),
+            OpCodeType::Std => write!(f, "std"),
+            OpCodeType::Sti => write!(f, "sti"),
+            OpCodeType::Stos => write!(f, "stos"),
+            OpCodeType::Sub => write!(f, "sub"),
+            OpCodeType::Test => write!(f, "test"),
+            OpCodeType::Wait => write!(f, "wait"),
+            OpCodeType::Xchg => write!(f, "xchg"),
+            OpCodeType::Xlat => write!(f, "xlat"),
+            OpCodeType::Xor => write!(f, "xor"),
+        }
+    }
+}
+
 /// A struct holding all the decoded data of a given instruction
 #[derive(Default, Debug)]
 pub struct InstType {
@@ -155,7 +345,12 @@ pub struct InstType {
     reg_field: Option<String>,
     sr_field: Option<String>,
     /// A string containing the registers but NOT the src/dst
-    op_type: Option<String>,
+    /// The op code type
+    op_type: Option<OpCodeType>,
+    /// A suffix string to append to the opcode, like `b` for `movsb`
+    op_type_suffix: Option<&'static str>,
+    /// A string of the full op code plus any prefixes or suffixes
+    op_type_str: Option<String>,
     /// A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
     mod_rm_byte: Option<ModRmByteType>,
@@ -364,7 +559,12 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     }
 
     // Create instruction text
-    let op_text = concat_texts(&inst.prefixes, &inst.op_type);
+    inst.op_type_str = Some(format!(
+        "{}{}",
+        inst.op_type.unwrap(),
+        inst.op_type_suffix.unwrap_or("")
+    ));
+    let op_text = concat_texts(&inst.prefixes, &inst.op_type_str);
     let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
     let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
 
@@ -420,7 +620,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
     match byte {
         // add - Reg/memory with register to either
         0x00..=0x03 => {
-            inst.op_type = Some("add".to_string());
+            inst.op_type = Some(OpCodeType::Add);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
@@ -436,7 +636,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // add - Immediate to accumulator
         0x04..=0x05 => {
-            inst.op_type = Some("add".to_string());
+            inst.op_type = Some(OpCodeType::Add);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -450,14 +650,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // adc (add w/ carry) - Reg/mem with register to either
         0x10..=0x13 => {
-            inst.op_type = Some("adc".to_string());
+            inst.op_type = Some(OpCodeType::Adc);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // adc - Immediate to accumulator
         0x14..=0x15 => {
-            inst.op_type = Some("adc".to_string());
+            inst.op_type = Some(OpCodeType::Adc);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -471,7 +671,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // inc - register
         0x40..=0x47 => {
-            inst.op_type = Some("inc".to_string());
+            inst.op_type = Some(OpCodeType::Inc);
             let w_field = Some(true);
             let reg_field = decode_reg_field(byte & 0b111, w_field);
             inst.dest_text = Some(reg_field.clone());
@@ -480,39 +680,39 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // aaa - ASCII adjust for add
         0x37 => {
-            inst.op_type = Some("aaa".to_string());
+            inst.op_type = Some(OpCodeType::Aaa);
         }
         // aaa - Decimal adjust for add
         0x27 => {
-            inst.op_type = Some("daa".to_string());
+            inst.op_type = Some(OpCodeType::Daa);
         }
         // aas - ASCII adjust for subtract
         0x3F => {
-            inst.op_type = Some("aas".to_string());
+            inst.op_type = Some(OpCodeType::Aas);
         }
         // das - Decimal adjust for subtract
         0x2F => {
-            inst.op_type = Some("das".to_string());
+            inst.op_type = Some(OpCodeType::Das);
         }
         // aam - ASCII adjust for multiply
         0xD4 => {
-            inst.op_type = Some("aam".to_string());
+            inst.op_type = Some(OpCodeType::Aam);
             // The second byte doesn't add anything. Ignore it for now.
             inst.extra_bytes.push(ExtraBytesType::DoNotCare)
         }
         // aad - ASCII adjust for divide
         0xD5 => {
-            inst.op_type = Some("aad".to_string());
+            inst.op_type = Some(OpCodeType::Aad);
             // The second byte doesn't add anything. Ignore it for now.
             inst.extra_bytes.push(ExtraBytesType::DoNotCare)
         }
         // cbw - Convert byte to word
         0x98 => {
-            inst.op_type = Some("cbw".to_string());
+            inst.op_type = Some(OpCodeType::Cbw);
         }
         // cwd - Convert word to double word
         0x99 => {
-            inst.op_type = Some("cwd".to_string());
+            inst.op_type = Some(OpCodeType::Cwd);
         }
         // rol, ror, rcl, rcr, shl/sal, shr, sar
         0xD0..=0xD3 => {
@@ -522,14 +722,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // and - reg/mem with register to either
         0x20..=0x23 => {
-            inst.op_type = Some("and".to_string());
+            inst.op_type = Some(OpCodeType::And);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // and - Immediate to accumulator
         0x24..=0x25 => {
-            inst.op_type = Some("and".to_string());
+            inst.op_type = Some(OpCodeType::And);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -543,14 +743,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // or - reg/mem with register to either
         0x08..=0x0B => {
-            inst.op_type = Some("or".to_string());
+            inst.op_type = Some(OpCodeType::Or);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // or - Immediate to accumulator
         0x0C..=0x0D => {
-            inst.op_type = Some("or".to_string());
+            inst.op_type = Some(OpCodeType::Or);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -564,14 +764,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // xor - reg/mem with register to either
         0x30..=0x33 => {
-            inst.op_type = Some("xor".to_string());
+            inst.op_type = Some(OpCodeType::Xor);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // xor - Immediate to accumulator
         0x34..=0x35 => {
-            inst.op_type = Some("xor".to_string());
+            inst.op_type = Some(OpCodeType::Xor);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -585,7 +785,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // mov - Register/memory to/from register
         0x88..=0x8C => {
-            inst.op_type = Some("mov".to_string());
+            inst.op_type = Some(OpCodeType::Mov);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
@@ -594,7 +794,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // mov - Immediate to register/memory
         0xC6..=0xC7 => {
-            inst.op_type = Some("mov".to_string());
+            inst.op_type = Some(OpCodeType::Mov);
             inst.w_field = Some((byte & 0x1) == 1);
             // In effect, the d field is hard coded to 0: the destination is
             // rm and the source is an immediate (which replaced reg from
@@ -603,7 +803,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // mov - Immediate to register
         0xB0..=0xBF => {
-            inst.op_type = Some("mov".to_string());
+            inst.op_type = Some(OpCodeType::Mov);
             inst.w_field = Some(((byte & 0b1000) >> 3) == 1);
             let reg_field = decode_reg_field(byte & 0b111, inst.w_field);
             inst.reg_field = Some(reg_field.clone());
@@ -620,7 +820,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // mov - Memory to accumulator or accumulator to memory
         0xA0..=0xA3 => {
-            inst.op_type = Some("mov".to_string());
+            inst.op_type = Some(OpCodeType::Mov);
             let w_field = (byte & 0x1) == 1;
             let left_bracket = Some("[".to_string());
             let right_bracket = Some("]".to_string());
@@ -654,46 +854,46 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // jmp - Direct within segment
         0xE9 => {
-            inst.op_type = Some("jmp".to_string());
+            inst.op_type = Some(OpCodeType::Jmp);
             inst.extra_bytes.push(ExtraBytesType::IpIncLo);
             inst.extra_bytes.push(ExtraBytesType::IpIncHi);
         }
         // jmp - Direct within segment-short
         0xEB => {
-            inst.op_type = Some("jmp".to_string());
+            inst.op_type = Some(OpCodeType::Jmp);
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
         }
         // call - Direct within segment
         0xE8 => {
-            inst.op_type = Some("call".to_string());
+            inst.op_type = Some(OpCodeType::Call);
             inst.extra_bytes.push(ExtraBytesType::IpIncLo);
             inst.extra_bytes.push(ExtraBytesType::IpIncHi);
         }
         // ret - Within segment
         0xC3 => {
-            inst.op_type = Some("ret".to_string());
+            inst.op_type = Some(OpCodeType::Ret);
         }
         // ret - Within segment adding immediate to SP
         0xC2 => {
-            inst.op_type = Some("ret".to_string());
+            inst.op_type = Some(OpCodeType::Ret);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             inst.extra_bytes.push(ExtraBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
         }
         // retf - Intersegment ret
         0xCB => {
-            inst.op_type = Some("retf".to_string());
+            inst.op_type = Some(OpCodeType::Retf);
         }
         // retf - Intersegment ret adding immediate to SP
         0xCA => {
-            inst.op_type = Some("retf".to_string());
+            inst.op_type = Some(OpCodeType::Retf);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             inst.extra_bytes.push(ExtraBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
         }
         // push - Register
         0x50..=0x57 => {
-            inst.op_type = Some("push".to_string());
+            inst.op_type = Some(OpCodeType::Push);
             // Hardcode registers to 16-bit widths
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
@@ -701,19 +901,19 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // push - segment register - 0x06,0x0E,0x86,0x8E
         0b000_00_110 | 0b000_01_110 | 0b000_10_110 | 0b000_11_110 => {
-            inst.op_type = Some("push".to_string());
+            inst.op_type = Some(OpCodeType::Push);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
             inst.sr_field = Some(sr_field.clone());
             inst.dest_text = Some(sr_field);
         }
         // pop - Register/memory
         0x8F => {
-            inst.op_type = Some("pop".to_string());
+            inst.op_type = Some(OpCodeType::Pop);
             inst.mod_rm_byte = Some(ModRmByteType::ModPopRm);
         }
         // pop - Register
         0x58..=0x5F => {
-            inst.op_type = Some("pop".to_string());
+            inst.op_type = Some(OpCodeType::Pop);
             // Hardcode registers to 16-bit widths
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
@@ -721,21 +921,21 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // push - segment register - 0x06,0x0E,0x86,0x8E
         0b000_00_111 | 0b000_01_111 | 0b000_10_111 | 0b000_11_111 => {
-            inst.op_type = Some("pop".to_string());
+            inst.op_type = Some(OpCodeType::Pop);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
             inst.sr_field = Some(sr_field.clone());
             inst.dest_text = Some(sr_field);
         }
         // xchg - Reg/memory with register
         0x86..=0x87 => {
-            inst.op_type = Some("xchg".to_string());
+            inst.op_type = Some(OpCodeType::Xchg);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(true);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // xchg - Register with accumulator
         0x90..=0x97 => {
-            inst.op_type = Some("xchg".to_string());
+            inst.op_type = Some(OpCodeType::Xchg);
             inst.dest_text = Some("ax".to_string());
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field.clone());
@@ -743,7 +943,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // in - fixed port
         0xE4..=0xE5 => {
-            inst.op_type = Some("in".to_string());
+            inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
                 inst.dest_text = Some("ax".to_string());
@@ -756,7 +956,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // in - variable port
         0xEC..=0xED => {
-            inst.op_type = Some("in".to_string());
+            inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
                 inst.dest_text = Some("ax".to_string());
@@ -768,7 +968,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // out - fixed port
         0xE6..=0xE7 => {
-            inst.op_type = Some("out".to_string());
+            inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
                 inst.source_text = Some("ax".to_string());
@@ -781,7 +981,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // out - variable port
         0xEE..=0xEF => {
-            inst.op_type = Some("out".to_string());
+            inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
                 inst.source_text = Some("ax".to_string());
@@ -799,11 +999,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // The byte in AL is used as an index into the table and is replaced
             // by the byte as the offset in the table corresponding to AL's
             // binary value"
-            inst.op_type = Some("xlat".to_string());
+            inst.op_type = Some(OpCodeType::Xlat);
         }
         // lea - Load EA (effective address) to register
         0x8D => {
-            inst.op_type = Some("lea".to_string());
+            inst.op_type = Some(OpCodeType::Lea);
             // Hardcode registers to 16 bits, and REG as destination
             inst.w_field = Some(true);
             inst.d_field = Some(true);
@@ -811,7 +1011,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // lds - Load 32-bit pointer to DS (high 16 bits) and REG (low 16 bits)
         0xC5 => {
-            inst.op_type = Some("lds".to_string());
+            inst.op_type = Some(OpCodeType::Lds);
             // Hardcode registers to 16 bits, and REG as destination
             inst.w_field = Some(true);
             inst.d_field = Some(true);
@@ -819,7 +1019,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // lds - Load 32-bit pointer to ES (high 16 bits) and REG (low 16 bits)
         0xC4 => {
-            inst.op_type = Some("les".to_string());
+            inst.op_type = Some(OpCodeType::Les);
             // Hardcode registers to 16 bits, and REG as destination
             inst.w_field = Some(true);
             inst.d_field = Some(true);
@@ -827,30 +1027,30 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // lahf - Load AH with flags
         0x9F => {
-            inst.op_type = Some("lahf".to_string());
+            inst.op_type = Some(OpCodeType::Lahf);
         }
         // sahf - Store AH into flags
         0x9E => {
-            inst.op_type = Some("sahf".to_string());
+            inst.op_type = Some(OpCodeType::Sahf);
         }
         // pushf - Push flags
         0x9C => {
-            inst.op_type = Some("pushf".to_string());
+            inst.op_type = Some(OpCodeType::Pushf);
         }
         // popf - Pop flags
         0x9D => {
-            inst.op_type = Some("popf".to_string());
+            inst.op_type = Some(OpCodeType::Popf);
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
-            inst.op_type = Some("sub".to_string());
+            inst.op_type = Some(OpCodeType::Sub);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // sub - Immediate from accumulator
         0x2C..=0x2D => {
-            inst.op_type = Some("sub".to_string());
+            inst.op_type = Some(OpCodeType::Sub);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -864,14 +1064,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // sbb (subtract with borrow) - Reg/memory and register to either
         0x18..=0x1B => {
-            inst.op_type = Some("sbb".to_string());
+            inst.op_type = Some(OpCodeType::Sbb);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // sbb - Immediate from accumulator
         0x1C..=0x1D => {
-            inst.op_type = Some("sbb".to_string());
+            inst.op_type = Some(OpCodeType::Sbb);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -885,7 +1085,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // dec - register
         0x48..=0x4F => {
-            inst.op_type = Some("dec".to_string());
+            inst.op_type = Some(OpCodeType::Dec);
             let w_field = Some(true);
             let reg_field = decode_reg_field(byte & 0b111, w_field);
             inst.dest_text = Some(reg_field.clone());
@@ -899,14 +1099,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // cmp - Register/memory and register
         0x38..=0x3B => {
-            inst.op_type = Some("cmp".to_string());
+            inst.op_type = Some(OpCodeType::Cmp);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // cmp - Immediate with accumulator
         0x3C..=0x3D => {
-            inst.op_type = Some("cmp".to_string());
+            inst.op_type = Some(OpCodeType::Cmp);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -922,43 +1122,43 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
             match byte {
                 // je/jz
-                0x74 => inst.op_type = Some("je".to_string()),
+                0x74 => inst.op_type = Some(OpCodeType::Je),
                 // jl/jnge - jump less/not greater or equal
-                0x7C => inst.op_type = Some("jl".to_string()),
+                0x7C => inst.op_type = Some(OpCodeType::Jl),
                 // jle/jng - jump less or equal/not greater
-                0x7E => inst.op_type = Some("jle".to_string()),
+                0x7E => inst.op_type = Some(OpCodeType::Jle),
                 // jb/jnae - jump below/not above or equal
-                0x72 => inst.op_type = Some("jb".to_string()),
+                0x72 => inst.op_type = Some(OpCodeType::Jb),
                 // jbe/jna - jump below or equal/not above
-                0x76 => inst.op_type = Some("jbe".to_string()),
+                0x76 => inst.op_type = Some(OpCodeType::Jbe),
                 // jp/jpe - jump on parity/parity even
-                0x7A => inst.op_type = Some("jp".to_string()),
+                0x7A => inst.op_type = Some(OpCodeType::Jp),
                 // jo - jump on overflow
-                0x70 => inst.op_type = Some("jo".to_string()),
+                0x70 => inst.op_type = Some(OpCodeType::Jo),
                 // js - jump on sign
-                0x78 => inst.op_type = Some("js".to_string()),
+                0x78 => inst.op_type = Some(OpCodeType::Js),
                 // jne/jnz - jump not equal/zero
-                0x75 => inst.op_type = Some("jne".to_string()),
+                0x75 => inst.op_type = Some(OpCodeType::Jne),
                 // jnl/jge - jump not less or greater+equal
-                0x7D => inst.op_type = Some("jnl".to_string()),
+                0x7D => inst.op_type = Some(OpCodeType::Jnl),
                 // jnle/jg - jump greater or not less+equal
-                0x7F => inst.op_type = Some("jg".to_string()),
+                0x7F => inst.op_type = Some(OpCodeType::Jg),
                 // jnb/jae - jump on not below or above+equal
-                0x73 => inst.op_type = Some("jnb".to_string()),
+                0x73 => inst.op_type = Some(OpCodeType::Jnb),
                 // jnbe/ja - jump above or not below+equal
-                0x77 => inst.op_type = Some("ja".to_string()),
+                0x77 => inst.op_type = Some(OpCodeType::Ja),
                 // jnp/jpo - jump not par or par odd
-                0x7B => inst.op_type = Some("jnp".to_string()),
+                0x7B => inst.op_type = Some(OpCodeType::Jnp),
                 // jno - jump on not overflow
-                0x71 => inst.op_type = Some("jno".to_string()),
+                0x71 => inst.op_type = Some(OpCodeType::Jno),
                 // jns - jump on not overflow
-                0x79 => inst.op_type = Some("jns".to_string()),
-                0xE2 => inst.op_type = Some("loop".to_string()),
+                0x79 => inst.op_type = Some(OpCodeType::Jns),
+                0xE2 => inst.op_type = Some(OpCodeType::Loop),
                 // loopz/loope - loop while zero/equal
-                0xE1 => inst.op_type = Some("loopz".to_string()),
+                0xE1 => inst.op_type = Some(OpCodeType::Loopz),
                 // loopnz/loopne - loop while not zero/equal
-                0xE0 => inst.op_type = Some("loopnz".to_string()),
-                0xE3 => inst.op_type = Some("jcxz".to_string()),
+                0xE0 => inst.op_type = Some(OpCodeType::Loopnz),
+                0xE3 => inst.op_type = Some(OpCodeType::Jcxz),
                 _ => {
                     unreachable!()
                 }
@@ -966,14 +1166,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // test - Register/memory and register
         0x84..=0x87 => {
-            inst.op_type = Some("test".to_string());
+            inst.op_type = Some(OpCodeType::Test);
             inst.w_field = Some((byte & 0x1) == 1);
             inst.d_field = Some(((byte & 0x2) >> 1) == 1);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // test - Immediate to accumulator
         0xA8..=0xA9 => {
-            inst.op_type = Some("test".to_string());
+            inst.op_type = Some(OpCodeType::Test);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -987,106 +1187,91 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         // int - Type specified
         0xCD => {
-            inst.op_type = Some("int".to_string());
+            inst.op_type = Some(OpCodeType::Int);
             inst.add_data_to = Some(AddTo::Source);
             inst.extra_bytes.push(ExtraBytesType::Data8);
         }
         // int - Type 3
         0xCC => {
-            inst.op_type = Some("int3".to_string());
+            inst.op_type = Some(OpCodeType::Int3);
         }
         // into - Interrupt on overflow
         0xCE => {
-            inst.op_type = Some("into".to_string());
+            inst.op_type = Some(OpCodeType::Into);
         }
         // iret - Interrupt return
         0xCF => {
-            inst.op_type = Some("iret".to_string());
+            inst.op_type = Some(OpCodeType::Iret);
         }
         // clc - Clear carry
         0xF8 => {
-            inst.op_type = Some("clc".to_string());
+            inst.op_type = Some(OpCodeType::Clc);
         }
         // cmc - Complement carry
         0xF5 => {
-            inst.op_type = Some("cmc".to_string());
+            inst.op_type = Some(OpCodeType::Cmc);
         }
         // stc - Set carry
         0xF9 => {
-            inst.op_type = Some("stc".to_string());
+            inst.op_type = Some(OpCodeType::Stc);
         }
         // cld - Clear direction
         0xFC => {
-            inst.op_type = Some("cld".to_string());
+            inst.op_type = Some(OpCodeType::Cld);
         }
         // std - Set direction
         0xFD => {
-            inst.op_type = Some("std".to_string());
+            inst.op_type = Some(OpCodeType::Std);
         }
         // cli - Clear interrupt
         0xFA => {
-            inst.op_type = Some("cli".to_string());
+            inst.op_type = Some(OpCodeType::Cli);
         }
         // sti - Set interrupt
         0xFB => {
-            inst.op_type = Some("sti".to_string());
+            inst.op_type = Some(OpCodeType::Sti);
         }
         // hlt - Halt
         0xF4 => {
-            inst.op_type = Some("hlt".to_string());
+            inst.op_type = Some(OpCodeType::Hlt);
         }
         // wait
         0x9B => {
-            inst.op_type = Some("wait".to_string());
+            inst.op_type = Some(OpCodeType::Wait);
         }
         0xA4..=0xA5 => {
             assert!(inst.has_string_byte.is_some());
             let w_field = (byte & 0x1) == 1;
-            inst.op_type = if w_field {
-                Some("movsw".to_string())
-            } else {
-                Some("movsb".to_string())
-            };
+            inst.op_type = Some(OpCodeType::Movs);
+            inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
         0xA6..=0xA7 => {
             assert!(inst.has_string_byte.is_some());
             let w_field = (byte & 0x1) == 1;
-            inst.op_type = if w_field {
-                Some("cmpsw".to_string())
-            } else {
-                Some("cmpsb".to_string())
-            };
+            inst.op_type = Some(OpCodeType::Cmps);
+            inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
         0xAE..=0xAF => {
             assert!(inst.has_string_byte.is_some());
             let w_field = (byte & 0x1) == 1;
-            inst.op_type = if w_field {
-                Some("scasw".to_string())
-            } else {
-                Some("scasb".to_string())
-            };
+            inst.op_type = Some(OpCodeType::Scas);
+            inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
         0xAC..=0xAD => {
             assert!(inst.has_string_byte.is_some());
             let w_field = (byte & 0x1) == 1;
-            inst.op_type = if w_field {
-                Some("lodsw".to_string())
-            } else {
-                Some("lodsb".to_string())
-            };
+            inst.op_type = Some(OpCodeType::Lods);
+            inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
         0xAA..=0xAB => {
             assert!(inst.has_string_byte.is_some());
             let w_field = (byte & 0x1) == 1;
-            inst.op_type = if w_field {
-                Some("stosw".to_string())
-            } else {
-                Some("stosb".to_string())
-            };
+            inst.op_type = Some(OpCodeType::Stos);
+            inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
         _ => {
@@ -1413,6 +1598,7 @@ fn concat_operands(
     }
 }
 
+// MGH TODO: Replace this abominable concat function with something elegant
 /// Concatenate two Option Strings
 fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
     match (a, b) {
@@ -1547,35 +1733,35 @@ fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> (Option<String>, O
 
 /// Get the op code an instruction starting with 0b100000. `bits` is the value
 /// of the middle 3 'op' bits in the second mod-op-r/m byte.
-fn decode_immed_op(bits: u8) -> String {
+fn decode_immed_op(bits: u8) -> OpCodeType {
     match bits {
-        0b000 => "add".to_string(),
-        0b001 => "or".to_string(),
+        0b000 => OpCodeType::Add,
+        0b001 => OpCodeType::Or,
         // Add with carry
-        0b010 => "adc".to_string(),
+        0b010 => OpCodeType::Adc,
         // Subtract with borrow
-        0b011 => "sbb".to_string(),
-        0b100 => "and".to_string(),
-        0b101 => "sub".to_string(),
-        0b110 => "xor".to_string(),
+        0b011 => OpCodeType::Sbb,
+        0b100 => OpCodeType::And,
+        0b101 => OpCodeType::Sub,
+        0b110 => OpCodeType::Xor,
         // Compare - immediate with register/memory
-        0b111 => "cmp".to_string(),
+        0b111 => OpCodeType::Cmp,
         _ => panic!("Bad bits specified in decode_immed_op()"),
     }
 }
 
 /// Get the op code an instruction starting with 0b 1101 00. `bits` is the
 /// value of the middle 3 'op' bits in the second mod-op-r/m byte.
-fn decode_shift_op(bits: u8) -> String {
+fn decode_shift_op(bits: u8) -> OpCodeType {
     match bits {
-        0b000 => "rol".to_string(),
-        0b001 => "ror".to_string(),
-        0b010 => "rcl".to_string(),
-        0b011 => "rcr".to_string(),
-        0b100 => "shl".to_string(),
-        0b101 => "shr".to_string(),
+        0b000 => OpCodeType::Rol,
+        0b001 => OpCodeType::Ror,
+        0b010 => OpCodeType::Rcl,
+        0b011 => OpCodeType::Rcr,
+        0b100 => OpCodeType::Shl,
+        0b101 => OpCodeType::Shr,
         0b110 => panic!("Unused field 0b001 in decode_shift_op()"),
-        0b111 => "sar".to_string(),
+        0b111 => OpCodeType::Sar,
         _ => panic!("Bad bits specified in decode_shift_op()"),
     }
 }
@@ -1584,31 +1770,31 @@ fn decode_shift_op(bits: u8) -> String {
 /// value of the middle 3 'op' bits in the second mod-op-r/m byte.
 /// In addition, return true for the second value if the instruction requires
 /// a data/immediate operand (i.e. the test instruction)
-fn decode_grp1_op(bits: u8) -> (String, bool) {
+fn decode_grp1_op(bits: u8) -> (OpCodeType, bool) {
     match bits {
-        0b000 => ("test".to_string(), true),
+        0b000 => (OpCodeType::Test, true),
         0b001 => panic!("Unused field 0b001 in decode_grp1_op()"),
-        0b010 => ("not".to_string(), false),
-        0b011 => ("neg".to_string(), false),
-        0b100 => ("mul".to_string(), false),
-        0b101 => ("imul".to_string(), false),
-        0b110 => ("div".to_string(), false),
-        0b111 => ("idiv".to_string(), false),
+        0b010 => (OpCodeType::Not, false),
+        0b011 => (OpCodeType::Neg, false),
+        0b100 => (OpCodeType::Mul, false),
+        0b101 => (OpCodeType::Imul, false),
+        0b110 => (OpCodeType::Div, false),
+        0b111 => (OpCodeType::Idiv, false),
         _ => panic!("Bad bits specified in decode_grp1_op()"),
     }
 }
 
-/// Get the op code an instruction starting with 0xFF. `bits` is the value
+/// Get the op code of an instruction starting with 0xFF. `bits` is the value
 /// of the middle 3 'op' bits in the second mod-op-r/m byte.
-fn decode_grp2_op(bits: u8) -> String {
+fn decode_grp2_op(bits: u8) -> OpCodeType {
     match bits {
-        0b000 => "inc".to_string(),
-        0b001 => "dec".to_string(),
-        0b010 => "call".to_string(),
-        0b011 => "call".to_string(),
-        0b100 => "jmp".to_string(),
-        0b101 => "jmp".to_string(),
-        0b110 => "push".to_string(),
+        0b000 => OpCodeType::Inc,
+        0b001 => OpCodeType::Dec,
+        0b010 => OpCodeType::Call,
+        0b011 => OpCodeType::Call,
+        0b100 => OpCodeType::Jmp,
+        0b101 => OpCodeType::Jmp,
+        0b110 => OpCodeType::Push,
         0b111 => panic!("Unused field 0b111 in decode_grp2_op()"),
         _ => panic!("Bad bits specified in decode_grp2_op()"),
     }
