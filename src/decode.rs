@@ -1,4 +1,5 @@
-//! This module implements the 8086 decoding logic.
+//! This module implements the 8086 decoding logic, and also calls into the
+//! execute module as needed to simulate the code being decoded..
 //!
 //! It will be difficult to follow along with what is going on in this file
 //! without referencing the 8086 manual (available in this code repo at
@@ -134,7 +135,7 @@ enum AddTo {
 
 /// OpCode types containing a static string mapping
 #[derive(Copy, Clone, Debug)]
-enum OpCodeType {
+pub enum OpCodeType {
     Aaa,
     Aad,
     Aam,
@@ -322,6 +323,8 @@ impl fmt::Display for OpCodeType {
 }
 
 /// A struct holding all the decoded data of a given instruction
+/// All public fields will be used in the execute module or printed out to the
+/// user.
 #[derive(Default, Debug)]
 pub struct InstType {
     /// If true, the REG field is the destination, otherwise it is the source.
@@ -346,7 +349,7 @@ pub struct InstType {
     sr_field: Option<String>,
     /// A string containing the registers but NOT the src/dst
     /// The op code type
-    op_type: Option<OpCodeType>,
+    pub op_type: Option<OpCodeType>,
     /// A suffix string to append to the opcode, like `b` for `movsb`
     op_type_suffix: Option<&'static str>,
     /// A string of the full op code plus any prefixes or suffixes
@@ -388,7 +391,8 @@ pub struct InstType {
     pub text: Option<String>,
 }
 
-/// Decode and execute an 8086 instruction stream
+/// Decode and execute an 8086 instruction stream. This will decode whatever
+/// the IP points to and simulates that instruction.
 pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
@@ -412,7 +416,10 @@ pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<InstType> {
     insts
 }
 
-/// Decode an 8086 instruction stream
+/// Decode an 8086 instruction stream. This is a dumb line-by-line decode of an
+/// instruction stream and does not take branches or do any simulation
+/// whatsoever. It prints processed bytes, prints the decoded instruction, and
+/// returns a vector of instructions.
 pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
