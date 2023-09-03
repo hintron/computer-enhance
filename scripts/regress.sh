@@ -40,12 +40,12 @@ for file in "$DECODE_BUILD_DIR"/*; do
         break
     fi
     nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
         echo "ERROR: Assembly of decoded output failed for $file"
         rc=1
         break
     fi
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
         echo "ERROR: Decoded output didn't match golden for $file"
         rc=1
         break
@@ -99,12 +99,12 @@ while [ "$CHECK_RTOS" == "true" ]; do
         break
     fi
     nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
         echo "ERROR: Assembly of decoded output failed for $file"
         rc=1
         break
     fi
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" ; then
+    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
         echo "ERROR: Decoded output didn't match golden for $file"
         rc=1
         break
@@ -126,7 +126,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" ; then
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u; then
         echo "ERROR: Simulation output didn't match golden output"
         echo "$SIMULATE_OUTPUT != $SIMULATE_GOLDEN_OUTPUT"
         rc=1
