@@ -42,8 +42,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                 new_val
             );
         }
-        _ => {
-            unimplemented!()
+        (_, _, _) => {
+            println!(
+                "Execution of instruction `{}` is unimplemented",
+                inst.text.as_ref().unwrap()
+            );
         }
     }
 
