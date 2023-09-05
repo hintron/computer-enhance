@@ -378,6 +378,65 @@ impl fmt::Display for RegType {
     }
 }
 
+/// ModRmDataType records the result of decoding the Mod field and the RM field.
+/// This is basically table 4-10 on page 4-20. There are 40 possible
+/// combinations from 8 values of R/M * 5 modes - mod 00, mod 01, mod 10, mod 11
+/// w0, and mod 11 w1.
+#[derive(Copy, Clone, Debug)]
+pub enum ModRmDataType {
+    /// Just a single reg (i.e. mod 11, w={0,1}, rm={000-111})
+    Reg(RegType),
+    /// [reg] (i.e. mod 0 rm {100, 101, 111})
+    MemReg(RegType),
+    /// [reg1 + reg2] (i.e. mod 00 rm {000, 001, 010, 011})
+    MemRegReg(RegType, RegType),
+    /// [DIRECT ADDRESS] (i.e. mod 00 rm 110)
+    MemDirectAddr,
+    /// [reg + disp]. disp is u8/u16, depending on disp bytes
+    MemRegDisp(RegType),
+    /// [reg1 + reg2 + disp]. disp is u8/u16, depending on disp bytes
+    MemRegRegDisp(RegType, RegType),
+}
+
+fn print_mod_rm_operand(
+    mod_rm_data: Option<ModRmDataType>,
+    disp_lo: Option<u8>,
+    disp_hi: Option<u8>,
+) -> String {
+    let mod_rm_data = match mod_rm_data {
+        None => return "".to_string(),
+        Some(x) => x,
+    };
+
+    match (mod_rm_data, disp_lo, disp_hi) {
+        (ModRmDataType::Reg(reg), _, _) => format!("{reg}"),
+        (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => {
+            format!("[0x{hi:02X}{lo:02X}]")
+        }
+        (ModRmDataType::MemReg(reg), _, _) => format!("[{reg}]"),
+        (ModRmDataType::MemRegReg(reg1, reg2), _, _) => format!("[{reg1} + {reg2}]"),
+        (ModRmDataType::MemRegDisp(reg), Some(lo), None) => {
+            let lo = lo as i8;
+            format!("[{reg} {lo:+}]")
+        }
+        (ModRmDataType::MemRegDisp(reg), Some(lo), Some(hi)) => {
+            // If not direct address, print as signed 16 bit
+            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
+            format!("[{reg} {lo_hi:+}]")
+        }
+        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), None) => {
+            let lo = lo as i8;
+            format!("[{reg1} + {reg2} {lo:+}]")
+        }
+        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), Some(hi)) => {
+            // If not direct address, print as signed 16 bit
+            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
+            format!("[{reg1} + {reg2} {lo_hi:+}]")
+        }
+        (_, _, _) => "".to_string(),
+    }
+}
+
 /// A struct holding all the decoded data of a given instruction
 /// All public fields will be used in the execute module or printed out to the
 /// user.
@@ -416,6 +475,8 @@ pub struct InstType {
     op_type_str: Option<String>,
     /// A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
+    /// Processed data from the mod rm byte
+    mod_rm_data: Option<ModRmDataType>,
     mod_rm_byte: Option<ModRmByteType>,
     /// If true, then the first byte was a REP and there is a second string
     /// manipulation byte to follow.
@@ -628,6 +689,18 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
         process_ip_bytes(&mut inst);
+    }
+
+    let mod_rm_op = print_mod_rm_operand(inst.mod_rm_data, inst.disp_lo, inst.disp_hi);
+    match inst.d_field {
+        None | Some(false) => {
+            // Dest is rm field
+            inst.dest_text = Some(mod_rm_op);
+        }
+        Some(true) => {
+            // Source is rm field
+            inst.source_text = Some(mod_rm_op);
+        }
     }
 
     // Create instruction text
@@ -1381,19 +1454,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Get the upper two bits
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
     let rm_field = byte & 0b00000111;
-    let (rm_text, rm_text_end) = decode_rm_field(rm_field, mode, inst.w_field);
-    match inst.d_field {
-        None | Some(false) => {
-            // Dest is rm field
-            inst.dest_text = rm_text;
-            inst.dest_text_end = rm_text_end;
-        }
-        Some(true) => {
-            // Source is rm field
-            inst.source_text = rm_text;
-            inst.source_text_end = rm_text_end;
-        }
-    }
+    inst.mod_rm_data = Some(decode_rm_field(rm_field, mode, inst.w_field));
 
     // Indicate that there are displacement bytes to process next
     // Displacement bytes come before immediate/data bytes
@@ -1758,64 +1819,63 @@ fn decode_sr_field(sr: u8) -> RegType {
 
 /// R/M (Register/Memory) Field Encoding
 ///
-/// See table 4-10
-/// Return a tuple of the first part of the text and the last part of the text,
-/// so the displacement can be optionally inserted in later. If the last part of
-/// the text is None, then there should be no insertion.
-fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> (Option<String>, Option<String>) {
+/// Return a ModRmDataType object, which encodes the result of table 4-10 on pg
+/// 4-20. Any displacement will be processed after the displacement bytes have
+/// been parsed.
+fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> ModRmDataType {
     match (rm, mode, w) {
-        (0b000, ModType::RegisterMode, None | Some(false)) => (Some("al".to_string()), None),
-        (0b001, ModType::RegisterMode, None | Some(false)) => (Some("cl".to_string()), None),
-        (0b010, ModType::RegisterMode, None | Some(false)) => (Some("dl".to_string()), None),
-        (0b011, ModType::RegisterMode, None | Some(false)) => (Some("bl".to_string()), None),
-        (0b100, ModType::RegisterMode, None | Some(false)) => (Some("ah".to_string()), None),
-        (0b101, ModType::RegisterMode, None | Some(false)) => (Some("ch".to_string()), None),
-        (0b110, ModType::RegisterMode, None | Some(false)) => (Some("dh".to_string()), None),
-        (0b111, ModType::RegisterMode, None | Some(false)) => (Some("bh".to_string()), None),
-        (0b000, ModType::RegisterMode, Some(true)) => (Some("ax".to_string()), None),
-        (0b001, ModType::RegisterMode, Some(true)) => (Some("cx".to_string()), None),
-        (0b010, ModType::RegisterMode, Some(true)) => (Some("dx".to_string()), None),
-        (0b011, ModType::RegisterMode, Some(true)) => (Some("bx".to_string()), None),
-        (0b100, ModType::RegisterMode, Some(true)) => (Some("sp".to_string()), None),
-        (0b101, ModType::RegisterMode, Some(true)) => (Some("bp".to_string()), None),
-        (0b110, ModType::RegisterMode, Some(true)) => (Some("si".to_string()), None),
-        (0b111, ModType::RegisterMode, Some(true)) => (Some("di".to_string()), None),
+        (0b000, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Al),
+        (0b001, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Cl),
+        (0b010, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Dl),
+        (0b011, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Bl),
+        (0b100, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Ah),
+        (0b101, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Ch),
+        (0b110, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Dh),
+        (0b111, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType::Bh),
+        (0b000, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Ax),
+        (0b001, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Cx),
+        (0b010, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Dx),
+        (0b011, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Bx),
+        (0b100, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Sp),
+        (0b101, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Bp),
+        (0b110, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Si),
+        (0b111, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType::Di),
         (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
-        (0b000, ModType::MemoryMode0, _) => (Some("[bx + si]".to_string()), None),
-        (0b001, ModType::MemoryMode0, _) => (Some("[bx + di]".to_string()), None),
-        (0b010, ModType::MemoryMode0, _) => (Some("[bp + si]".to_string()), None),
-        (0b011, ModType::MemoryMode0, _) => (Some("[bp + di]".to_string()), None),
-        (0b100, ModType::MemoryMode0, _) => (Some("[si]".to_string()), None),
-        (0b101, ModType::MemoryMode0, _) => (Some("[di]".to_string()), None),
+        (0b000, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(RegType::Bx, RegType::Si),
+        (0b001, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(RegType::Bx, RegType::Di),
+        (0b010, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(RegType::Bp, RegType::Si),
+        (0b011, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(RegType::Bp, RegType::Di),
+        (0b100, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType::Si),
+        (0b101, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType::Di),
         // No registers - just a 16-bit immediate address from data lo, data hi
-        (0b110, ModType::MemoryMode0, _) => (Some("[".to_string()), Some("]".to_string())),
-        (0b111, ModType::MemoryMode0, _) => (Some("[bx]".to_string()), None),
+        (0b110, ModType::MemoryMode0, _) => ModRmDataType::MemDirectAddr,
+        (0b111, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType::Bx),
         (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
         // For MM8/MM16, all we need to do later after this function is add in
         // a signed disp with +/- sign explicitly printed out.
         (0b000, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx + si ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegRegDisp(RegType::Bx, RegType::Si)
         }
         (0b001, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx + di ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegRegDisp(RegType::Bx, RegType::Di)
         }
         (0b010, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp + si ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegRegDisp(RegType::Bp, RegType::Si)
         }
         (0b011, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp + di ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegRegDisp(RegType::Bp, RegType::Di)
         }
         (0b100, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[si ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegDisp(RegType::Si)
         }
         (0b101, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[di ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegDisp(RegType::Di)
         }
         (0b110, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bp ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegDisp(RegType::Bp)
         }
         (0b111, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
-            (Some("[bx ".to_string()), Some("]".to_string()))
+            ModRmDataType::MemRegDisp(RegType::Bx)
         }
         (_, ModType::MemoryMode8, _) => unreachable!("ERROR: Unknown MemoryMode8 condition"),
         (_, ModType::MemoryMode16, _) => unreachable!("ERROR: Unknown MemoryMode16 condition"),
