@@ -7,7 +7,6 @@ use crate::decode::{InstType, OpCodeType, RegType};
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
-    instrs_executed: u64,
     reg_file: BTreeMap<RegType, u16>,
 }
 
@@ -22,10 +21,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     let op_type = match inst.op_type {
         Some(op_type) => op_type,
         None => {
-            println!(
-                "{}: Op type not found in instruction object",
-                state.instrs_executed,
-            );
+            println!("Bad instruction object: {:?}", inst,);
             return effect;
         }
     };
