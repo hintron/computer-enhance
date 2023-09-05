@@ -50,12 +50,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         }
     }
 
-    // state.instrs_executed += 1;
-    // println!(
-    //     "{}: Executed {}",
-    //     state.instrs_executed,
-    //     inst.text.as_ref().unwrap()
-    // );
     return effect;
 }
 
