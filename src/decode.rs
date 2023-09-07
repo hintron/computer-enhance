@@ -450,7 +450,7 @@ pub struct InstType {
     /// The text for the destination operand
     dest_text: Option<String>,
     dest_text_end: Option<String>,
-    dest_prefix: Option<String>,
+    dest_prefix: Option<&'static str>,
     /// The final instruction representation
     pub text: Option<String>,
 }
@@ -667,7 +667,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     // Destination
     /////////////////////////////////////////////////////////
     if inst.dest_prefix.is_some() {
-        inst_text.push_str(&inst.dest_prefix.as_ref().unwrap());
+        inst_text.push_str(inst.dest_prefix.unwrap());
     }
     if inst.dest_text.is_some() {
         inst_text.push_str(&inst.dest_text.as_ref().unwrap());
@@ -1516,8 +1516,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte ".to_string()),
-                (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
+                (_, Some(false)) => inst.dest_prefix = Some("byte "),
+                (_, Some(true)) => inst.dest_prefix = Some("word "),
                 (_, None) => {
                     unreachable!()
                 }
@@ -1530,8 +1530,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp1Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte ".to_string()),
-                (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
+                (_, Some(false)) => inst.dest_prefix = Some("byte "),
+                (_, Some(true)) => inst.dest_prefix = Some("word "),
                 (_, None) => {
                     unreachable!()
                 }
@@ -1551,8 +1551,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte ".to_string()),
-                (_, Some(true)) => inst.dest_prefix = Some("word ".to_string()),
+                (_, Some(false)) => inst.dest_prefix = Some("byte "),
+                (_, Some(true)) => inst.dest_prefix = Some("word "),
                 (_, None) => {
                     unreachable!()
                 }
@@ -1560,7 +1560,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
         Some(ModRmByteType::ModPopRm) => match mode {
             ModType::RegisterMode => {}
-            _ => inst.dest_prefix = Some("word ".to_string()),
+            _ => inst.dest_prefix = Some("word "),
         },
         None => {
             unreachable!()
