@@ -443,6 +443,7 @@ pub struct InstType {
     source_text: Option<String>,
     source_text_end: Option<String>,
     source_prefix: Option<String>,
+    /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
@@ -640,6 +641,8 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         _ => {}
     }
 
+    // Tell the simulator what the value of the source was (currently assumes
+    // the source is an immediate value)
     inst.source_value = match &inst.source_text {
         Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
         _ => None,
