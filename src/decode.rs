@@ -649,22 +649,50 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         _ => {}
     }
 
-    let op_text = concat_texts(&inst.prefixes, &inst.op_type_str);
-    let mut dest_text = concat_texts(&inst.dest_text, &inst.dest_text_end);
-    let mut source_text = concat_texts(&inst.source_text, &inst.source_text_end);
-
-    // Concatenate any word or byte prefixes
-    dest_text = concat_texts(&inst.dest_prefix, &dest_text);
-    source_text = concat_texts(&inst.source_prefix, &source_text);
-
-    inst.source_value = match &source_text {
+    inst.source_value = match &inst.source_text {
         Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
         _ => None,
     };
 
-    let inst_text = concat_operands(&op_text, dest_text, source_text);
-    inst.text = Some(inst_text);
+    // Build the string from left to right
+    let mut inst_text = "".to_string();
+    /////////////////////////////////////////////////////////
+    // Op Code
+    /////////////////////////////////////////////////////////
+    if inst.prefixes.is_some() {
+        inst_text.push_str(&inst.prefixes.as_ref().unwrap());
+    }
+    inst_text.push_str(&inst.op_type_str.as_ref().unwrap());
+    inst_text.push(' ');
+    /////////////////////////////////////////////////////////
+    // Destination
+    /////////////////////////////////////////////////////////
+    if inst.dest_prefix.is_some() {
+        inst_text.push_str(&inst.dest_prefix.as_ref().unwrap());
+    }
+    if inst.dest_text.is_some() {
+        inst_text.push_str(&inst.dest_text.as_ref().unwrap());
+    }
+    if inst.dest_text_end.is_some() {
+        inst_text.push_str(&inst.dest_text_end.as_ref().unwrap());
+    }
+    if inst.dest_text.is_some() && inst.source_text.is_some() {
+        inst_text.push_str(", ");
+    }
+    /////////////////////////////////////////////////////////
+    // Source
+    /////////////////////////////////////////////////////////
+    if inst.source_prefix.is_some() {
+        inst_text.push_str(&inst.source_prefix.as_ref().unwrap());
+    }
+    if inst.source_text.is_some() {
+        inst_text.push_str(&inst.source_text.as_ref().unwrap());
+    }
+    if inst.source_text_end.is_some() {
+        inst_text.push_str(&inst.source_text_end.as_ref().unwrap());
+    }
 
+    inst.text = Some(inst_text);
     return Some(inst);
 }
 
@@ -1661,43 +1689,6 @@ fn process_ip_bytes(inst: &mut InstType) {
             unreachable!()
         }
     };
-}
-
-/// Concat op code with optional operands
-/// op_type is required
-fn concat_operands(
-    op_type: &Option<String>,
-    dest_text: Option<String>,
-    source_text: Option<String>,
-) -> String {
-    match (op_type, dest_text, source_text) {
-        (Some(op), Some(dest), Some(source)) => {
-            format!("{op} {dest}, {source}")
-        }
-        (Some(op), Some(dest), None) => {
-            format!("{op} {dest}")
-        }
-        (Some(op), None, Some(source)) => {
-            format!("{op} {source}")
-        }
-        (Some(op), None, None) => {
-            format!("{op}")
-        }
-        (None, _, _) => {
-            unreachable!("Op code text not set!");
-        }
-    }
-}
-
-// MGH TODO: Replace this abominable concat function with something elegant
-/// Concatenate two Option Strings
-fn concat_texts(a: &Option<String>, b: &Option<String>) -> Option<String> {
-    match (a, b) {
-        (Some(str_a), Some(str_b)) => Some(format!("{str_a}{str_b}")),
-        (Some(str_a), None) => Some(str_a.clone()),
-        (None, Some(str_b)) => Some(str_b.clone()),
-        (None, None) => None,
-    }
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
