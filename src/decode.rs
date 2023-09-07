@@ -1449,12 +1449,10 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 None | Some(false) => {
                     // Source is REG field
                     inst.source_reg = Some(reg_field);
-                    inst.source_text_end = None;
                 }
                 Some(true) => {
                     // Destination is REG field
                     inst.dest_reg = Some(reg_field);
-                    inst.dest_text_end = None;
                 }
             };
             inst.reg_field = Some(reg_field);
