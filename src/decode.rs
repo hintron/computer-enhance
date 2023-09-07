@@ -412,8 +412,6 @@ pub struct InstType {
     pub op_type: Option<OpCodeType>,
     /// A suffix string to append to the opcode, like `b` for `movsb`
     op_type_suffix: Option<&'static str>,
-    /// A string of the full op code plus any prefixes or suffixes
-    op_type_str: Option<String>,
     /// A list of all bytes processed for this instruction
     processed_bytes: Vec<u8>,
     mod_rm_byte: Option<ModRmByteType>,
@@ -630,13 +628,6 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         process_ip_bytes(&mut inst);
     }
 
-    // Create instruction text
-    inst.op_type_str = Some(format!(
-        "{}{}",
-        inst.op_type.unwrap(),
-        inst.op_type_suffix.unwrap_or("")
-    ));
-
     // Move dest_reg into dest_text if dest_text hasn't been set yet
     match (&mut inst.dest_text, inst.dest_reg) {
         (None, Some(dest_reg)) => inst.dest_text = Some(format!("{dest_reg}")),
@@ -662,7 +653,10 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     if inst.prefixes.is_some() {
         inst_text.push_str(&inst.prefixes.as_ref().unwrap());
     }
-    inst_text.push_str(&inst.op_type_str.as_ref().unwrap());
+    inst_text.push_str(&inst.op_type.unwrap().to_string());
+    if inst.op_type_suffix.is_some() {
+        inst_text.push_str(inst.op_type_suffix.unwrap());
+    }
     inst_text.push(' ');
     /////////////////////////////////////////////////////////
     // Destination
