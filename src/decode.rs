@@ -442,7 +442,7 @@ pub struct InstType {
     /// The text for the source operand
     source_text: Option<String>,
     source_text_end: Option<String>,
-    source_prefix: Option<String>,
+    source_prefix: Option<&'static str>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
@@ -682,7 +682,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     // Source
     /////////////////////////////////////////////////////////
     if inst.source_prefix.is_some() {
-        inst_text.push_str(&inst.source_prefix.as_ref().unwrap());
+        inst_text.push_str(inst.source_prefix.unwrap());
     }
     if inst.source_text.is_some() {
         inst_text.push_str(&inst.source_text.as_ref().unwrap());
@@ -1472,8 +1472,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_prefix = Some("byte ".to_string()),
-                (_, Some(true)) => inst.source_prefix = Some("word ".to_string()),
+                (_, Some(false)) => inst.source_prefix = Some("byte "),
+                (_, Some(true)) => inst.source_prefix = Some("word "),
                 (_, _) => {}
             }
         }
@@ -1500,8 +1500,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_prefix = Some("byte ".to_string()),
-                (_, Some(true)) => inst.source_prefix = Some("word ".to_string()),
+                (_, Some(false)) => inst.source_prefix = Some("byte "),
+                (_, Some(true)) => inst.source_prefix = Some("word "),
                 (_, _) => {}
             }
         }
