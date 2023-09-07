@@ -681,6 +681,13 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         _ => None,
     };
 
+    inst.text = Some(build_inst_string(&inst));
+
+    return Some(inst);
+}
+
+/// Take all the data in an instruction and build the final instruction string.
+fn build_inst_string(inst: &InstType) -> String {
     // Build the string from left to right
     let mut inst_text = "".to_string();
     /////////////////////////////////////////////////////////
@@ -724,8 +731,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         inst_text.push_str(&inst.source_text_end.as_ref().unwrap());
     }
 
-    inst.text = Some(inst_text);
-    return Some(inst);
+    inst_text
 }
 
 /// Decode any "prefix" bytes to a given instruction, like LOCK.
