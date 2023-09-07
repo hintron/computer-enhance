@@ -398,7 +398,7 @@ pub struct InstType {
     /// A LOCK prefix was part of the instruction
     lock_prefix: Option<bool>,
     /// A string of all prefixes concatenated together in the order parsed
-    prefixes: Option<String>,
+    prefixes: Option<Vec<&'static str>>,
     mod_field: Option<ModType>,
     rm_field: Option<u8>,
     /// This is "reg" in the ModRegRm byte. This will be copied into source_reg
@@ -654,7 +654,9 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     // Op Code
     /////////////////////////////////////////////////////////
     if inst.prefixes.is_some() {
-        inst_text.push_str(&inst.prefixes.as_ref().unwrap());
+        for prefix in inst.prefixes.as_ref().unwrap() {
+            inst_text.push_str(prefix);
+        }
     }
     inst_text.push_str(&inst.op_type.unwrap().to_string());
     if inst.op_type_suffix.is_some() {
@@ -716,10 +718,10 @@ fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
     };
     match &mut inst.prefixes {
         None => {
-            inst.prefixes = Some(prefix.to_string());
+            inst.prefixes = Some(vec![prefix]);
         }
         Some(prefixes) => {
-            prefixes.push_str(prefix);
+            prefixes.push(prefix);
         }
     }
     true
