@@ -386,15 +386,15 @@ impl fmt::Display for RegType {
 pub enum ModRmDataType {
     /// Just a single reg (i.e. mod 11, w={0,1}, rm={000-111})
     Reg(RegType),
-    /// [reg] (i.e. mod 0 rm {100, 101, 111})
+    /// \[reg] (i.e. mod 0 rm {100, 101, 111})
     MemReg(RegType),
-    /// [reg1 + reg2] (i.e. mod 00 rm {000, 001, 010, 011})
+    /// \[reg1 + reg2] (i.e. mod 00 rm {000, 001, 010, 011})
     MemRegReg(RegType, RegType),
-    /// [DIRECT ADDRESS] (i.e. mod 00 rm 110)
+    /// \[DIRECT ADDRESS] (i.e. mod 00 rm 110)
     MemDirectAddr,
-    /// [reg + disp]. disp is u8/u16, depending on disp bytes
+    /// \[reg + disp]. disp is u8/u16, depending on disp bytes
     MemRegDisp(RegType),
-    /// [reg1 + reg2 + disp]. disp is u8/u16, depending on disp bytes
+    /// \[reg1 + reg2 + disp]. disp is u8/u16, depending on disp bytes
     MemRegRegDisp(RegType, RegType),
 }
 
