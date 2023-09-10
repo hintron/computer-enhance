@@ -641,6 +641,13 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         }
     }
 
+    match inst.v_field {
+        Some(false) => inst.source_text = Some("1".to_string()),
+        Some(true) => inst.source_text = Some("cl".to_string()),
+        // Do nothing if v field isn't set - not a shift/rotate op
+        None => {}
+    };
+
     let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_lo, inst.disp_hi);
     match (mod_rm_op, inst.d_field) {
         (None, _) => {}
@@ -1561,11 +1568,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
         Some(ModRmByteType::ModShiftRm) => {
             inst.op_type = Some(decode_shift_op((byte & 0b00111000) >> 3));
-            match inst.v_field {
-                Some(false) | None => inst.source_text = Some("1".to_string()),
-                Some(true) => inst.source_text = Some("cl".to_string()),
-            }
-
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
