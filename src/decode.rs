@@ -658,12 +658,13 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>) {
-    let mut source_text = None;
-    let mut dest_text = None;
+    // Build source and dest strings
+    let mut source_text = String::new();
+    let mut dest_text = String::new();
 
     match inst.v_field {
-        Some(false) => source_text = Some("1".to_string()),
-        Some(true) => source_text = Some("cl".to_string()),
+        Some(false) => source_text.push_str("1"),
+        Some(true) => source_text.push_str("cl"),
         // Do nothing if v field isn't set - not a shift/rotate op
         None => {}
     };
@@ -674,12 +675,12 @@ fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>
         (Some(mod_rm_op), None | Some(false)) => {
             // Dest is rm field
             println!("dest is rm field: {mod_rm_op}");
-            dest_text = Some(mod_rm_op);
+            dest_text.push_str(&mod_rm_op);
         }
         (Some(mod_rm_op), Some(true)) => {
             // Source is rm field
             println!("source is rm field");
-            source_text = Some(mod_rm_op);
+            source_text.push_str(&mod_rm_op);
         }
     }
 
@@ -694,35 +695,23 @@ fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>
         if inst.mem_access.is_some() {
             match inst.add_data_to {
                 Some(AddTo::Source) => {
-                    source_text = Some(format!("[{}]", data_bytes_text));
+                    source_text.push_str(&format!("[{}]", data_bytes_text));
                 }
                 Some(AddTo::Dest) => {
-                    dest_text = Some(format!("[{}]", data_bytes_text));
+                    dest_text.push_str(&format!("[{}]", data_bytes_text));
                 }
                 None => unreachable!(),
             };
         } else {
-            match (&mut dest_text, &mut source_text, inst.add_data_to) {
-                (_, Some(source_text), Some(AddTo::Source)) => {
-                    source_text.push_str(&data_bytes_text);
-                }
-                (_, None, Some(AddTo::Source)) => {
-                    source_text = Some(data_bytes_text);
-                }
-                (Some(dest_text), _, Some(AddTo::Dest)) => {
-                    dest_text.push_str(&data_bytes_text);
-                }
-                (None, _, Some(AddTo::Dest)) => {
-                    dest_text = Some(data_bytes_text);
-                }
-                (_, _, _) => {
-                    unreachable!("Unhandled combo for source_text, add_data_to")
-                }
+            match inst.add_data_to {
+                Some(AddTo::Source) => source_text.push_str(&data_bytes_text),
+                Some(AddTo::Dest) => dest_text.push_str(&data_bytes_text),
+                None => unreachable!(),
             }
         }
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-        dest_text = Some(process_ip_bytes(
+        dest_text.push_str(&process_ip_bytes(
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
@@ -730,18 +719,26 @@ fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>
     }
 
     // Move dest_reg into dest_text if dest_text hasn't been set yet
-    match (&mut dest_text, inst.dest_reg) {
-        (None, Some(dest_reg)) => dest_text = Some(format!("{dest_reg}")),
+    match inst.dest_reg {
+        Some(dest_reg) => dest_text.push_str(&format!("{dest_reg}")),
         _ => {}
     }
 
     // Move source_reg into source_text if source_text hasn't been set yet
-    match (&mut source_text, inst.source_reg) {
-        (None, Some(source_reg)) => source_text = Some(format!("{source_reg}")),
+    match inst.source_reg {
+        Some(source_reg) => source_text.push_str(&format!("{source_reg}")),
         _ => {}
     }
 
-    (source_text, dest_text)
+    let mut source_text_opt = None;
+    let mut dest_text_opt = None;
+    if !source_text.is_empty() {
+        source_text_opt = Some(source_text);
+    }
+    if !dest_text.is_empty() {
+        dest_text_opt = Some(dest_text);
+    }
+    (source_text_opt, dest_text_opt)
 }
 
 /// Take all the data in an instruction and build the final instruction string.
