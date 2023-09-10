@@ -669,13 +669,9 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         if inst.mem_access.is_some() {
             match inst.add_data_to {
                 Some(AddTo::Source) => {
-                    // inst.dest_reg = accumulator;
-                    inst.add_data_to = Some(AddTo::Source);
                     inst.source_text = Some(format!("[{}]", data_bytes_text));
                 }
                 Some(AddTo::Dest) => {
-                    // inst.source_reg = accumulator;
-                    inst.add_data_to = Some(AddTo::Dest);
                     inst.dest_text = Some(format!("[{}]", data_bytes_text));
                 }
                 None => unreachable!(),
