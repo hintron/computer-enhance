@@ -656,7 +656,29 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     }
 
     if inst.add_data_to.is_some() {
-        process_data_bytes(&mut inst);
+        let data_bytes_text = process_data_bytes(
+            inst.data_lo.as_ref(),
+            inst.data_hi.as_ref(),
+            inst.data_8.as_ref(),
+        );
+
+        match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
+            (_, Some(source_text), Some(AddTo::Source)) => {
+                source_text.push_str(&data_bytes_text);
+            }
+            (_, None, Some(AddTo::Source)) => {
+                inst.source_text = Some(data_bytes_text);
+            }
+            (Some(dest_text), _, Some(AddTo::Dest)) => {
+                dest_text.push_str(&data_bytes_text);
+            }
+            (None, _, Some(AddTo::Dest)) => {
+                inst.dest_text = Some(data_bytes_text);
+            }
+            (_, _, _) => {
+                unreachable!("Unhandled combo for source_text, add_data_to")
+            }
+        }
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
         inst.dest_text = Some(process_ip_bytes(
@@ -1657,14 +1679,14 @@ fn mod_rm_disp_str(
 
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
-fn process_data_bytes(inst: &mut InstType) {
-    let data_bytes_text = match (inst.data_lo, inst.data_hi, inst.data_8) {
-        (Some(lo), None, None) => format!("{}", lo as i8),
+fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option<&u8>) -> String {
+    match (data_lo, data_hi, data_8) {
+        (Some(lo), None, None) => format!("{}", *lo as i8),
         (Some(lo), Some(hi), None) => {
-            let lo_hi = lo as u16 | ((hi as u16) << 8);
+            let lo_hi = *lo as u16 | ((*hi as u16) << 8);
             format!("{}", lo_hi as i16)
         }
-        (None, None, Some(data8)) => format!("{data8}"),
+        (None, None, Some(data8)) => format!("{}", *data8),
         (None, None, None) => {
             unreachable!("ERROR: No data bytes found")
         }
@@ -1673,24 +1695,6 @@ fn process_data_bytes(inst: &mut InstType) {
         }
         (_, _, _) => {
             panic!("Unhandled case in process_data_bytes()")
-        }
-    };
-
-    match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
-        (_, Some(source_text), Some(AddTo::Source)) => {
-            source_text.push_str(&data_bytes_text);
-        }
-        (_, None, Some(AddTo::Source)) => {
-            inst.source_text = Some(data_bytes_text);
-        }
-        (Some(dest_text), _, Some(AddTo::Dest)) => {
-            dest_text.push_str(&data_bytes_text);
-        }
-        (None, _, Some(AddTo::Dest)) => {
-            inst.dest_text = Some(data_bytes_text);
-        }
-        (_, _, _) => {
-            unreachable!("Unhandled combo for source_text, add_data_to")
         }
     }
 }
