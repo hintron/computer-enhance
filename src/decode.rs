@@ -464,15 +464,11 @@ pub struct InstType {
     extra_bytes: Vec<ExtraBytesType>,
     /// The source register, if the source is a register
     source_reg: Option<RegType>,
-    /// The text for the source operand
-    source_text: Option<String>,
     source_prefix: Option<&'static str>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
-    /// The text for the destination operand
-    dest_text: Option<String>,
     dest_prefix: Option<&'static str>,
     /// The final instruction representation
     pub text: Option<String>,
@@ -642,22 +638,17 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     }
 
     let (source_text, dest_text) = build_source_dest_strings(&inst);
-    inst.source_text = source_text;
-    inst.dest_text = dest_text;
 
     // Tell the simulator what the value of the source was (currently assumes
     // the source is an immediate value)
-    inst.source_value = match &inst.source_text {
-        Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
-        _ => None,
-    };
+    inst.source_value = Some(source_text.parse::<u16>().unwrap_or(0));
 
-    inst.text = Some(build_inst_string(&inst));
+    inst.text = Some(build_inst_string(&inst, source_text, dest_text));
 
     return Some(inst);
 }
 
-fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>) {
+fn build_source_dest_strings(inst: &InstType) -> (String, String) {
     // Build source and dest strings
     let mut source_text = String::new();
     let mut dest_text = String::new();
@@ -730,19 +721,11 @@ fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>
         _ => {}
     }
 
-    let mut source_text_opt = None;
-    let mut dest_text_opt = None;
-    if !source_text.is_empty() {
-        source_text_opt = Some(source_text);
-    }
-    if !dest_text.is_empty() {
-        dest_text_opt = Some(dest_text);
-    }
-    (source_text_opt, dest_text_opt)
+    (source_text, dest_text)
 }
 
 /// Take all the data in an instruction and build the final instruction string.
-fn build_inst_string(inst: &InstType) -> String {
+fn build_inst_string(inst: &InstType, source_text: String, dest_text: String) -> String {
     // Build the string from left to right
     let mut inst_text = "".to_string();
     /////////////////////////////////////////////////////////
@@ -764,10 +747,10 @@ fn build_inst_string(inst: &InstType) -> String {
     if inst.dest_prefix.is_some() {
         inst_text.push_str(inst.dest_prefix.unwrap());
     }
-    if inst.dest_text.is_some() {
-        inst_text.push_str(&inst.dest_text.as_ref().unwrap());
+    if !dest_text.is_empty() {
+        inst_text.push_str(&dest_text);
     }
-    if inst.dest_text.is_some() && inst.source_text.is_some() {
+    if !dest_text.is_empty() && !source_text.is_empty() {
         inst_text.push_str(", ");
     }
     /////////////////////////////////////////////////////////
@@ -776,8 +759,8 @@ fn build_inst_string(inst: &InstType) -> String {
     if inst.source_prefix.is_some() {
         inst_text.push_str(inst.source_prefix.unwrap());
     }
-    if inst.source_text.is_some() {
-        inst_text.push_str(&inst.source_text.as_ref().unwrap());
+    if !source_text.is_empty() {
+        inst_text.push_str(&source_text);
     }
 
     inst_text
