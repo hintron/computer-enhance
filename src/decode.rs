@@ -641,9 +641,29 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         }
     }
 
+    let (source_text, dest_text) = build_source_dest_strings(&inst);
+    inst.source_text = source_text;
+    inst.dest_text = dest_text;
+
+    // Tell the simulator what the value of the source was (currently assumes
+    // the source is an immediate value)
+    inst.source_value = match &inst.source_text {
+        Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
+        _ => None,
+    };
+
+    inst.text = Some(build_inst_string(&inst));
+
+    return Some(inst);
+}
+
+fn build_source_dest_strings(inst: &InstType) -> (Option<String>, Option<String>) {
+    let mut source_text = None;
+    let mut dest_text = None;
+
     match inst.v_field {
-        Some(false) => inst.source_text = Some("1".to_string()),
-        Some(true) => inst.source_text = Some("cl".to_string()),
+        Some(false) => source_text = Some("1".to_string()),
+        Some(true) => source_text = Some("cl".to_string()),
         // Do nothing if v field isn't set - not a shift/rotate op
         None => {}
     };
@@ -654,12 +674,12 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         (Some(mod_rm_op), None | Some(false)) => {
             // Dest is rm field
             println!("dest is rm field: {mod_rm_op}");
-            inst.dest_text = Some(mod_rm_op);
+            dest_text = Some(mod_rm_op);
         }
         (Some(mod_rm_op), Some(true)) => {
             // Source is rm field
             println!("source is rm field");
-            inst.source_text = Some(mod_rm_op);
+            source_text = Some(mod_rm_op);
         }
     }
 
@@ -674,26 +694,26 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         if inst.mem_access.is_some() {
             match inst.add_data_to {
                 Some(AddTo::Source) => {
-                    inst.source_text = Some(format!("[{}]", data_bytes_text));
+                    source_text = Some(format!("[{}]", data_bytes_text));
                 }
                 Some(AddTo::Dest) => {
-                    inst.dest_text = Some(format!("[{}]", data_bytes_text));
+                    dest_text = Some(format!("[{}]", data_bytes_text));
                 }
                 None => unreachable!(),
             };
         } else {
-            match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
+            match (&mut dest_text, &mut source_text, inst.add_data_to) {
                 (_, Some(source_text), Some(AddTo::Source)) => {
                     source_text.push_str(&data_bytes_text);
                 }
                 (_, None, Some(AddTo::Source)) => {
-                    inst.source_text = Some(data_bytes_text);
+                    source_text = Some(data_bytes_text);
                 }
                 (Some(dest_text), _, Some(AddTo::Dest)) => {
                     dest_text.push_str(&data_bytes_text);
                 }
                 (None, _, Some(AddTo::Dest)) => {
-                    inst.dest_text = Some(data_bytes_text);
+                    dest_text = Some(data_bytes_text);
                 }
                 (_, _, _) => {
                     unreachable!("Unhandled combo for source_text, add_data_to")
@@ -702,7 +722,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         }
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-        inst.dest_text = Some(process_ip_bytes(
+        dest_text = Some(process_ip_bytes(
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
@@ -710,27 +730,18 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
     }
 
     // Move dest_reg into dest_text if dest_text hasn't been set yet
-    match (&mut inst.dest_text, inst.dest_reg) {
-        (None, Some(dest_reg)) => inst.dest_text = Some(format!("{dest_reg}")),
+    match (&mut dest_text, inst.dest_reg) {
+        (None, Some(dest_reg)) => dest_text = Some(format!("{dest_reg}")),
         _ => {}
     }
 
     // Move source_reg into source_text if source_text hasn't been set yet
-    match (&mut inst.source_text, inst.source_reg) {
-        (None, Some(source_reg)) => inst.source_text = Some(format!("{source_reg}")),
+    match (&mut source_text, inst.source_reg) {
+        (None, Some(source_reg)) => source_text = Some(format!("{source_reg}")),
         _ => {}
     }
 
-    // Tell the simulator what the value of the source was (currently assumes
-    // the source is an immediate value)
-    inst.source_value = match &inst.source_text {
-        Some(text) => Some(text.parse::<u16>().unwrap_or(0)),
-        _ => None,
-    };
-
-    inst.text = Some(build_inst_string(&inst));
-
-    return Some(inst);
+    (source_text, dest_text)
 }
 
 /// Take all the data in an instruction and build the final instruction string.
