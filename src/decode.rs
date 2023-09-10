@@ -659,7 +659,11 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         process_data_bytes(&mut inst);
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-        process_ip_bytes(&mut inst);
+        inst.dest_text = Some(process_ip_bytes(
+            inst.ip_inc8.as_ref(),
+            inst.ip_inc_lo.as_ref(),
+            inst.ip_inc_hi.as_ref(),
+        ));
     }
 
     // Move dest_reg into dest_text if dest_text hasn't been set yet
@@ -1691,7 +1695,7 @@ fn process_data_bytes(inst: &mut InstType) {
     }
 }
 
-/// Process any IP offset bytes.
+/// Take in IP offset bytes and return a destination text.
 ///
 /// The tricky part is that we can't recreate label text - but all labels are
 /// just translated into relative offsets to the IP. So we use `$` in NASM to
@@ -1700,21 +1704,25 @@ fn process_data_bytes(inst: &mut InstType) {
 /// next instruction. Thus, $ == IP - 2. So when a jump instruction does IP =
 /// IP + X, that is really IP = ($ + 2) + X, which is why we add 2 to ip_inc8
 /// below.
-fn process_ip_bytes(inst: &mut InstType) {
-    inst.dest_text = match (inst.ip_inc8, inst.ip_inc_lo, inst.ip_inc_hi) {
-        (Some(ip_inc8), _, _) => Some(format!("${:+}", ip_inc8 as i8 + 2)),
+fn process_ip_bytes(
+    ip_inc8: Option<&u8>,
+    ip_inc_lo: Option<&u8>,
+    ip_inc_hi: Option<&u8>,
+) -> String {
+    match (ip_inc8, ip_inc_lo, ip_inc_hi) {
+        (Some(ip_inc8), _, _) => format!("${:+}", *ip_inc8 as i8 + 2),
         (None, Some(lo), Some(hi)) => {
             // Combine lo and hi
-            let ip_inc = ((hi as i16) << 8) | (lo as i16);
+            let ip_inc = ((*hi as i16) << 8) | (*lo as i16);
             // TODO: I'm not sure why we need to add three , not two. I think it
             // has to do with the fact that there was a no op byte for
             // alignment.
-            Some(format!("${:+}", ip_inc + 3))
+            format!("${:+}", ip_inc + 3)
         }
         _ => {
             unreachable!()
         }
-    };
+    }
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
