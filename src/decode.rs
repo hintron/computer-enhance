@@ -456,6 +456,9 @@ pub struct InstType {
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
+    /// If true, then use the data bytes as part of a memory reference, like
+    /// \[DATA_BYTES].
+    mem_access: Option<bool>,
     /// The expected "extra" byte types to parse after we parse the 1st byte and
     /// the mod/rm byte (if it exists).
     extra_bytes: Vec<ExtraBytesType>,
@@ -662,21 +665,38 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             inst.data_8.as_ref(),
         );
 
-        match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
-            (_, Some(source_text), Some(AddTo::Source)) => {
-                source_text.push_str(&data_bytes_text);
-            }
-            (_, None, Some(AddTo::Source)) => {
-                inst.source_text = Some(data_bytes_text);
-            }
-            (Some(dest_text), _, Some(AddTo::Dest)) => {
-                dest_text.push_str(&data_bytes_text);
-            }
-            (None, _, Some(AddTo::Dest)) => {
-                inst.dest_text = Some(data_bytes_text);
-            }
-            (_, _, _) => {
-                unreachable!("Unhandled combo for source_text, add_data_to")
+        // If this is a mem access, use data bytes for the mem access
+        if inst.mem_access.is_some() {
+            match inst.add_data_to {
+                Some(AddTo::Source) => {
+                    // inst.dest_reg = accumulator;
+                    inst.add_data_to = Some(AddTo::Source);
+                    inst.source_text = Some(format!("[{}]", data_bytes_text));
+                }
+                Some(AddTo::Dest) => {
+                    // inst.source_reg = accumulator;
+                    inst.add_data_to = Some(AddTo::Dest);
+                    inst.dest_text = Some(format!("[{}]", data_bytes_text));
+                }
+                None => unreachable!(),
+            };
+        } else {
+            match (&mut inst.dest_text, &mut inst.source_text, inst.add_data_to) {
+                (_, Some(source_text), Some(AddTo::Source)) => {
+                    source_text.push_str(&data_bytes_text);
+                }
+                (_, None, Some(AddTo::Source)) => {
+                    inst.source_text = Some(data_bytes_text);
+                }
+                (Some(dest_text), _, Some(AddTo::Dest)) => {
+                    dest_text.push_str(&data_bytes_text);
+                }
+                (None, _, Some(AddTo::Dest)) => {
+                    inst.dest_text = Some(data_bytes_text);
+                }
+                (_, _, _) => {
+                    unreachable!("Unhandled combo for source_text, add_data_to")
+                }
             }
         }
     }
@@ -1004,21 +1024,16 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xA0..=0xA3 => {
             inst.op_type = Some(OpCodeType::Mov);
             let w_field = (byte & 0x1) == 1;
-            let left_bracket = Some("[".to_string());
-            let right_bracket = Some("]".to_string());
             let accumulator = Some(RegType::Ax);
+            inst.mem_access = Some(true);
             match ((byte & 0x2) >> 1) == 1 {
                 false => {
                     inst.dest_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Source);
-                    inst.source_text = left_bracket;
-                    inst.source_text_end = right_bracket;
                 }
                 true => {
                     inst.source_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Dest);
-                    inst.dest_text = left_bracket;
-                    inst.dest_text_end = right_bracket;
                 }
             };
             inst.extra_bytes.push(ExtraBytesType::DataLo);
