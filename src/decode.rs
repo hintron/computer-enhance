@@ -466,7 +466,6 @@ pub struct InstType {
     source_reg: Option<RegType>,
     /// The text for the source operand
     source_text: Option<String>,
-    source_text_end: Option<String>,
     source_prefix: Option<&'static str>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
@@ -474,7 +473,6 @@ pub struct InstType {
     pub dest_reg: Option<RegType>,
     /// The text for the destination operand
     dest_text: Option<String>,
-    dest_text_end: Option<String>,
     dest_prefix: Option<&'static str>,
     /// The final instruction representation
     pub text: Option<String>,
@@ -754,9 +752,6 @@ fn build_inst_string(inst: &InstType) -> String {
     if inst.dest_text.is_some() {
         inst_text.push_str(&inst.dest_text.as_ref().unwrap());
     }
-    if inst.dest_text_end.is_some() {
-        inst_text.push_str(&inst.dest_text_end.as_ref().unwrap());
-    }
     if inst.dest_text.is_some() && inst.source_text.is_some() {
         inst_text.push_str(", ");
     }
@@ -768,9 +763,6 @@ fn build_inst_string(inst: &InstType) -> String {
     }
     if inst.source_text.is_some() {
         inst_text.push_str(&inst.source_text.as_ref().unwrap());
-    }
-    if inst.source_text_end.is_some() {
-        inst_text.push_str(&inst.source_text_end.as_ref().unwrap());
     }
 
     inst_text
