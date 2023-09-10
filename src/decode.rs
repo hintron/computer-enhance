@@ -726,7 +726,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
 
 /// Take all the data in an instruction and build the final instruction string.
 fn build_inst_string(inst: &InstType, source_text: String, dest_text: String) -> String {
-    // Build the string from left to right
+    // Build the final instruction string from left to right
     let mut inst_text = "".to_string();
     /////////////////////////////////////////////////////////
     // Op Code
