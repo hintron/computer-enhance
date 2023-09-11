@@ -456,6 +456,8 @@ pub struct InstType {
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
+    /// If true, then there are displacement bytes in extra_bytes.
+    has_disp: bool,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
     mem_access: Option<bool>,
@@ -1481,10 +1483,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     match (mode, rm_field) {
         (ModType::MemoryMode8, _) => {
             inst.extra_bytes.push(ExtraBytesType::DispLo);
+            inst.has_disp = true;
         }
         (ModType::MemoryMode16, _) => {
             inst.extra_bytes.push(ExtraBytesType::DispLo);
             inst.extra_bytes.push(ExtraBytesType::DispHi);
+            inst.has_disp = true;
         }
         (ModType::MemoryMode0, DIRECT_ADDR) => {
             inst.extra_bytes.push(ExtraBytesType::DispLo);
@@ -1492,6 +1496,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.disp_direct_address = true;
         }
         _ => {}
+    }
+
+    if inst.has_disp || inst.disp_direct_address {
+        // Indicate what displacement should be added to: src or dest
+        match inst.d_field {
+            None | Some(false) => inst.add_disp_to = Some(AddTo::Dest),
+            Some(true) => inst.add_disp_to = Some(AddTo::Source),
+        }
     }
 
     // Process the middle part of the mod rm byte
@@ -1612,18 +1624,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         None => {
             unreachable!()
         }
-    }
-    // Indicate what displacement should be added to: src or dest
-    match (inst.d_field, mode, rm_field) {
-        (None | Some(false), ModType::MemoryMode8 | ModType::MemoryMode16, _)
-        | (None | Some(false), ModType::MemoryMode0, DIRECT_ADDR) => {
-            inst.add_disp_to = Some(AddTo::Dest);
-        }
-        (Some(true), ModType::MemoryMode8 | ModType::MemoryMode16, _)
-        | (Some(true), ModType::MemoryMode0, DIRECT_ADDR) => {
-            inst.add_disp_to = Some(AddTo::Source);
-        }
-        (_, _, _) => {}
     }
 
     inst.mod_field = Some(mode);
