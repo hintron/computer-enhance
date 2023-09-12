@@ -661,8 +661,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         }
     };
 
-    let (source_text, dest_text) = build_source_dest_strings(&inst);
-    inst.text = Some(build_inst_string(&inst, source_text, dest_text));
+    inst.text = Some(build_inst_string(&inst));
 
     return Some(inst);
 }
@@ -744,7 +743,12 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
 }
 
 /// Take all the data in an instruction and build the final instruction string.
-fn build_inst_string(inst: &InstType, source_text: String, dest_text: String) -> String {
+fn build_inst_string(inst: &InstType) -> String {
+    // Build the source and dest texts
+    // TODO: Build source and dest text in order and append to inst_text, to
+    // avoid extra String allocations.
+    let (source_text, dest_text) = build_source_dest_strings(&inst);
+
     // Build the final instruction string from left to right
     let mut inst_text = "".to_string();
     /////////////////////////////////////////////////////////
