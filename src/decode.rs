@@ -453,6 +453,13 @@ pub struct InstType {
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
     add_data_to: Option<AddTo>,
+    /// This indicates that there is an immediate value contained in extra
+    /// bytes, and which extra byte(s) to use. E.g. if data_hi is specified, use
+    /// both data_lo and data_hi. If data_lo is specified, only use data_lo.
+    immediate_source: Option<ExtraBytesType>,
+    /// The actual value of the immediate. It's stored as a u16, even if it's
+    /// only a u8.
+    pub immediate_value: Option<u16>,
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
@@ -639,12 +646,22 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         }
     }
 
+    // Get the actual value of any immediates, for use in simulation
+    match inst.immediate_source {
+        Some(ExtraBytesType::DataHi) => {
+            let val = inst.data_lo.unwrap() as u16 | ((inst.data_hi.unwrap() as u16) << 8);
+            inst.immediate_value = Some(val);
+        }
+        Some(ExtraBytesType::DataLo) => {
+            let val = inst.data_lo.unwrap() as u16;
+            inst.immediate_value = Some(val);
+        }
+        _ => {
+            println!("Unknown immediate source")
+        }
+    };
+
     let (source_text, dest_text) = build_source_dest_strings(&inst);
-
-    // Tell the simulator what the value of the source was (currently assumes
-    // the source is an immediate value)
-    inst.source_value = Some(source_text.parse::<u16>().unwrap_or(0));
-
     inst.text = Some(build_inst_string(&inst, source_text, dest_text));
 
     return Some(inst);
@@ -1004,8 +1021,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // source_text will be filled in later
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             match inst.w_field {
-                Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
-                _ => {}
+                Some(true) => {
+                    inst.extra_bytes.push(ExtraBytesType::DataHi);
+                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                },
+                _ => inst.immediate_source = Some(ExtraBytesType::DataLo),
             }
         }
         // mov - Memory to accumulator or accumulator to memory
@@ -1027,6 +1047,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             if w_field {
                 inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_source = Some(ExtraBytesType::DataHi);
+            } else {
+                inst.immediate_source = Some(ExtraBytesType::DataLo);
             }
             inst.w_field = Some(w_field);
         }
@@ -1528,8 +1551,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         Some(ModRmByteType::ModMovRm) => {
             inst.extra_bytes.push(ExtraBytesType::DataLo);
             match inst.w_field {
-                Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
-                _ => {}
+                Some(true) => {
+                    inst.extra_bytes.push(ExtraBytesType::DataHi);
+                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                }
+                _ => inst.immediate_source = Some(ExtraBytesType::DataLo),
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
@@ -1676,6 +1702,8 @@ fn mod_rm_disp_str(
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
 fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option<&u8>) -> String {
+    // TODO: Use inst.immediate_value instead, so we only have to bit
+    // fiddle with this in one place?
     match (data_lo, data_hi, data_8) {
         (Some(lo), None, None) => format!("{}", *lo as i8),
         (Some(lo), Some(hi), None) => {

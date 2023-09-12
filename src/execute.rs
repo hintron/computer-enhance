@@ -26,7 +26,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         }
     };
 
-    match (op_type, inst.dest_reg, inst.source_value) {
+    match (op_type, inst.dest_reg, inst.immediate_value) {
         (OpCodeType::Mov, Some(reg), Some(new_val)) => {
             // Check the dest register
             let old_val = state.reg_file.insert(reg, new_val).unwrap_or(0);
