@@ -1723,7 +1723,7 @@ fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option
         (Some(lo), None, None) => format!("{}", *lo as i8),
         (Some(lo), Some(hi), None) => {
             let lo_hi = *lo as u16 | ((*hi as u16) << 8);
-            format!("{}", lo_hi as i16)
+            format!("{}", lo_hi)
         }
         (None, None, Some(data8)) => format!("{}", *data8),
         (None, None, None) => unreachable!("ERROR: No data bytes found"),
