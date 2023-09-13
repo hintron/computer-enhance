@@ -100,6 +100,7 @@ enum ModRmByteType {
     ModShiftRm,
     ModGrp1Rm,
     ModGrp2Rm,
+    ModSrRm,
 }
 
 /// An enum representing the possible types of "extra" bytes containing data
@@ -1049,6 +1050,17 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             }
             inst.w_field = Some(w_field);
         }
+        // mov - Register/memory to segment register
+        // mov - Segment register to register/memory
+        // The docs have these as two separate instructions, but they are really
+        // one instruction with a d field as bit 2
+        0x8C | 0x8E => {
+            inst.op_type = Some(OpCodeType::Mov);
+            inst.mod_rm_byte = Some(ModRmByteType::ModSrRm);
+            inst.d_field = Some(((byte & 0x2) >> 1) == 1);
+            // Hard code w to 1, since no w field in instruction
+            inst.w_field = Some(true);
+        }
         // inc/dec/call/jmp/push - Register/memory
         0xFE..=0xFF => {
             inst.mod_rm_byte = Some(ModRmByteType::ModGrp2Rm);
@@ -1642,6 +1654,18 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             ModType::RegisterMode => {}
             _ => inst.dest_prefix = Some("word "),
         },
+        // Similar to ModRegRm
+        Some(ModRmByteType::ModSrRm) => {
+            let sr_reg = decode_sr_field((byte & 0b00011000) >> 3);
+            match inst.d_field {
+                Some(false) => inst.source_reg = Some(sr_reg),
+                Some(true) => inst.dest_reg = Some(sr_reg),
+                _ => unreachable!(),
+            };
+            inst.reg_field = Some(sr_reg);
+            // We need no byte/word prefix for ModSrRm, since there is always
+            // a register source/dest to indicate size
+        }
         None => unreachable!(),
     }
 
