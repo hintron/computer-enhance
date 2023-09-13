@@ -1679,38 +1679,35 @@ fn mod_rm_disp_str(
         Some(x) => x,
     };
 
-    let result = match (mod_rm_data, disp_lo, disp_hi) {
-        (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => {
-            format!("[0x{hi:02X}{lo:02X}]")
-        }
-        (ModRmDataType::MemReg(reg), _, _) => format!("[{reg}]"),
-        (ModRmDataType::MemRegReg(reg1, reg2), _, _) => format!("[{reg1} + {reg2}]"),
+    match (mod_rm_data, disp_lo, disp_hi) {
+        (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => Some(format!("[0x{hi:02X}{lo:02X}]")),
+        (ModRmDataType::MemReg(reg), _, _) => Some(format!("[{reg}]")),
+        (ModRmDataType::MemRegReg(reg1, reg2), _, _) => Some(format!("[{reg1} + {reg2}]")),
         (ModRmDataType::MemRegDisp(reg), Some(lo), None) => {
             let lo = lo as i8;
-            format!("[{reg} {lo:+}]")
+            Some(format!("[{reg} {lo:+}]"))
         }
         (ModRmDataType::MemRegDisp(reg), Some(lo), Some(hi)) => {
             // If not direct address, print as signed 16 bit
             let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            format!("[{reg} {lo_hi:+}]")
+            Some(format!("[{reg} {lo_hi:+}]"))
         }
         (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), None) => {
             let lo = lo as i8;
-            format!("[{reg1} + {reg2} {lo:+}]")
+            Some(format!("[{reg1} + {reg2} {lo:+}]"))
         }
         (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), Some(hi)) => {
             // If not direct address, print as signed 16 bit
             let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            format!("[{reg1} + {reg2} {lo_hi:+}]")
+            Some(format!("[{reg1} + {reg2} {lo_hi:+}]"))
         }
         // Don't print anything here, since the reg will already have been
         // copied into a source or dest reg and printed via that.
-        (ModRmDataType::Reg(_), _, _) => return None,
+        (ModRmDataType::Reg(_), _, _) => None,
         (_, _, _) => {
             unreachable!();
         }
-    };
-    Some(result)
+    }
 }
 
 /// Process the data (immediate) bytes by applying it to the needed fields in
