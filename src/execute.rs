@@ -26,19 +26,24 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         }
     };
 
-    match (op_type, inst.dest_reg, inst.immediate_value) {
-        (OpCodeType::Mov, Some(reg), Some(new_val)) => {
-            // Check the dest register
-            let old_val = state.reg_file.insert(reg, new_val).unwrap_or(0);
-            effect = format!(
-                "{} ; {}:0x{}->0x{}",
-                inst.text.as_ref().unwrap(),
-                reg,
-                old_val,
-                new_val
-            );
+    match op_type {
+        OpCodeType::Mov => {
+            match (inst.dest_reg, inst.immediate_value) {
+                (Some(reg), Some(new_val)) => {
+                    // Check the dest register
+                    let old_val = state.reg_file.insert(reg, new_val).unwrap_or(0);
+                    effect = format!(
+                        "{} ; {}:0x{}->0x{}",
+                        inst.text.as_ref().unwrap(),
+                        reg,
+                        old_val,
+                        new_val
+                    );
+                }
+                _ => println!("Unimplemented mov variant: {}", inst.text.as_ref().unwrap()),
+            }
         }
-        (_, _, _) => {
+        _ => {
             println!(
                 "Execution of instruction `{}` is unimplemented",
                 inst.text.as_ref().unwrap()
