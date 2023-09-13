@@ -27,15 +27,34 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     };
 
     match op_type {
+        // Handle all movs
         OpCodeType::Mov => {
-            match (inst.dest_reg, inst.immediate_value) {
-                (Some(reg), Some(new_val)) => {
+            match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
+                // Handle immediate to dest reg movs
+                (Some(reg), _, Some(new_val)) => {
                     // Check the dest register
                     let old_val = state.reg_file.insert(reg, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{}->0x{}",
                         inst.text.as_ref().unwrap(),
                         reg,
+                        old_val,
+                        new_val
+                    );
+                }
+                // Handle source reg to dest reg
+                (Some(dest_reg), Some(source_reg), _) => {
+                    // Get the value of the source register
+                    let new_val = match state.reg_file.get(&source_reg) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    // Copy it to the dest register
+                    let old_val = state.reg_file.insert(dest_reg, new_val).unwrap_or(0);
+                    effect = format!(
+                        "{} ; {}:0x{}->0x{}",
+                        inst.text.as_ref().unwrap(),
+                        dest_reg,
                         old_val,
                         new_val
                     );

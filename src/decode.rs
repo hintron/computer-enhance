@@ -472,7 +472,7 @@ pub struct InstType {
     /// the mod/rm byte (if it exists).
     extra_bytes: Vec<ExtraBytesType>,
     /// The source register, if the source is a register
-    source_reg: Option<RegType>,
+    pub source_reg: Option<RegType>,
     source_prefix: Option<&'static str>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
@@ -656,6 +656,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
+        None => {}
         _ => {
             println!("Unknown immediate source")
         }
@@ -1503,7 +1504,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Get the upper two bits
     let mode = decode_mod_field((byte & 0b11000000) >> 6);
     let rm_field = byte & 0b00000111;
-    inst.mod_rm_data = Some(decode_rm_field(rm_field, mode, inst.w_field));
+    let mod_rm_data = decode_rm_field(rm_field, mode, inst.w_field);
 
     // Indicate that there are displacement bytes to process next
     // Displacement bytes come before immediate/data bytes
@@ -1532,6 +1533,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             Some(true) => inst.add_disp_to = Some(AddTo::Source),
         }
     }
+
+    // If mod rm is a straight reg, set the source or dest reg
+    match (mod_rm_data, inst.d_field) {
+        (ModRmDataType::Reg(reg), Some(false) | None) => inst.dest_reg = Some(reg),
+        (ModRmDataType::Reg(reg), Some(true)) => inst.source_reg = Some(reg),
+        _ => {}
+    };
 
     // Process the middle part of the mod rm byte
     match inst.mod_rm_byte {
@@ -1656,6 +1664,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
     }
 
+    inst.mod_rm_data = Some(mod_rm_data);
     inst.mod_field = Some(mode);
     inst.rm_field = Some(rm_field);
 }
@@ -1672,7 +1681,6 @@ fn mod_rm_disp_str(
     };
 
     let result = match (mod_rm_data, disp_lo, disp_hi) {
-        (ModRmDataType::Reg(reg), _, _) => format!("{reg}"),
         (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => {
             format!("[0x{hi:02X}{lo:02X}]")
         }
@@ -1696,6 +1704,9 @@ fn mod_rm_disp_str(
             let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
             format!("[{reg1} + {reg2} {lo_hi:+}]")
         }
+        // Don't print anything here, since the reg will already have been
+        // copied into a source or dest reg and printed via that.
+        (ModRmDataType::Reg(_), _, _) => return None,
         (_, _, _) => {
             unreachable!();
         }
