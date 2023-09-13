@@ -658,9 +658,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             inst.immediate_value = Some(val);
         }
         None => {}
-        _ => {
-            println!("Unknown immediate source")
-        }
+        _ => println!("Unknown immediate source"),
     };
 
     inst.text = Some(build_inst_string(&inst));
