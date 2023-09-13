@@ -683,12 +683,10 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         (None, _) => {}
         (Some(mod_rm_op), None | Some(false)) => {
             // Dest is rm field
-            println!("dest is rm field: {mod_rm_op}");
             dest_text.push_str(&mod_rm_op);
         }
         (Some(mod_rm_op), Some(true)) => {
             // Source is rm field
-            println!("source is rm field");
             source_text.push_str(&mod_rm_op);
         }
     }
