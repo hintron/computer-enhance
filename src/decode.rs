@@ -805,18 +805,12 @@ fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
             inst.z_field = Some((byte & 0x1) == 1);
             "rep "
         }
-        _ => {
-            // This byte isn't a prefix...
-            return false;
-        }
+        // This byte isn't a prefix...
+        _ => return false,
     };
     match &mut inst.prefixes {
-        None => {
-            inst.prefixes = Some(vec![prefix]);
-        }
-        Some(prefixes) => {
-            prefixes.push(prefix);
-        }
+        None => inst.prefixes = Some(vec![prefix]),
+        Some(prefixes) => prefixes.push(prefix),
     }
     true
 }
@@ -1372,9 +1366,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 // loopnz/loopne - loop while not zero/equal
                 0xE0 => inst.op_type = Some(OpCodeType::Loopnz),
                 0xE3 => inst.op_type = Some(OpCodeType::Jcxz),
-                _ => {
-                    unreachable!()
-                }
+                _ => unreachable!(),
             }
         }
         // test - Register/memory and register
@@ -1575,7 +1567,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (ModType::RegisterMode, _) => {}
                 (_, Some(false)) => inst.source_prefix = Some("byte "),
                 (_, Some(true)) => inst.source_prefix = Some("word "),
-                (_, _) => {}
+                _ => {}
             }
         }
         Some(ModRmByteType::ModImmedRm) => {
@@ -1603,7 +1595,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (ModType::RegisterMode, _) => {}
                 (_, Some(false)) => inst.source_prefix = Some("byte "),
                 (_, Some(true)) => inst.source_prefix = Some("word "),
-                (_, _) => {}
+                _ => {}
             }
         }
         Some(ModRmByteType::ModShiftRm) => {
@@ -1614,9 +1606,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
                 (_, Some(false)) => inst.dest_prefix = Some("byte "),
                 (_, Some(true)) => inst.dest_prefix = Some("word "),
-                (_, None) => {
-                    unreachable!()
-                }
+                (_, None) => unreachable!(),
             }
         }
         Some(ModRmByteType::ModGrp1Rm) => {
@@ -1628,9 +1618,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // ModGrp1Rm instructions are 1-operand, so add prefix to dest
                 (_, Some(false)) => inst.dest_prefix = Some("byte "),
                 (_, Some(true)) => inst.dest_prefix = Some("word "),
-                (_, None) => {
-                    unreachable!()
-                }
+                (_, None) => unreachable!(),
             }
             if is_test_inst {
                 inst.add_data_to = Some(AddTo::Source);
@@ -1649,18 +1637,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
                 (_, Some(false)) => inst.dest_prefix = Some("byte "),
                 (_, Some(true)) => inst.dest_prefix = Some("word "),
-                (_, None) => {
-                    unreachable!()
-                }
+                (_, None) => unreachable!(),
             }
         }
         Some(ModRmByteType::ModPopRm) => match mode {
             ModType::RegisterMode => {}
             _ => inst.dest_prefix = Some("word "),
         },
-        None => {
-            unreachable!()
-        }
+        None => unreachable!(),
     }
 
     inst.mod_rm_data = Some(mod_rm_data);
@@ -1704,9 +1688,7 @@ fn mod_rm_disp_str(
         // Don't print anything here, since the reg will already have been
         // copied into a source or dest reg and printed via that.
         (ModRmDataType::Reg(_), _, _) => None,
-        (_, _, _) => {
-            unreachable!();
-        }
+        _ => unreachable!(),
     }
 }
 
@@ -1722,15 +1704,9 @@ fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option
             format!("{}", lo_hi as i16)
         }
         (None, None, Some(data8)) => format!("{}", *data8),
-        (None, None, None) => {
-            unreachable!("ERROR: No data bytes found")
-        }
-        (None, Some(_), _) => {
-            unreachable!("ERROR: Low data byte not set")
-        }
-        (_, _, _) => {
-            panic!("Unhandled case in process_data_bytes()")
-        }
+        (None, None, None) => unreachable!("ERROR: No data bytes found"),
+        (None, Some(_), _) => unreachable!("ERROR: Low data byte not set"),
+        _ => panic!("Unhandled case in process_data_bytes()"),
     }
 }
 
@@ -1758,9 +1734,7 @@ fn process_ip_bytes(
             // alignment.
             format!("${:+}", ip_inc + 3)
         }
-        _ => {
-            unreachable!()
-        }
+        _ => unreachable!(),
     }
 }
 
