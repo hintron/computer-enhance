@@ -492,8 +492,9 @@ pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<String> {
 
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter, false) {
+        match decode_single(&mut iter, true) {
             Some(mut inst) => {
+                println!("{}", inst.text.as_ref().unwrap());
                 // Execute the instruction
                 let text = execute(&mut inst, &mut cpu_state);
                 output_text_lines.push(text);
