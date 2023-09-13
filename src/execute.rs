@@ -59,7 +59,15 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         new_val
                     );
                 }
-                _ => println!("Unimplemented mov variant: {}", inst.text.as_ref().unwrap()),
+                _ => {
+                    println!(
+                        "Unimplemented mov variant: `{}`",
+                        inst.text.as_ref().unwrap()
+                    );
+                    println!("dest_reg: {:?}", inst.dest_reg);
+                    println!("source_reg: {:?}", inst.source_reg);
+                    println!("immediate_value: {:?}", inst.immediate_value);
+                }
             }
         }
         _ => {
