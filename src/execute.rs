@@ -3,11 +3,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::decode::{InstType, OpCodeType, RegType};
+use crate::decode::{InstType, OpCodeType, RegName};
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
-    reg_file: BTreeMap<RegType, u16>,
+    reg_file: BTreeMap<RegName, u16>,
 }
 
 pub fn init_state() -> CpuStateType {
@@ -82,14 +82,14 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
 }
 
 pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
-    let ax_val = state.reg_file.get(&RegType::Ax).unwrap_or(&0);
-    let bx_val = state.reg_file.get(&RegType::Bx).unwrap_or(&0);
-    let cx_val = state.reg_file.get(&RegType::Cx).unwrap_or(&0);
-    let dx_val = state.reg_file.get(&RegType::Dx).unwrap_or(&0);
-    let sp_val = state.reg_file.get(&RegType::Sp).unwrap_or(&0);
-    let bp_val = state.reg_file.get(&RegType::Bp).unwrap_or(&0);
-    let si_val = state.reg_file.get(&RegType::Si).unwrap_or(&0);
-    let di_val = state.reg_file.get(&RegType::Di).unwrap_or(&0);
+    let ax_val = state.reg_file.get(&RegName::Ax).unwrap_or(&0);
+    let bx_val = state.reg_file.get(&RegName::Bx).unwrap_or(&0);
+    let cx_val = state.reg_file.get(&RegName::Cx).unwrap_or(&0);
+    let dx_val = state.reg_file.get(&RegName::Dx).unwrap_or(&0);
+    let sp_val = state.reg_file.get(&RegName::Sp).unwrap_or(&0);
+    let bp_val = state.reg_file.get(&RegName::Bp).unwrap_or(&0);
+    let si_val = state.reg_file.get(&RegName::Si).unwrap_or(&0);
+    let di_val = state.reg_file.get(&RegName::Di).unwrap_or(&0);
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
