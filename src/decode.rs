@@ -1172,7 +1172,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.dest_reg = Some(reg_field);
         }
         // pop - segment register - 0x07,~0x0F~,0x17,0x1F
-        // pop CS (0x0f) isapparently not a thing in 8086
+        // pop CS (0x0f) is apparently not a thing in 8086
         0b000_00_111 /*| 0b000_01_111*/ | 0b000_10_111 | 0b000_11_111 => {
             inst.op_type = Some(OpCodeType::Pop);
             let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
