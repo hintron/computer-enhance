@@ -33,7 +33,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                 // Handle immediate to dest reg movs
                 (Some(reg), _, Some(new_val)) => {
                     // Check the dest register
-                    let old_val = state.reg_file.insert(reg, new_val).unwrap_or(0);
+                    let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:X}->0x{:X}",
                         inst.text.as_ref().unwrap(),
@@ -45,12 +45,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
                     // Get the value of the source register
-                    let new_val = match state.reg_file.get(&source_reg) {
+                    let new_val = match state.reg_file.get(&source_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
                     // Copy it to the dest register
-                    let old_val = state.reg_file.insert(dest_reg, new_val).unwrap_or(0);
+                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:X}->0x{:X}",
                         inst.text.as_ref().unwrap(),
