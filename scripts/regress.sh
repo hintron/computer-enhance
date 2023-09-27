@@ -56,7 +56,7 @@ done
 # TODO: In handlers_simptris.s, there is:
     # L_handlers_simptris_5:
     # 	DB	".",0
-# This looks like an 0x2E, which is an ES segment overide prefix (not sure what that does)
+# This looks like an 0x2E, which is an ES segment override prefix (not sure what that does)
 # So the problem is that my decoder can't know that this is data rather than an
 # instruction. But NASM does when it assembles it. So perhaps this blind decode
 # may not work well.
