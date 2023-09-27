@@ -17,13 +17,13 @@ DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
 
 # Build everything in decode-regress and simulate-regress
-cd $FILE_DIR
-$FILE_DIR/clean.sh
-if ! $FILE_DIR/make.sh; then
+cd "$FILE_DIR" || exit
+"$FILE_DIR/clean.sh"
+if ! "$FILE_DIR/make.sh"; then
     exit 1
 fi
 
-cd $SCRIPT_DIR
+cd "$SCRIPT_DIR" || exit
 if ! cargo build; then
     exit 1
 fi
@@ -33,7 +33,7 @@ rc=0
 # Check the decode of everything in decode-regress
 for file in "$DECODE_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
-    BASE=$(basename $file)
+    BASE=$(basename "$file")
     if ! $BIN "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $file"
         rc=1
@@ -75,24 +75,23 @@ while [ "$CHECK_RTOS" == "true" ]; do
         break
     fi
     RTOS_DIR="$RTOS_REPO/labs/lab8"
-    RTOS_ASM="$RTOS_DIR/artossfinal.s"
     RTOS_BIN="$RTOS_DIR/artoss.bin"
     RTOS_BIN_TRUNC="$DECODE_BUILD_DIR/artoss.bin.truncated"
-    cd $RTOS_DIR
+    cd "$RTOS_DIR" || exit
     make clean
     if ! make; then
         echo "ERROR: Failed to build RTOS"
         rc=1
         break
     fi
-    cd $FILE_DIR
+    cd "$FILE_DIR" || exit
 
     # https://unix.stackexchange.com/questions/13907/delete-the-first-n-bytes-of-files
     echo "Stripping off the first 100 data bytes $RTOS_BIN..."
-    tail +257c $RTOS_BIN > $RTOS_BIN_TRUNC
+    tail +257c "$RTOS_BIN" > "$RTOS_BIN_TRUNC"
 
     echo "Checking decode of $RTOS_BIN_TRUNC..."
-    BASE=$(basename $RTOS_BIN_TRUNC)
+    BASE=$(basename "$RTOS_BIN_TRUNC")
     if ! $BIN "$RTOS_BIN_TRUNC" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $RTOS_BIN_TRUNC"
         rc=1
