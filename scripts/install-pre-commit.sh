@@ -9,6 +9,6 @@ GIT_DIR="$PROJECT_DIR/.git"
 
 # Install the pre-commit hook
 set -x
-cp $SCRIPT_DIR/git-pre-commit.sh $GIT_DIR/hooks/pre-commit
-chmod 755 $GIT_DIR/hooks/pre-commit
+cp "$SCRIPT_DIR/git-pre-commit.sh" "$GIT_DIR/hooks/pre-commit"
+chmod 755 "$GIT_DIR/hooks/pre-commit"
 set +x

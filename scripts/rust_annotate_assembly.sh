@@ -3,7 +3,7 @@
 PROJECT_DIR="$(git rev-parse --show-toplevel)"
 OUT_DIR="$PROJECT_DIR/files/asm"
 
-mkdir -p $OUT_DIR
+mkdir -p "$OUT_DIR"
 
 # Install cargo (show) asm if haven't already.
 # See https://github.com/pacak/cargo-show-asm

@@ -4,7 +4,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR_DECODE="$SCRIPT_DIR/build-decode-regress"
 BUILD_DIR_SIMULATE="$SCRIPT_DIR/build-simulate-regress"
 
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || exit
 mkdir -p "$BUILD_DIR_DECODE"
 mkdir -p "$BUILD_DIR_SIMULATE"
 
