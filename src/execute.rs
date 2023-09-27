@@ -90,6 +90,9 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     let bp_val = state.reg_file.get(&RegName::Bp).unwrap_or(&0);
     let si_val = state.reg_file.get(&RegName::Si).unwrap_or(&0);
     let di_val = state.reg_file.get(&RegName::Di).unwrap_or(&0);
+    let es_val = state.reg_file.get(&RegName::Es).unwrap_or(&0);
+    let ss_val = state.reg_file.get(&RegName::Ss).unwrap_or(&0);
+    let ds_val = state.reg_file.get(&RegName::Ds).unwrap_or(&0);
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
@@ -101,5 +104,8 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     lines.push(format!("      bp: 0x00{:02x} ({})", bp_val, bp_val));
     lines.push(format!("      si: 0x00{:02x} ({})", si_val, si_val));
     lines.push(format!("      di: 0x00{:02x} ({})", di_val, di_val));
+    lines.push(format!("      es: 0x00{:02x} ({})", es_val, es_val));
+    lines.push(format!("      ss: 0x00{:02x} ({})", ss_val, ss_val));
+    lines.push(format!("      ds: 0x00{:02x} ({})", ds_val, ds_val));
     lines.push(format!(""));
 }
