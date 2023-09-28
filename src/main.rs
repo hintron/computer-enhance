@@ -138,15 +138,8 @@ fn main() -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
 
-    let mut output_file = match &args.output_file {
-        Some(file) => {
-            println!("Outputting decoded assembly to file '{file}'...",);
-            OpenOptions::new().write(true).create(true).open(file)?
-        }
-        _ => unreachable!(),
-    };
-
     let inst_stream = inst_stream_from_file(&args.input_file)?;
+    let mut output_file = get_output_file_from_path(&args.output_file)?;
 
     if args.execute {
         let text_lines = decode_execute(inst_stream);
@@ -181,4 +174,16 @@ fn inst_stream_from_file(input_path: &Option<String>) -> Result<Vec<u8>> {
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
     Ok(inst_stream)
+}
+
+/// Takes in an output file path string and returns a File handle
+fn get_output_file_from_path(output_path: &Option<String>) -> Result<File> {
+    let output_file = match output_path {
+        Some(file) => {
+            println!("Outputting decoded assembly to file '{file}'...",);
+            OpenOptions::new().write(true).create(true).open(file)?
+        }
+        _ => unreachable!(),
+    };
+    Ok(output_file)
 }
