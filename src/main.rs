@@ -31,6 +31,8 @@ struct ArgsType {
     /// If true, execute the stream. If false, just decode it
     execute: bool,
     help: bool,
+    print: bool,
+    verbose: bool,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -45,6 +47,8 @@ Options:
 -e|--exec : If specified, simulate the input instruction stream in addition to
 decoding it.
 -h|--help : Print this help message.
+-p|--print : Print out the instructions as decoded/executed.
+-v|--verbose : Increase verbosity of print to include debug information.
 ";
 
 fn print_help() {
@@ -60,6 +64,12 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<bool> {
         Ok(false)
     } else if arg.starts_with("-e") || arg.starts_with("--exec") {
         parsed_args.execute = true;
+        Ok(false)
+    } else if arg.starts_with("-p") || arg.starts_with("--print") {
+        parsed_args.print = true;
+        Ok(false)
+    } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
+        parsed_args.verbose = true;
         Ok(false)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
@@ -142,12 +152,12 @@ fn main() -> Result<()> {
     let mut output_file = get_output_file_from_path(&args.output_file)?;
 
     if args.execute {
-        let text_lines = decode_execute(inst_stream);
+        let text_lines = decode_execute(inst_stream, args.print, args.verbose);
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
         }
     } else {
-        let insts = decode(inst_stream);
+        let insts = decode(inst_stream, args.print, args.verbose);
         // Print out instructions to the output file
         writeln!(output_file, "bits 16")?;
         for inst in insts {

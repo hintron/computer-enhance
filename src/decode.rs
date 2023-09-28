@@ -522,16 +522,18 @@ pub struct InstType {
 
 /// Decode and execute an 8086 instruction stream. This will decode whatever
 /// the IP points to and simulates that instruction.
-pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<String> {
+pub fn decode_execute(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<String> {
     let mut iter = inst_stream.iter().peekable();
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter, true) {
+        match decode_single(&mut iter, verbose) {
             Some(mut inst) => {
-                println!("{}", inst.text.as_ref().unwrap());
+                if print {
+                    println!("{}", inst.text.as_ref().unwrap());
+                }
                 // Execute the instruction
                 let text = execute(&mut inst, &mut cpu_state);
                 output_text_lines.push(text);
@@ -550,14 +552,16 @@ pub fn decode_execute(inst_stream: Vec<u8>) -> Vec<String> {
 /// instruction stream and does not take branches or do any simulation
 /// whatsoever. It prints processed bytes, prints the decoded instruction, and
 /// returns a vector of instructions.
-pub fn decode(inst_stream: Vec<u8>) -> Vec<InstType> {
+pub fn decode(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<InstType> {
     let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter, true) {
+        match decode_single(&mut iter, verbose) {
             Some(inst) => {
-                println!("{}", inst.text.as_ref().unwrap());
+                if print {
+                    println!("{}", inst.text.as_ref().unwrap());
+                }
                 insts.push(inst);
                 // On to the next instruction...
             }

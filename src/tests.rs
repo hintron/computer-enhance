@@ -10,7 +10,7 @@ fn test_mov_reg_reg() {
 }
 
 fn check_decode(inst_stream: Vec<u8>, expected_insts: Vec<&str>) {
-    let insts = decode(inst_stream);
+    let insts = decode(inst_stream, true, true);
     let mut inst_num = 1;
     for (inst, expected_inst) in std::iter::zip(insts, expected_insts) {
         // Unwrap as ref to borrow inst.text, so we can print inst later
