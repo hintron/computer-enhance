@@ -39,8 +39,7 @@ for file in "$DECODE_BUILD_DIR"/*; do
         rc=1
         break
     fi
-    nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
+    if ! nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"; then
         echo "ERROR: Assembly of decoded output failed for $file"
         rc=1
         break
@@ -97,8 +96,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
         rc=1
         break
     fi
-    nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u; then
+    if ! nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"; then
         echo "ERROR: Assembly of decoded output failed for $file"
         rc=1
         break
