@@ -45,7 +45,7 @@ for file in "$DECODE_BUILD_DIR"/*; do
         break
     fi
     DECODE_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF=$(realpath "code.diff")
+    DIFF="$DECODE_BUILD_DIR/code.diff"
     if ! diff "$DECODE_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
         echo "ERROR: Decoded output didn't match golden output."
         echo "See $DIFF"
@@ -108,7 +108,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
         break
     fi
     RTOS_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF=$(realpath "rtos.diff")
+    DIFF="$DECODE_BUILD_DIR/rtos.diff"
     if ! diff "$RTOS_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
         echo "ERROR: Decoded RTOS output didn't match golden output."
         echo "See $DIFF"
@@ -135,7 +135,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    DIFF=$(realpath "simulate.diff")
+    DIFF="$SIMULATE_BUILD_DIR/simulate.diff"
     if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
         echo "ERROR: Simulation output didn't match golden output."
         echo "See $DIFF"
