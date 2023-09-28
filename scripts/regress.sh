@@ -44,14 +44,17 @@ for file in "$DECODE_BUILD_DIR"/*; do
         rc=1
         break
     fi
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u > decode.diff; then
-        echo "ERROR: Decoded output didn't match golden for $file; see decode.diff"
-        echo "-: Golden decode"
-        echo "+: Our decode"
+    DECODE_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
+    DIFF=$(realpath "code.diff")
+    if ! diff "$DECODE_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
+        echo "ERROR: Decoded output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $file"
+        echo "golden (-): $DECODE_GOLDEN_OUTPUT"
         rc=1
         break
     fi
-    rm decode.diff
+    rm "$DIFF"
 done
 
 # TODO: Assemble individual files, not final rtos file
@@ -104,14 +107,17 @@ while [ "$CHECK_RTOS" == "true" ]; do
         rc=1
         break
     fi
-    if ! diff "$DECODE_BUILD_DIR/$BASE-tmp.o" "$file" -u > rtos.diff; then
-        echo "ERROR: Decoded output didn't match golden for $file. See rtos.diff"
-        echo "-: Golden rtos decode"
-        echo "+: Our rtos decode"
+    RTOS_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
+    DIFF=$(realpath "rtos.diff")
+    if ! diff "$RTOS_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
+        echo "ERROR: Decoded RTOS output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $file"
+        echo "golden (-): $RTOS_GOLDEN_OUTPUT"
         rc=1
         break
     fi
-    rm rtos.diff
+    rm "$DIFF"
 done
 
 
@@ -129,15 +135,16 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > simulate.diff; then
-        echo "ERROR: Simulation output didn't match golden output. See simulate.diff"
-        echo "$SIMULATE_OUTPUT != $SIMULATE_GOLDEN_OUTPUT."
-        echo "-: Golden simulate"
-        echo "+: Our simulate"
+    DIFF=$(realpath "simulate.diff")
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+        echo "ERROR: Simulation output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $SIMULATE_OUTPUT"
+        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
         rc=1
         break
     fi
-    rm simulate.diff
+    rm "$DIFF"
 
 done
 
