@@ -7,6 +7,8 @@ use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
+    // MGH TODO: Make reg_file an array, and map RegNames to an index via a
+    // match statement. Compare performance!
     reg_file: BTreeMap<RegName, u16>,
 }
 
