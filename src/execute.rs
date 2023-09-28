@@ -96,16 +96,16 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
-    lines.push(format!("      ax: 0x00{:02x} ({})", ax_val, ax_val));
-    lines.push(format!("      bx: 0x00{:02x} ({})", bx_val, bx_val));
-    lines.push(format!("      cx: 0x00{:02x} ({})", cx_val, cx_val));
-    lines.push(format!("      dx: 0x00{:02x} ({})", dx_val, dx_val));
-    lines.push(format!("      sp: 0x00{:02x} ({})", sp_val, sp_val));
-    lines.push(format!("      bp: 0x00{:02x} ({})", bp_val, bp_val));
-    lines.push(format!("      si: 0x00{:02x} ({})", si_val, si_val));
-    lines.push(format!("      di: 0x00{:02x} ({})", di_val, di_val));
-    lines.push(format!("      es: 0x00{:02x} ({})", es_val, es_val));
-    lines.push(format!("      ss: 0x00{:02x} ({})", ss_val, ss_val));
-    lines.push(format!("      ds: 0x00{:02x} ({})", ds_val, ds_val));
+    lines.push(format!("      ax: 0x{:04x} ({})", ax_val, ax_val));
+    lines.push(format!("      bx: 0x{:04x} ({})", bx_val, bx_val));
+    lines.push(format!("      cx: 0x{:04x} ({})", cx_val, cx_val));
+    lines.push(format!("      dx: 0x{:04x} ({})", dx_val, dx_val));
+    lines.push(format!("      sp: 0x{:04x} ({})", sp_val, sp_val));
+    lines.push(format!("      bp: 0x{:04x} ({})", bp_val, bp_val));
+    lines.push(format!("      si: 0x{:04x} ({})", si_val, si_val));
+    lines.push(format!("      di: 0x{:04x} ({})", di_val, di_val));
+    lines.push(format!("      es: 0x{:04x} ({})", es_val, es_val));
+    lines.push(format!("      ss: 0x{:04x} ({})", ss_val, ss_val));
+    lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
     lines.push(format!(""));
 }
