@@ -137,14 +137,6 @@ fn main() -> Result<()> {
 
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
-    let mut input_file = match &args.input_file {
-        Some(file) => {
-            // Get the instruction stream from a file.
-            println!("Decoding instructions from file '{file}'...",);
-            File::open(file)?
-        }
-        _ => unreachable!(),
-    };
 
     let mut output_file = match &args.output_file {
         Some(file) => {
@@ -154,8 +146,7 @@ fn main() -> Result<()> {
         _ => unreachable!(),
     };
 
-    let mut inst_stream: Vec<u8> = vec![];
-    input_file.read_to_end(&mut inst_stream)?;
+    let inst_stream = inst_stream_from_file(&args.input_file)?;
 
     if args.execute {
         let text_lines = decode_execute(inst_stream);
@@ -172,4 +163,22 @@ fn main() -> Result<()> {
     };
 
     Ok(())
+}
+
+/// Takes in a file path string and returns a byte vector containing the
+/// instruction stream in the file.
+fn inst_stream_from_file(input_path: &Option<String>) -> Result<Vec<u8>> {
+    // Make sure required args exist
+    let mut input_file = match input_path {
+        Some(file) => {
+            // Get the instruction stream from a file.
+            println!("Decoding instructions from file '{file}'...",);
+            File::open(file)?
+        }
+        _ => unreachable!(),
+    };
+
+    let mut inst_stream: Vec<u8> = vec![];
+    input_file.read_to_end(&mut inst_stream)?;
+    Ok(inst_stream)
 }
