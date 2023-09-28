@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::decode::{InstType, OpCodeType, RegName};
+use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
@@ -31,13 +31,23 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         OpCodeType::Mov => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg movs
-                (Some(reg), _, Some(new_val)) => {
+                (Some(reg), _, Some(immediate)) => {
+                    let old_val = match state.reg_file.get(&reg.name) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    // Figure out what part of the immediate value to put where
+                    let new_val = match reg.width {
+                        RegWidth::Byte => (old_val & 0xFF00) | (immediate & 0xFF),
+                        RegWidth::Hi8 => (old_val & 0x00FF) | (immediate << 8),
+                        RegWidth::Word => immediate,
+                    };
                     // Check the dest register
                     let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:X}->0x{:X}",
                         inst.text.as_ref().unwrap(),
-                        reg,
+                        reg.name,
                         old_val,
                         new_val
                     );
@@ -45,16 +55,34 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
                     // Get the value of the source register
-                    let new_val = match state.reg_file.get(&source_reg.name) {
+                    let source_val = match state.reg_file.get(&source_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
-                    // Copy it to the dest register
+                    // Get the value of the dest register
+                    let dest_val = match state.reg_file.get(&dest_reg.name) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    // Figure out which bytes to get from the source
+                    let source_val_sized = match source_reg.width {
+                        RegWidth::Byte => source_val & 0xFF,
+                        RegWidth::Hi8 => (source_val & 0xFF00) >> 8,
+                        RegWidth::Word => source_val,
+                    };
+                    // Figure out which bytes to replace in dest
+                    let new_val = match dest_reg.width {
+                        RegWidth::Byte => (dest_val & 0xFF00) | (source_val_sized & 0xFF),
+                        RegWidth::Hi8 => (dest_val & 0xFF) | (source_val_sized << 8),
+                        RegWidth::Word => source_val_sized,
+                    };
+                    // Store new val in the dest register
                     let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
+                    assert!(old_val == dest_val);
                     effect = format!(
                         "{} ; {}:0x{:X}->0x{:X}",
                         inst.text.as_ref().unwrap(),
-                        dest_reg,
+                        dest_reg.name,
                         old_val,
                         new_val
                     );
