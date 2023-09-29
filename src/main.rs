@@ -139,6 +139,14 @@ fn main() -> Result<()> {
 
     let inst_stream = inst_stream_from_file(&args.input_file)?;
     let mut output_file = get_output_file_from_path(&args.output_file)?;
+    println!(
+        "Decoding instructions from file '{}'...",
+        args.input_file.unwrap()
+    );
+    println!(
+        "Outputting decoded assembly to file '{}'...",
+        args.output_file.unwrap()
+    );
 
     if args.execute {
         let text_lines = decode_execute(inst_stream, args.print, args.verbose);
