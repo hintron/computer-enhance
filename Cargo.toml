@@ -14,5 +14,5 @@ criterion = "0.5"
 
 # Disable the standard benchmarking harness, so we can use Criterion
 [[bench]]
-name = "bench_decode"
+name = "benchmarks"
 harness = false
