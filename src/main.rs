@@ -1,9 +1,4 @@
-//! # 8086 Decoder and Simulator
-//!
-//! This is an 8086 instruction decoder and simulator, implemented by following
-//! the [Computer Enhance][1] performance awareness course.
-//!
-//! [1]: https://www.computerenhance.com/.
+//! # 8086 Decoder and Simulator - Executable
 
 use anyhow::{bail, Result};
 use std::env;
@@ -11,14 +6,9 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
-mod decode;
-mod execute;
-#[cfg(test)]
-mod tests;
-
 // Internal imports
-use crate::decode::decode;
-use crate::decode::decode_execute;
+use computer_enhance::decode::decode;
+use computer_enhance::decode::decode_execute;
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
