@@ -5,8 +5,7 @@ use std::env;
 use std::io::Write;
 
 // Internal imports
-use computer_enhance::decode::decode;
-use computer_enhance::decode::decode_execute;
+use computer_enhance::decode::{decode, decode_execute};
 use computer_enhance::{get_output_file_from_path, inst_stream_from_file};
 
 /// A custom struct holding parsed command line arguments
