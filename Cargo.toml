@@ -7,3 +7,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
+
+[dev-dependencies]
+# For benchmarking
+criterion = "0.5"
+
+# Disable the standard benchmarking harness, so we can use Criterion
+[[bench]]
+name = "benchmarks"
+harness = false
