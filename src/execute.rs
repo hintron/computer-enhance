@@ -47,7 +47,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     // Check the dest register
                     let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
                     effect = format!(
-                        "{} ; {}:0x{:X}->0x{:X}",
+                        "{} ; {}:0x{:x}->0x{:x}",
                         inst.text.as_ref().unwrap(),
                         reg.name,
                         old_val,
@@ -82,7 +82,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
                     assert!(old_val == dest_val);
                     effect = format!(
-                        "{} ; {}:0x{:X}->0x{:X}",
+                        "{} ; {}:0x{:x}->0x{:x}",
                         inst.text.as_ref().unwrap(),
                         dest_reg.name,
                         old_val,
