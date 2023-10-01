@@ -698,6 +698,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
+        // MGH TODO: Handle immediate sign extended!
         None => {}
         _ => println!("Unknown immediate source"),
     };
@@ -1622,6 +1623,10 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         }
         Some(ModRmByteType::ModImmedRm) => {
             inst.op_type = Some(decode_immed_op((byte & 0b00111000) >> 3));
+            // MGH TODO: Add an immediate_source here!
+            // inst.immediate_source = Some(ExtraBytesType::DataHi);
+            // inst.immediate_source = Some(ExtraBytesType::DataLo),
+            // inst.immediate_source = Some(ExtraBytesType::DataExtend),
             match (inst.w_field, inst.s_field) {
                 (None, _) => {
                     panic!("This ModImmedRm inst is missing the w field!")

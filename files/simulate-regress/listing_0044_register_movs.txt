@@ -23,4 +23,5 @@ Final registers:
       es: 0x0000 (0)
       ss: 0x0000 (0)
       ds: 0x0000 (0)
+   flags: 
 
