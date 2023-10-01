@@ -103,8 +103,40 @@ The middle value in the `change:` row shows the percent change compared to the
 previous baseline run.
 
 
+# Profiling - Flamegraphs
+
+We'll use the [flamegraph][6] crate to profile our executable using flamegraphs
+in Linux.
+
+Fist, install the flamegraph crate globally:
+
+```shell
+cargo install flamegraph
+```
+
+Then, enable perf stuff in Linux for flamegraphs:
+
+```shell
+echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
+```
+(see [this][7] and [this][8].)
+
+Finally, profile our executable in release mode:
+
+```shell
+CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -F 100000 -- files/bench-data/listing_0042_completionist_decode tmp.txt
+```
+
+This samples it as much as it can, but currently, it's not super helpful because
+writing to the file is the bottleneck, the execution time is small, and I don't
+think our decode/execute code is ever really sampled.
+
 [1]: https://www.computerenhance.com/
 [2]: https://github.com/bheisler/criterion.rs
 [3]: https://bheisler.github.io/criterion.rs/book/index.html
 [4]: https://github.com/hintron/8086-toolchain
 [5]: https://www.rust-lang.org/
+[6]: https://github.com/flamegraph-rs/flamegraph
+[7]: https://github.com/flamegraph-rs/flamegraph#enabling-perf-for-use-by-unprivileged-users
+[8]: https://users.rust-lang.org/t/flamegraph-shows-every-caller-is-unknown/52408/2
