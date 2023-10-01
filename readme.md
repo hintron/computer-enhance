@@ -19,6 +19,12 @@ To run and execute an 8086 binary, do:
 cargo run -- <input-8086-binary> <output-log> -e
 ```
 
+For example:
+
+```
+cargo run -- files/bench-data/listing_0045_challenge_register_movs tmp.txt -e
+```
+
 To simply decode an 8086 binary, remove the `-e` flag:
 
 ```
