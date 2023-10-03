@@ -14,9 +14,16 @@ mov bp, 98 ; bp:0x0->0x62
 cmp bp, sp ; flags:CPAZ->CPAS
 
 Final registers:
+      ax: 0x0000 (0)
       bx: 0x9ca5 (40101)
+      cx: 0x0000 (0)
       dx: 0x000a (10)
       sp: 0x0063 (99)
       bp: 0x0062 (98)
+      si: 0x0000 (0)
+      di: 0x0000 (0)
+      es: 0x0000 (0)
+      ss: 0x0000 (0)
+      ds: 0x0000 (0)
    flags: CPAS
 
