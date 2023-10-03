@@ -698,6 +698,7 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
+        // MGH TODO: Handle immediate sign extended!
         None => {}
         _ => println!("Unknown immediate source"),
     };
@@ -1628,14 +1629,19 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
                 (Some(false), _) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
+                    inst.immediate_source = Some(ExtraBytesType::DataLo);
                 }
                 (Some(true), Some(true)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataExtend);
+                    // The DataExtend extra byte will sign extend DataLo into
+                    // DataHi, so mark DataHi + DataLo as immediate source.
+                    inst.immediate_source = Some(ExtraBytesType::DataHi);
                 }
                 (Some(true), None | Some(false)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
                     inst.extra_bytes.push(ExtraBytesType::DataHi);
+                    inst.immediate_source = Some(ExtraBytesType::DataHi);
                 }
             }
             inst.add_data_to = Some(AddTo::Source);
