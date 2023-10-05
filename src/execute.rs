@@ -365,11 +365,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     // Figure out flags for new value
                     // Count the number of ones, and set flag if even number
                     // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
-                    println!(
-                        "A: new_val: {:x} ({} one bits)",
-                        new_val & 0xFF,
-                        (new_val & 0xFF).count_ones()
-                    );
                     state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
                     state.flags_reg.zero = new_val == 0;
                     state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
@@ -417,10 +412,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     let old_flags = state.flags_reg.clone();
                     // Figure out flags for new value
                     // Count the number of ones, and set flag if even number
-                    println!(
-                        "B: new_val: {new_val:x} ({} one bits)",
-                        new_val.count_ones()
-                    );
                     state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
                     state.flags_reg.zero = new_val == 0;
                     state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
