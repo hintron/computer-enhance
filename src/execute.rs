@@ -100,6 +100,16 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         }
     };
 
+    // Save copy of old flags
+    let old_flags = state.flags_reg.clone();
+
+    // The destination value
+    let new_val;
+    // The final register to store new_val into. If None, throw it away (cmp)
+    let dest_name;
+    // Set this var if we should set the flags reg at the end
+    let mut modify_flags = false;
+
     match op_type {
         // Handle all movs
         OpCodeType::Mov => {
@@ -111,20 +121,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) | (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) | (immediate << 8),
                         RegWidth::Word => immediate,
-                    };
-                    // Check the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val
-                    );
+                    });
+                    dest_name = Some(dest_reg.name);
                 }
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
@@ -145,21 +147,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Word => source_val,
                     };
                     // Figure out which bytes to replace in dest
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) | (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) | (source_val_sized << 8),
                         RegWidth::Word => source_val_sized,
-                    };
-                    // Store new val in the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    assert!(old_val == dest_val);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val
-                    );
+                    });
+                    dest_name = Some(dest_reg.name);
                 }
                 _ => {
                     unimplemented!(
@@ -181,33 +174,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => old_val - immediate,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    // Check the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val,
-                    );
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = Some(dest_reg.name);
+                    modify_flags = true;
                 }
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
@@ -228,34 +201,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Word => source_val,
                     };
                     // Figure out which bytes to replace in dest
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
                         RegWidth::Word => dest_val - source_val_sized,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    // Store new val in the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    assert!(old_val == dest_val);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val
-                    );
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = Some(dest_reg.name);
+                    modify_flags = true;
                 }
                 _ => {
                     unimplemented!(
@@ -275,25 +227,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => old_val - immediate,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    effect = format!("{} ;", inst.text.as_ref().unwrap());
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = None;
+                    modify_flags = true;
                 }
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
@@ -314,25 +254,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Word => source_val,
                     };
                     // Figure out which bytes to replace in dest
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
                         RegWidth::Word => dest_val - source_val_sized,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    effect = format!("{} ;", inst.text.as_ref().unwrap());
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = None;
+                    modify_flags = true;
                 }
                 _ => {
                     unimplemented!(
@@ -354,34 +282,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) + (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) + (immediate << 8),
                         RegWidth::Word => old_val + immediate,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
-                    state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    // Check the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val,
-                    );
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = Some(dest_reg.name);
+                    modify_flags = true;
                 }
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
@@ -402,34 +309,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Word => source_val,
                     };
                     // Figure out which bytes to replace in dest
-                    let new_val = match dest_reg.width {
+                    new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) + (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) + (source_val_sized << 8),
                         RegWidth::Word => dest_val + source_val_sized,
-                    };
-
-                    // Save copy of old flags
-                    let old_flags = state.flags_reg.clone();
-                    // Figure out flags for new value
-                    // Count the number of ones, and set flag if even number
-                    state.flags_reg.parity = (new_val.count_ones() & 0x1) == 0x0;
-                    state.flags_reg.zero = new_val == 0;
-                    state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-
-                    // Store new val in the dest register
-                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
-                    assert!(old_val == dest_val);
-                    effect = format!(
-                        "{} ; {}:0x{:x}->0x{:x}",
-                        inst.text.as_ref().unwrap(),
-                        dest_reg.name,
-                        old_val,
-                        new_val
-                    );
-                    // Print change in flags register, if needed
-                    if old_flags != state.flags_reg {
-                        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
-                    }
+                    });
+                    dest_name = Some(dest_reg.name);
+                    modify_flags = true;
                 }
                 _ => {
                     unimplemented!(
@@ -445,6 +331,34 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                 inst.text.as_ref().unwrap()
             );
         }
+    }
+
+    let new_val = new_val.unwrap();
+
+    effect.push_str(inst.text.as_ref().unwrap());
+    effect.push_str(" ;");
+
+    if modify_flags {
+        // Set parity if even number of ones *in the bottom byte only*
+        // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
+        state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
+        state.flags_reg.zero = new_val == 0;
+        state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
+    }
+
+    match dest_name {
+        Some(dest_name) => {
+            // Store new val in the dest register
+            let old_val = state.reg_file.insert(dest_name, new_val).unwrap_or(0);
+            effect.push_str(&format!(" {}:0x{:x}->0x{:x}", dest_name, old_val, new_val));
+        }
+        // Nothing is stored back into destination
+        None => {}
+    }
+
+    // Print change in flags register, if needed
+    if modify_flags && (old_flags != state.flags_reg) {
+        effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
 
     return effect;
