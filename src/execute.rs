@@ -105,23 +105,23 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         OpCodeType::Mov => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg movs
-                (Some(reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&reg.name) {
+                (Some(dest_reg), _, Some(immediate)) => {
+                    let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match reg.width {
+                    let new_val = match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) | (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) | (immediate << 8),
                         RegWidth::Word => immediate,
                     };
                     // Check the dest register
-                    let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
+                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:x}->0x{:x}",
                         inst.text.as_ref().unwrap(),
-                        reg.name,
+                        dest_reg.name,
                         old_val,
                         new_val
                     );
@@ -175,13 +175,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         OpCodeType::Sub => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg movs
-                (Some(reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&reg.name) {
+                (Some(dest_reg), _, Some(immediate)) => {
+                    let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match reg.width {
+                    let new_val = match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => old_val - immediate,
@@ -196,11 +196,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
 
                     // Check the dest register
-                    let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
+                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:x}->0x{:x}",
                         inst.text.as_ref().unwrap(),
-                        reg.name,
+                        dest_reg.name,
                         old_val,
                         new_val,
                     );
@@ -269,13 +269,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         OpCodeType::Cmp => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg movs
-                (Some(reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&reg.name) {
+                (Some(dest_reg), _, Some(immediate)) => {
+                    let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match reg.width {
+                    let new_val = match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => old_val - immediate,
@@ -348,13 +348,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         OpCodeType::Add => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg movs
-                (Some(reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&reg.name) {
+                (Some(dest_reg), _, Some(immediate)) => {
+                    let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    let new_val = match reg.width {
+                    let new_val = match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) + (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) + (immediate << 8),
                         RegWidth::Word => old_val + immediate,
@@ -370,11 +370,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
 
                     // Check the dest register
-                    let old_val = state.reg_file.insert(reg.name, new_val).unwrap_or(0);
+                    let old_val = state.reg_file.insert(dest_reg.name, new_val).unwrap_or(0);
                     effect = format!(
                         "{} ; {}:0x{:x}->0x{:x}",
                         inst.text.as_ref().unwrap(),
-                        reg.name,
+                        dest_reg.name,
                         old_val,
                         new_val,
                     );
