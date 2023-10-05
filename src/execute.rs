@@ -162,13 +162,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     );
                 }
                 _ => {
-                    println!(
+                    unimplemented!(
                         "Unimplemented mov variant: `{}`",
                         inst.text.as_ref().unwrap()
                     );
-                    println!("dest_reg: {:?}", inst.dest_reg);
-                    println!("source_reg: {:?}", inst.source_reg);
-                    println!("immediate_value: {:?}", inst.immediate_value);
                 }
             }
         }
@@ -261,13 +258,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     }
                 }
                 _ => {
-                    println!(
+                    unimplemented!(
                         "Unimplemented sub variant: `{}`",
                         inst.text.as_ref().unwrap()
                     );
-                    println!("dest_reg: {:?}", inst.dest_reg);
-                    println!("source_reg: {:?}", inst.source_reg);
-                    println!("immediate_value: {:?}", inst.immediate_value);
                 }
             }
         }
@@ -341,13 +335,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     }
                 }
                 _ => {
-                    println!(
+                    unimplemented!(
                         "Unimplemented sub variant: `{}`",
                         inst.text.as_ref().unwrap()
                     );
-                    println!("dest_reg: {:?}", inst.dest_reg);
-                    println!("source_reg: {:?}", inst.source_reg);
-                    println!("immediate_value: {:?}", inst.immediate_value);
                 }
             }
         }
@@ -441,18 +432,15 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     }
                 }
                 _ => {
-                    println!(
+                    unimplemented!(
                         "Unimplemented add variant: `{}`",
                         inst.text.as_ref().unwrap()
                     );
-                    println!("dest_reg: {:?}", inst.dest_reg);
-                    println!("source_reg: {:?}", inst.source_reg);
-                    println!("immediate_value: {:?}", inst.immediate_value);
                 }
             }
         }
         _ => {
-            println!(
+            unimplemented!(
                 "Execution of instruction `{}` is unimplemented",
                 inst.text.as_ref().unwrap()
             );
