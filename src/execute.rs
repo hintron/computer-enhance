@@ -23,8 +23,11 @@ pub struct CpuStateType {
 /// The first 6 bits/flags are status flags, and the last 3 bits/flags are
 /// control flags.
 struct FlagsRegType {
-    /// If set, there has been a carry out of, or a borrow into, the high-order
-    /// bit of the result.
+    /// If set, there has been a carry out of the high-order bit of the result
+    /// for an addition or a borrow into the high-order.bit of the result for
+    /// a subtraction.
+    /// NOTE: A signed carry is carry != overflow.
+    /// carry can be used to detect an unsigned overflow.
     carry: bool,
     /// If set, the result has even parity (an even number of 1-bits).
     parity: bool,
@@ -114,6 +117,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
     let mut new_val_overflowed = false;
+    let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
 
     match op_type {
@@ -184,9 +188,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 sub_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -223,9 +228,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                             (dest_val & 0xFF) - (source_val_sized << 8)
                         }
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 sub_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -255,9 +261,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 sub_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -288,9 +295,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 sub_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -328,9 +336,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                             (old_val & 0x00FF) + (immediate << 8)
                         }
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 add_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -361,9 +370,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (dest_val & 0xFF00) + (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) + (source_val_sized << 8),
                         RegWidth::Word => {
-                            let (result, overflowed, aux_carry) =
+                            let (result, overflowed, carry, aux_carry) =
                                 add_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
+                            new_val_carry = carry;
                             new_val_aux_carry = aux_carry;
                             result
                         }
@@ -399,6 +409,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         state.flags_reg.zero = new_val == 0;
         state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
         state.flags_reg.overflow = new_val_overflowed;
+        state.flags_reg.carry = new_val_carry;
         state.flags_reg.auxiliary_carry = new_val_aux_carry;
     }
 
@@ -458,7 +469,7 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
 /// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
 /// 0x0001. The overflow flag will still be set even if the user is intending to
 /// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
-fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool) {
+fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     let left_sign_bit = lhs & 0x8000;
     let right_sign_bit = rhs & 0x8000;
     // We are discarding the overflow result because that is not the same as the
@@ -472,21 +483,25 @@ fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool) {
     // If the two operands have the same sign bit, then overflow occurs if
     // the result does not have that same sign bit.
     let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
+    let carry = (rhs as u32) + (lhs as u32) > 0xFFFF;
     let aux_carry = calc_aux_carry_add(lhs, rhs);
     println!("{lhs} (0x{lhs:x}) + {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
     if overflow {
         println!("Addition overflowed!")
     }
+    if carry {
+        println!("Addition carry!")
+    }
     if aux_carry {
         println!("Addition aux_carry!")
     }
-    (result, overflow, aux_carry)
+    (result, overflow, carry, aux_carry)
 }
 
 /// Subtract two 16 bit numbers (rhs from lhs) and return the result, whether
 /// there was a signed arithmetic overflow., and whether there was an auxilliary
 /// carry.
-fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool) {
+fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     let left_sign_bit = lhs & 0x8000;
     let right_sign_bit = rhs & 0x8000;
     let (result, _) = lhs.overflowing_sub(rhs);
@@ -494,15 +509,19 @@ fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool) {
     // Since we're subtracting, left and right sign must be opposite for
     // overflow to occur.
     let overflow = (left_sign_bit != right_sign_bit) && (left_sign_bit != result_sign_bit);
+    let carry = rhs > lhs;
     let aux_carry = calc_aux_carry_sub(lhs, rhs);
     println!("{lhs} (0x{lhs:x}) - {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
     if overflow {
         println!("Subtract overflowed!")
     }
+    if carry {
+        println!("Subtract carry!")
+    }
     if aux_carry {
         println!("Subtract aux_carry!")
     }
-    (result, overflow, aux_carry)
+    (result, overflow, carry, aux_carry)
 }
 
 const fn calc_aux_carry_add(lhs: u16, rhs: u16) -> bool {
