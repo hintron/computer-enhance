@@ -182,12 +182,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
                         RegWidth::Word => {
-                            println!("subing old_val {old_val} (0x{old_val:x}) and immediate {immediate} (0x{immediate:x})");
                             let (result, overflowed) = sub_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
-                            if new_val_overflowed {
-                                println!("sub word Overflowed!")
-                            }
                             result
                         }
                     });
@@ -223,13 +219,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                             (dest_val & 0xFF) - (source_val_sized << 8)
                         }
                         RegWidth::Word => {
-                            println!("subing dest_val {dest_val} (0x{dest_val:x}) and source_val_sized {source_val_sized} (0x{source_val_sized:x})");
                             let (result, overflowed) =
                                 sub_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
-                            if new_val_overflowed {
-                                println!("sub word Overflowed!")
-                            }
                             result
                         }
                     });
@@ -285,13 +277,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                         RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
                         RegWidth::Word => {
-                            println!("cmping dest_val {dest_val} (0x{dest_val:x}) and source_val_sized {source_val_sized} (0x{source_val_sized:x})");
                             let (result, overflowed) =
                                 sub_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
-                            if new_val_overflowed {
-                                println!("cmp word Overflowed!")
-                            }
                             result
                         }
                     });
@@ -328,12 +316,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                             (old_val & 0x00FF) + (immediate << 8)
                         }
                         RegWidth::Word => {
-                            println!("Adding old_val {old_val} (0x{old_val:x}) and immediate {immediate} (0x{immediate:x})");
                             let (result, overflowed) = add_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
-                            if new_val_overflowed {
-                                println!("Add word Overflowed!")
-                            }
                             result
                         }
                     });
@@ -362,7 +346,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) + (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) + (source_val_sized << 8),
-                        RegWidth::Word => dest_val + source_val_sized,
+                        RegWidth::Word => {
+                            let (result, overflowed) =
+                                add_with_overflow(dest_val, source_val_sized);
+                            new_val_overflowed = overflowed;
+                            result
+                        }
                     });
                     dest_name = Some(dest_reg.name);
                     modify_flags = true;
@@ -452,29 +441,40 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
 /// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
 /// 0x0001. The overflow flag will still be set even if the user is intending to
 /// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
-const fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
+fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
     let left_sign_bit = lhs & 0x8000;
+    let right_sign_bit = rhs & 0x8000;
     // We are discarding the overflow result because that is not the same as the
-    // 8086 overflow flag. Rust's overflow result is simply if the value wraps
-    // around from 0x0000 to 0xFFFF or vice versa, and not if the sign bit
-    // changes.
+    // 8086 overflow flag. Rust's overflow result seems to only care about
+    // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
+    // sign value wraps from negative to positive.
     let (result, _) = lhs.overflowing_add(rhs);
     let result_sign_bit = result & 0x8000;
-    if left_sign_bit == result_sign_bit {
-        (result, false)
-    } else {
-        (result, true)
+
+    // Overflow cannot occur when the sign bits differ between operands
+    // If the two operands have the same sign bit, then overflow occurs if
+    // the result does not have that same sign bit.
+    let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
+    println!("{lhs} (0x{lhs:x}) + {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
+    if overflow {
+        println!("Addition overflowed!")
     }
+    (result, overflow)
 }
 
-///
-const fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
+/// Subtract two 16 bit numbers (rhs from lhs) and return the result and whether
+/// there was a signed arithmetic overflow.
+fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
     let left_sign_bit = lhs & 0x8000;
+    let right_sign_bit = rhs & 0x8000;
     let (result, _) = lhs.overflowing_sub(rhs);
     let result_sign_bit = result & 0x8000;
-    if left_sign_bit == result_sign_bit {
-        (result, false)
-    } else {
-        (result, true)
+    // Since we're subtracting, left and right sign must be opposite for
+    // overflow to occur.
+    let overflow = (left_sign_bit != right_sign_bit) && (left_sign_bit != result_sign_bit);
+    println!("{lhs} (0x{lhs:x}) - {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
+    if overflow {
+        println!("Subtract overflowed!")
     }
+    (result, overflow)
 }
