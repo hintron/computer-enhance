@@ -36,9 +36,12 @@ struct FlagsRegType {
     zero: bool,
     /// If set, the high order bit of the result is a 1.
     sign: bool,
+    /// Indicates *signed* arithmetic overflow - if the result is too large or
+    /// small to fit in dest without modifying the sign bit.
     /// If set, an arithmetic overflow has occurred (the significant digit has
     /// been lost because the size of the result exceeded the capacity of its
     /// destination location).
+    /// This flag can be ignored on unsigned arithmetic
     overflow: bool,
     /// Setting this allows the CPU to recognize external (maskable) interrupt
     /// requests. Clearing IF disables these interrupts. This has no affect on
@@ -109,6 +112,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     let dest_name;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
+    let mut new_val_overflowed = false;
 
     match op_type {
         // Handle all movs
@@ -177,7 +181,15 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
                         RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
-                        RegWidth::Word => old_val - immediate,
+                        RegWidth::Word => {
+                            println!("subing old_val {old_val} (0x{old_val:x}) and immediate {immediate} (0x{immediate:x})");
+                            let (result, overflowed) = sub_with_overflow(old_val, immediate);
+                            new_val_overflowed = overflowed;
+                            if new_val_overflowed {
+                                println!("sub word Overflowed!")
+                            }
+                            result
+                        }
                     });
                     dest_name = Some(dest_reg.name);
                     modify_flags = true;
@@ -202,9 +214,24 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     };
                     // Figure out which bytes to replace in dest
                     new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
-                        RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
-                        RegWidth::Word => dest_val - source_val_sized,
+                        RegWidth::Byte => {
+                            println!("sub byte");
+                            (dest_val & 0xFF00) - (source_val_sized & 0xFF)
+                        }
+                        RegWidth::Hi8 => {
+                            println!("sub hi8");
+                            (dest_val & 0xFF) - (source_val_sized << 8)
+                        }
+                        RegWidth::Word => {
+                            println!("subing dest_val {dest_val} (0x{dest_val:x}) and source_val_sized {source_val_sized} (0x{source_val_sized:x})");
+                            let (result, overflowed) =
+                                sub_with_overflow(dest_val, source_val_sized);
+                            new_val_overflowed = overflowed;
+                            if new_val_overflowed {
+                                println!("sub word Overflowed!")
+                            }
+                            result
+                        }
                     });
                     dest_name = Some(dest_reg.name);
                     modify_flags = true;
@@ -257,7 +284,16 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     new_val = Some(match dest_reg.width {
                         RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
                         RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
-                        RegWidth::Word => dest_val - source_val_sized,
+                        RegWidth::Word => {
+                            println!("cmping dest_val {dest_val} (0x{dest_val:x}) and source_val_sized {source_val_sized} (0x{source_val_sized:x})");
+                            let (result, overflowed) =
+                                sub_with_overflow(dest_val, source_val_sized);
+                            new_val_overflowed = overflowed;
+                            if new_val_overflowed {
+                                println!("cmp word Overflowed!")
+                            }
+                            result
+                        }
                     });
                     dest_name = None;
                     modify_flags = true;
@@ -283,9 +319,23 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
                     };
                     // Figure out what part of the immediate value to put where
                     new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (old_val & 0xFF00) + (immediate & 0xFF),
-                        RegWidth::Hi8 => (old_val & 0x00FF) + (immediate << 8),
-                        RegWidth::Word => old_val + immediate,
+                        RegWidth::Byte => {
+                            println!("Add byte");
+                            (old_val & 0xFF00) + (immediate & 0xFF)
+                        }
+                        RegWidth::Hi8 => {
+                            println!("Add hi8");
+                            (old_val & 0x00FF) + (immediate << 8)
+                        }
+                        RegWidth::Word => {
+                            println!("Adding old_val {old_val} (0x{old_val:x}) and immediate {immediate} (0x{immediate:x})");
+                            let (result, overflowed) = add_with_overflow(old_val, immediate);
+                            new_val_overflowed = overflowed;
+                            if new_val_overflowed {
+                                println!("Add word Overflowed!")
+                            }
+                            result
+                        }
                     });
                     dest_name = Some(dest_reg.name);
                     modify_flags = true;
@@ -344,6 +394,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
         state.flags_reg.zero = new_val == 0;
         state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
+        state.flags_reg.overflow = new_val_overflowed;
     }
 
     match dest_name {
@@ -392,4 +443,38 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
     lines.push(format!("   flags: {}", state.flags_reg));
     lines.push(format!(""));
+}
+
+/// Add two 16-bit numbers together. If the sign bit of the lhs changes, set
+/// the overflow flag.
+///
+/// 8086 defines overflow as the sign bit of the left hand side (destination)
+/// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
+/// 0x0001. The overflow flag will still be set even if the user is intending to
+/// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
+const fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
+    let left_sign_bit = lhs & 0x8000;
+    // We are discarding the overflow result because that is not the same as the
+    // 8086 overflow flag. Rust's overflow result is simply if the value wraps
+    // around from 0x0000 to 0xFFFF or vice versa, and not if the sign bit
+    // changes.
+    let (result, _) = lhs.overflowing_add(rhs);
+    let result_sign_bit = result & 0x8000;
+    if left_sign_bit == result_sign_bit {
+        (result, false)
+    } else {
+        (result, true)
+    }
+}
+
+///
+const fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool) {
+    let left_sign_bit = lhs & 0x8000;
+    let (result, _) = lhs.overflowing_sub(rhs);
+    let result_sign_bit = result & 0x8000;
+    if left_sign_bit == result_sign_bit {
+        (result, false)
+    } else {
+        (result, true)
+    }
 }
