@@ -34,7 +34,7 @@ rc=0
 for file in "$DECODE_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
     BASE=$(basename "$file")
-    if ! $BIN "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
+    if ! $BIN --verbose "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $file"
         rc=1
         break
@@ -97,7 +97,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
 
     echo "Checking decode of $RTOS_BIN_TRUNC..."
     BASE=$(basename "$RTOS_BIN_TRUNC")
-    if ! $BIN "$RTOS_BIN_TRUNC" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
+    if ! $BIN --verbose "$RTOS_BIN_TRUNC" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $RTOS_BIN_TRUNC"
         rc=1
         break
@@ -129,7 +129,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG="$SIMULATE_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --exec > "$SIMULATE_LOG"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec > "$SIMULATE_LOG"; then
         echo "ERROR: Simulation of program failed for $file"
         rc=1
         break
