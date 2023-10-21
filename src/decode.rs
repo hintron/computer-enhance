@@ -702,7 +702,14 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
         _ => println!("Unknown immediate source"),
     };
 
-    inst.text = Some(build_inst_string(&inst));
+    let inst_test = build_inst_string(&inst);
+
+    // Print out instruction to log, for debug
+    if debug {
+        println!("inst: {inst_test}");
+    }
+
+    inst.text = Some(inst_test);
 
     return Some(inst);
 }
