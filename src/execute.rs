@@ -482,6 +482,7 @@ fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     // Overflow cannot occur when the sign bits differ between operands
     // If the two operands have the same sign bit, then overflow occurs if
     // the result does not have that same sign bit.
+    // See "Overflow Rule for addition" in https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
     let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
     let carry = (rhs as u32) + (lhs as u32) > 0xFFFF;
     let aux_carry = calc_aux_carry_add(lhs, rhs);
