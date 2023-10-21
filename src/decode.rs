@@ -744,6 +744,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
             inst.data_lo.as_ref(),
             inst.data_hi.as_ref(),
             inst.data_8.as_ref(),
+            is_inst_arithmetic(inst.op_type.unwrap()),
         );
 
         // If this is a mem access, use data bytes for the mem access
@@ -1768,16 +1769,36 @@ fn mod_rm_disp_str(
 
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
-fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option<&u8>) -> String {
+fn process_data_bytes(
+    data_lo: Option<&u8>,
+    data_hi: Option<&u8>,
+    data_8: Option<&u8>,
+    arithmetic_inst: bool,
+) -> String {
     // TODO: Use inst.immediate_value instead, so we only have to bit
     // fiddle with this in one place?
     match (data_lo, data_hi, data_8) {
         (Some(lo), None, None) => format!("{}", *lo as i8),
         (Some(lo), Some(hi), None) => {
             let lo_hi = *lo as u16 | ((*hi as u16) << 8);
-            format!("{}", lo_hi)
+
+            if arithmetic_inst {
+                println!("MGH: Got here");
+                format!("{}", lo_hi as i16)
+            } else {
+                println!("MGH: Got here 2");
+                format!("{}", lo_hi)
+            }
         }
-        (None, None, Some(data8)) => format!("{}", *data8),
+        (None, None, Some(data8)) => {
+            if arithmetic_inst {
+                println!("MGH: Got here 3");
+                format!("{}", *data8 as i8)
+            } else {
+                println!("MGH: Got here 4");
+                format!("{}", *data8)
+            }
+        }
         (None, None, None) => unreachable!("ERROR: No data bytes found"),
         (None, Some(_), _) => unreachable!("ERROR: Low data byte not set"),
         _ => panic!("Unhandled case in process_data_bytes()"),
@@ -2192,5 +2213,32 @@ fn decode_grp2_op(bits: u8) -> OpCodeType {
         0b110 => OpCodeType::Push,
         0b111 => panic!("Unused field 0b111 in decode_grp2_op()"),
         _ => panic!("Bad bits specified in decode_grp2_op()"),
+    }
+}
+
+/// Determine if the given opcode is an arithmetic
+/// See pages 2-34 through 2-38.
+fn is_inst_arithmetic(op_type: OpCodeType) -> bool {
+    match op_type {
+        OpCodeType::Add
+        | OpCodeType::Adc
+        | OpCodeType::Inc
+        | OpCodeType::Aaa
+        | OpCodeType::Sub
+        | OpCodeType::Sbb
+        | OpCodeType::Dec
+        | OpCodeType::Neg
+        | OpCodeType::Cmp
+        | OpCodeType::Aas
+        | OpCodeType::Das
+        | OpCodeType::Mul
+        | OpCodeType::Imul
+        | OpCodeType::Aam
+        | OpCodeType::Div
+        | OpCodeType::Idiv
+        | OpCodeType::Aad
+        | OpCodeType::Cbw
+        | OpCodeType::Cwd => true,
+        _ => false,
     }
 }
