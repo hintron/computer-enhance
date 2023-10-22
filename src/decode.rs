@@ -113,8 +113,6 @@ enum ExtraBytesType {
     /// An 8-bit signed value, optionally extended by DataHi
     DataLo,
     DataHi,
-    /// If w=1 and s=1, then create a ephemeral DataHi by sign-extending DataLo
-    DataExtend,
     DispLo,
     DispHi,
     /// An 8-bit signed increment offset to the instruction pointer
@@ -504,6 +502,8 @@ pub struct InstType {
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
     mem_access: Option<bool>,
+    /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
+    sign_extend_data_lo: bool,
     /// The expected "extra" byte types to parse after we parse the 1st byte and
     /// the mod/rm byte (if it exists).
     extra_bytes: Vec<ExtraBytesType>,
@@ -642,29 +642,6 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             return None;
         };
 
-        // If we are sign extending a low data byte, don't actually process
-        // a byte.
-        match byte_type {
-            // Sign extend data_lo into data_hi
-            ExtraBytesType::DataExtend => {
-                let sign_byte = match inst.data_lo {
-                    Some(lo) => {
-                        if (lo & 0b10000000) == 0 {
-                            0x00
-                        } else {
-                            0xFF
-                        }
-                    }
-                    None => {
-                        panic!("DataExtend byte found no DataLo byte")
-                    }
-                };
-                inst.data_hi = Some(sign_byte);
-                continue;
-            }
-            _ => {}
-        }
-
         let byte = iter.next().unwrap();
         if debug {
             debug_byte(byte);
@@ -681,24 +658,24 @@ fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
             ExtraBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
             ExtraBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
             ExtraBytesType::DoNotCare => {}
-            _ => {
-                panic!("Unexpected ExtraBytesType!")
-            }
         }
     }
 
     // Get the actual value of any immediates, for use in simulation
-    match inst.immediate_source {
-        Some(ExtraBytesType::DataHi) => {
+    match (inst.immediate_source, inst.sign_extend_data_lo) {
+        (Some(ExtraBytesType::DataHi), _) => {
             let val = inst.data_lo.unwrap() as u16 | ((inst.data_hi.unwrap() as u16) << 8);
             inst.immediate_value = Some(val);
         }
-        Some(ExtraBytesType::DataLo) => {
+        (Some(ExtraBytesType::DataLo), true) => {
+            let val = inst.data_lo.unwrap();
+            inst.immediate_value = Some(sign_extend_byte(val) as u16);
+        }
+        (Some(ExtraBytesType::DataLo), false) => {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
-        // MGH TODO: Handle immediate sign extended!
-        None => {}
+        (None, _) => {}
         _ => println!("Unknown immediate source"),
     };
 
@@ -744,6 +721,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
             inst.data_lo.as_ref(),
             inst.data_hi.as_ref(),
             inst.data_8.as_ref(),
+            inst.sign_extend_data_lo,
         );
 
         // If this is a mem access, use data bytes for the mem access
@@ -1639,10 +1617,10 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
                 (Some(true), Some(true)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
-                    inst.extra_bytes.push(ExtraBytesType::DataExtend);
-                    // The DataExtend extra byte will sign extend DataLo into
-                    // DataHi, so mark DataHi + DataLo as immediate source.
-                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                    inst.sign_extend_data_lo = true;
+                    // The sign_extend_data_lo will sign extend DataLo as a
+                    // 16-bit value
+                    inst.immediate_source = Some(ExtraBytesType::DataLo);
                 }
                 (Some(true), None | Some(false)) => {
                     inst.extra_bytes.push(ExtraBytesType::DataLo);
@@ -1768,18 +1746,25 @@ fn mod_rm_disp_str(
 
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
-fn process_data_bytes(data_lo: Option<&u8>, data_hi: Option<&u8>, data_8: Option<&u8>) -> String {
+fn process_data_bytes(
+    data_lo: Option<&u8>,
+    data_hi: Option<&u8>,
+    data_8: Option<&u8>,
+    sign_extend_data_lo: bool,
+) -> String {
     // TODO: Use inst.immediate_value instead, so we only have to bit
     // fiddle with this in one place?
-    match (data_lo, data_hi, data_8) {
-        (Some(lo), None, None) => format!("{}", *lo as i8),
-        (Some(lo), Some(hi), None) => {
+    match (data_lo, data_hi, data_8, sign_extend_data_lo) {
+        (Some(lo), None, None, false) => format!("{}", *lo as i8),
+        (Some(lo), None, None, true) => format!("{}", sign_extend_byte(*lo)),
+        (Some(lo), Some(hi), None, _) => {
             let lo_hi = *lo as u16 | ((*hi as u16) << 8);
             format!("{}", lo_hi)
         }
-        (None, None, Some(data8)) => format!("{}", *data8),
-        (None, None, None) => unreachable!("ERROR: No data bytes found"),
-        (None, Some(_), _) => unreachable!("ERROR: Low data byte not set"),
+        (None, None, Some(data8), _) => format!("{}", *data8),
+        (None, _, _, true) => unreachable!("ERROR: sign_extend_data_lo set when no data_lo"),
+        (None, None, None, _) => unreachable!("ERROR: No data bytes found"),
+        (None, Some(_), _, _) => unreachable!("ERROR: Low data byte not set"),
         _ => panic!("Unhandled case in process_data_bytes()"),
     }
 }
@@ -2193,4 +2178,9 @@ fn decode_grp2_op(bits: u8) -> OpCodeType {
         0b111 => panic!("Unused field 0b111 in decode_grp2_op()"),
         _ => panic!("Bad bits specified in decode_grp2_op()"),
     }
+}
+
+/// Take a given u8 and return a sign-extended i16
+fn sign_extend_byte(byte: u8) -> i16 {
+    (byte as i8) as i16
 }
