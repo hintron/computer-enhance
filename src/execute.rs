@@ -443,6 +443,7 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     let es_val = state.reg_file.get(&RegName::Es).unwrap_or(&0);
     let ss_val = state.reg_file.get(&RegName::Ss).unwrap_or(&0);
     let ds_val = state.reg_file.get(&RegName::Ds).unwrap_or(&0);
+    let ip_val = state.reg_file.get(&RegName::Ip).unwrap_or(&0);
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
@@ -478,6 +479,9 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     }
     if *ds_val != 0 {
         lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
+    }
+    if *ip_val != 0 {
+        lines.push(format!("      ip: 0x{:04x} ({})", ip_val, ip_val));
     }
     lines.push(format!("   flags: {}", state.flags_reg));
     lines.push(format!(""));
