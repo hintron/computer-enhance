@@ -446,17 +446,39 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
-    lines.push(format!("      ax: 0x{:04x} ({})", ax_val, ax_val));
-    lines.push(format!("      bx: 0x{:04x} ({})", bx_val, bx_val));
-    lines.push(format!("      cx: 0x{:04x} ({})", cx_val, cx_val));
-    lines.push(format!("      dx: 0x{:04x} ({})", dx_val, dx_val));
-    lines.push(format!("      sp: 0x{:04x} ({})", sp_val, sp_val));
-    lines.push(format!("      bp: 0x{:04x} ({})", bp_val, bp_val));
-    lines.push(format!("      si: 0x{:04x} ({})", si_val, si_val));
-    lines.push(format!("      di: 0x{:04x} ({})", di_val, di_val));
-    lines.push(format!("      es: 0x{:04x} ({})", es_val, es_val));
-    lines.push(format!("      ss: 0x{:04x} ({})", ss_val, ss_val));
-    lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
+    if *ax_val != 0 {
+        lines.push(format!("      ax: 0x{:04x} ({})", ax_val, ax_val));
+    }
+    if *bx_val != 0 {
+        lines.push(format!("      bx: 0x{:04x} ({})", bx_val, bx_val));
+    }
+    if *cx_val != 0 {
+        lines.push(format!("      cx: 0x{:04x} ({})", cx_val, cx_val));
+    }
+    if *dx_val != 0 {
+        lines.push(format!("      dx: 0x{:04x} ({})", dx_val, dx_val));
+    }
+    if *sp_val != 0 {
+        lines.push(format!("      sp: 0x{:04x} ({})", sp_val, sp_val));
+    }
+    if *bp_val != 0 {
+        lines.push(format!("      bp: 0x{:04x} ({})", bp_val, bp_val));
+    }
+    if *si_val != 0 {
+        lines.push(format!("      si: 0x{:04x} ({})", si_val, si_val));
+    }
+    if *di_val != 0 {
+        lines.push(format!("      di: 0x{:04x} ({})", di_val, di_val));
+    }
+    if *es_val != 0 {
+        lines.push(format!("      es: 0x{:04x} ({})", es_val, es_val));
+    }
+    if *ss_val != 0 {
+        lines.push(format!("      ss: 0x{:04x} ({})", ss_val, ss_val));
+    }
+    if *ds_val != 0 {
+        lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
+    }
     lines.push(format!("   flags: {}", state.flags_reg));
     lines.push(format!(""));
 }

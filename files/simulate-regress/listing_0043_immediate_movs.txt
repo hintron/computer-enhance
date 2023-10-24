@@ -16,8 +16,5 @@ Final registers:
       bp: 0x0006 (6)
       si: 0x0007 (7)
       di: 0x0008 (8)
-      es: 0x0000 (0)
-      ss: 0x0000 (0)
-      ds: 0x0000 (0)
    flags: 
 
