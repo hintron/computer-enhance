@@ -97,6 +97,8 @@ pub fn init_state() -> CpuStateType {
     }
 }
 
+/// Execute the given instruction and modify the passed in CPU state. Return a
+/// string summarizing the change in state that occurred.
 pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
