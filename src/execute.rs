@@ -99,7 +99,10 @@ pub fn init_state() -> CpuStateType {
 
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred.
-pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
+///
+/// no_ip: If true, do NOT add IP changes or the final state of IP to the output
+/// string.
+pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> String {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
         Some(op_type) => op_type,
@@ -425,12 +428,44 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
         None => {}
     }
 
+    // Tack on the IP change to the instruction effect string
+    if !no_ip {
+        // Get the length of this instruction so we know what to set IP to
+        effect.push_str(&advance_ip_reg(
+            inst.processed_bytes.len() as u16,
+            &mut state.reg_file,
+        ));
+    }
+
     // Print change in flags register, if needed
     if modify_flags && (old_flags != state.flags_reg) {
         effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
 
     return effect;
+}
+
+/// Advance the IP according to the instruction length
+///
+/// inst_length: The length of this instruction in # of bytes.
+/// state_reg_file: The register file data structure within the CPU state that
+/// contains IP.
+fn advance_ip_reg(inst_length: u16, state_reg_file: &mut BTreeMap<RegName, u16>) -> String {
+    // Get the current value for IP
+    let current_ip = match state_reg_file.get(&RegName::Ip) {
+        Some(x) => *x,
+        None => 0,
+    };
+    // Advance IP according to the length of this instruction
+    let new_ip = current_ip + inst_length;
+    match state_reg_file.insert(RegName::Ip, new_ip) {
+        // Assert that the only time there is no IP entry in the reg file is
+        // when we first start the program and current_ip is 0
+        None => assert!(current_ip == 0),
+        // Assert that the old IP value matches current_ip
+        Some(old_val) => assert!(current_ip == old_val),
+    }
+    format!(" ip:0x{:x}->0x{:x}", current_ip, new_ip)
 }
 
 pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {

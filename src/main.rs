@@ -21,6 +21,9 @@ struct ArgsType {
     help: bool,
     print: bool,
     verbose: bool,
+    /// If true, do NOT calculate and print out changes to the IP register
+    /// during execution.
+    no_ip: bool,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -58,6 +61,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<bool> {
         Ok(false)
     } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
         parsed_args.verbose = true;
+        Ok(false)
+    } else if arg.starts_with("--no-ip") {
+        parsed_args.no_ip = true;
         Ok(false)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
@@ -148,7 +154,7 @@ fn main() -> Result<()> {
     );
 
     if args.execute {
-        let text_lines = decode_execute(inst_stream, args.print, args.verbose);
+        let text_lines = decode_execute(inst_stream, args.print, args.verbose, args.no_ip);
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
         }
