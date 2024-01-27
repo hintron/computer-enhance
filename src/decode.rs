@@ -470,7 +470,7 @@ pub struct InstType {
     /// A suffix string to append to the opcode, like `b` for `movsb`
     op_type_suffix: Option<&'static str>,
     /// A list of all bytes processed for this instruction
-    processed_bytes: Vec<u8>,
+    pub processed_bytes: Vec<u8>,
     /// Processed data from the mod rm byte
     mod_rm_data: Option<ModRmDataType>,
     mod_rm_byte: Option<ModRmByteType>,
@@ -524,7 +524,14 @@ pub struct InstType {
 
 /// Decode and execute an 8086 instruction stream. This will decode whatever
 /// the IP points to and simulates that instruction.
-pub fn decode_execute(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<String> {
+///
+/// no_ip: If true, do NOT print out IP changes or the final state of IP
+pub fn decode_execute(
+    inst_stream: Vec<u8>,
+    print: bool,
+    verbose: bool,
+    no_ip: bool,
+) -> Vec<String> {
     let mut iter = inst_stream.iter().peekable();
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
@@ -537,7 +544,7 @@ pub fn decode_execute(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<S
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state);
+                let text = execute(&mut inst, &mut cpu_state, no_ip);
                 output_text_lines.push(text);
                 // On to the next instruction...
             }
