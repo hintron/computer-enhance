@@ -122,6 +122,24 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
 
+    // Get the length of this instruction so we know what to set IP to
+    let length = inst.processed_bytes.len() as u16;
+    // Get the current value for IP
+    let current_ip = match state.reg_file.get(&RegName::Ip) {
+        Some(x) => *x,
+        None => 0,
+    };
+    // Advance IP according to the length of this instruction
+    let new_ip = current_ip + length;
+    match state.reg_file.insert(RegName::Ip, new_ip) {
+        // Assert that the only time there is no IP entry in the reg file is
+        // when we first start the program and current_ip is 0
+        None => assert!(current_ip == 0),
+        // Assert that the old IP value matches current_ip
+        Some(old_val) => assert!(current_ip == old_val),
+    }
+    let ip_change_str = format!(" ip:0x{:x}->0x{:x}", current_ip, new_ip);
+
     match op_type {
         // Handle all movs
         OpCodeType::Mov => {
@@ -429,6 +447,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType) -> String {
     if modify_flags && (old_flags != state.flags_reg) {
         effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
+
+    // Tack on the IP change to the instruction effect string
+    effect.push_str(&ip_change_str);
 
     return effect;
 }

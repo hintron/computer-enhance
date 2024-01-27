@@ -470,7 +470,7 @@ pub struct InstType {
     /// A suffix string to append to the opcode, like `b` for `movsb`
     op_type_suffix: Option<&'static str>,
     /// A list of all bytes processed for this instruction
-    processed_bytes: Vec<u8>,
+    pub processed_bytes: Vec<u8>,
     /// Processed data from the mod rm byte
     mod_rm_data: Option<ModRmDataType>,
     mod_rm_byte: Option<ModRmByteType>,
@@ -520,14 +520,38 @@ pub struct InstType {
     dest_prefix: Option<&'static str>,
     /// The final instruction representation
     pub text: Option<String>,
+    // /// The number of bytes this instruction is. Will never be larger than 16,
+    // /// per the x86 ISA.
+    // MGH TODO: Just get the count of processed_bytes!
+    // pub length: u8,
 }
 
 /// Decode and execute an 8086 instruction stream. This will decode whatever
-/// the IP points to and simulates that instruction.
-pub fn decode_execute(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<String> {
+/// the IP points to and simulates that instruction. The decoded instructions
+/// are loaded into a random-access data structure in memory in order to support
+/// jumps and loops.
+///
+/// no_ip: If true, do NOT print out IP changes or the final state of IP
+pub fn decode_execute(
+    inst_stream: Vec<u8>,
+    print: bool,
+    verbose: bool,
+    no_ip: bool,
+) -> Vec<String> {
+    // Only take a reference to this iterator so we can iterate on it again
     let mut iter = inst_stream.iter().peekable();
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
+
+    // TODO: In order to support random access, we need to have a random-access
+    // stream. How do we do this in Rust?
+    // If the new IP is larger than what it was, advance n bytes until we get
+    // there with the current iterator.
+    // If the new IP is smaller than what it was, restart the iterator to 0 and
+    // advance.
+
+    // MGH TODO: I need to track what the starting byte of the stream is treated as. 100?
+    // MGH TODO: I need to track how many bytes each instruction took
 
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
@@ -537,8 +561,10 @@ pub fn decode_execute(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<S
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state);
+                let text = execute(&mut inst, &mut cpu_state, no_ip);
                 output_text_lines.push(text);
+                // MGH TODO: Look at the IP in the CPU state. If the IP
+                //
                 // On to the next instruction...
             }
             // Done with the instruction stream

@@ -1,11 +1,21 @@
 #!/bin/bash
 
+# The decode-regress/ and simulate-regress/ folders both are executed with the
+# --no-ip arg, which means that the executed output will not print out changes
+# to the IP register. This is so I don't have to modify each of those regression
+# golden outputs with IP register information.
+
+# All the listings in simulate-ip-regress/ and onward will print changes to the
+# IP register as well as the final IP register state.
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
 FILE_DIR="$PROJECT_DIR/files"
 DECODE_BUILD_DIR="$FILE_DIR/build-decode-regress"
 SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
 SIMULATE_SRC_DIR="$FILE_DIR/simulate-regress"
+SIMULATE_IP_BUILD_DIR="$FILE_DIR/build-simulate-ip-regress"
+SIMULATE_IP_SRC_DIR="$FILE_DIR/simulate-ip-regress"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
 CHECK_RTOS="false"
@@ -34,7 +44,7 @@ rc=0
 for file in "$DECODE_BUILD_DIR"/*; do
     echo "Checking decode of $file..."
     BASE=$(basename "$file")
-    if ! $BIN --verbose "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
+    if ! $BIN --verbose --no-ip "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Decode program failed for $file"
         rc=1
         break
@@ -125,6 +135,34 @@ done
 for file in "$SIMULATE_BUILD_DIR"/*; do
     # If the glob found nothing, it will be treated as a file, so skip it 
     if [ ! -e "$file" ]; then continue; fi
+    echo "Checking simulation (without IP) of $file..."
+    BASE=$(basename "$file")
+    SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
+    SIMULATE_LOG="$SIMULATE_BUILD_DIR/$BASE-simulate.log"
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --no-ip > "$SIMULATE_LOG"; then
+        echo "ERROR: Simulation of program failed for $file"
+        rc=1
+        break
+    fi
+    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
+    DIFF="$SIMULATE_BUILD_DIR/simulate.diff"
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+        echo "ERROR: Simulation output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $SIMULATE_OUTPUT"
+        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+        rc=1
+        break
+    fi
+    rm "$DIFF"
+
+done
+
+
+# Check the decode and simulation of everything in simulate-ip-regress
+for file in "$SIMULATE_IP_BUILD_DIR"/*; do
+    # If the glob found nothing, it will be treated as a file, so skip it 
+    if [ ! -e "$file" ]; then continue; fi
     echo "Checking simulation of $file..."
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
@@ -147,6 +185,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
     rm "$DIFF"
 
 done
+
 
 
 if [ "$rc" == "0" ]; then
