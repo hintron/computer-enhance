@@ -27,14 +27,9 @@
 //! * table 4-12, pg. 4-25: STOS is misspelled as STDS. Also, Stor -> Store
 //! and AL/A -> AL/AX.
 
-use core::slice::Iter;
 use std::fmt;
-use std::iter::Peekable;
 
 use crate::execute::{execute, init_state, print_final_state};
-
-// Make this type look nicer
-type ByteStreamIter<'o> = Peekable<Iter<'o, u8>>;
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
@@ -531,7 +526,6 @@ pub fn decode_execute(
     verbose: bool,
     no_ip: bool,
 ) -> Vec<String> {
-    let mut iter = program_bytes.iter().peekable();
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
@@ -539,10 +533,13 @@ pub fn decode_execute(
     // see if the first n bytes match any decoded instructions. If so, skip
     // decode, use that InstType, and advance the IP. Use the # of
     // processed bytes in InstType to advance the IP.
-
-    while iter.peek().is_some() {
+    loop {
+        let inst_byte_window = match get_inst_window(cpu_state.ip as usize, &program_bytes) {
+            Some(x) => x,
+            None => break,
+        };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter, verbose) {
+        match decode_single(inst_byte_window, verbose) {
             Some(mut inst) => {
                 if print {
                     println!("{}", inst.text.as_ref().unwrap());
@@ -557,7 +554,7 @@ pub fn decode_execute(
         };
     }
 
-    print_final_state(&cpu_state, &mut output_text_lines);
+    print_final_state(&cpu_state, &mut output_text_lines, no_ip);
     output_text_lines
 }
 
@@ -566,15 +563,23 @@ pub fn decode_execute(
 /// whatsoever. It prints processed bytes, prints the decoded instruction, and
 /// returns a vector of instructions.
 pub fn decode(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<InstType> {
-    let mut iter = inst_stream.iter().peekable();
     let mut insts = vec![];
-    while iter.peek().is_some() {
+    // Simply track the IP in this variable instead of in CpuState, since we
+    // aren't actually executing the code. The IP is just how we iterate through
+    // the instruction stream.
+    let mut ip = 0;
+    loop {
+        let inst_byte_window = match get_inst_window(ip, &inst_stream) {
+            Some(x) => x,
+            None => break,
+        };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(&mut iter, verbose) {
+        match decode_single(inst_byte_window, verbose) {
             Some(inst) => {
                 if print {
                     println!("{}", inst.text.as_ref().unwrap());
                 }
+                ip = ip + inst.processed_bytes.len();
                 insts.push(inst);
                 // On to the next instruction...
             }
@@ -605,11 +610,12 @@ pub fn decode(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<InstType>
 ///     4) The final output text is assembled from the values in the `InstType`
 ///        struct.
 ///     5) The output text is printed to stdout.
-fn decode_single(iter: &mut ByteStreamIter, debug: bool) -> Option<InstType> {
+fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
     let mut inst = InstType {
         ..Default::default()
     };
 
+    let mut iter = inst_byte_window.iter().peekable();
     let mut byte = iter.next().unwrap();
     if debug {
         debug_byte(byte);
@@ -2197,4 +2203,29 @@ fn decode_grp2_op(bits: u8) -> OpCodeType {
 /// Take a given u8 and return a sign-extended i16
 fn sign_extend_byte(byte: u8) -> i16 {
     (byte as i8) as i16
+}
+
+/// Get up to a 16-byte window wherever the IP points to in the program code.
+/// x86-64 ISA guarantees that all instructions are at most 16 bytes, so
+/// a 16-byte window is always enough to decode the next instruction.
+fn get_inst_window(cpu_state_ip: usize, program_bytes: &Vec<u8>) -> Option<&[u8]> {
+    let window_start = cpu_state_ip;
+    let program_len = program_bytes.len();
+    if window_start >= program_len {
+        // We are trying to execute outside the program! Exit
+        println!(
+            "IP ran off the end of the program: ip: {}; prog len: {}",
+            window_start, program_len
+        );
+        return None;
+    }
+
+    let mut window_end = cpu_state_ip + 16;
+    // Cap instruction window so it does not exceed the end of the program
+    if window_end > program_len {
+        window_end = program_len;
+    }
+
+    let sixteen_byte_window = &program_bytes[window_start..window_end];
+    Some(sixteen_byte_window)
 }

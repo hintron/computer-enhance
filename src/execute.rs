@@ -9,7 +9,7 @@ use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
 #[derive(Debug, Default)]
 pub struct CpuStateType {
     /// The instruction pointer (IP) register
-    ip: u16,
+    pub ip: u16,
     // MGH TODO: Make reg_file an array, and map RegNames to an index via a
     // match statement. Compare performance!
     reg_file: BTreeMap<RegName, u16>,
@@ -431,9 +431,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     }
 
     // Tack on the IP change to the instruction effect string
+    let ip_changed_text = advance_ip_reg(inst, state);
     if !no_ip {
-        // Get the length of this instruction so we know what to set IP to
-        effect.push_str(&advance_ip_reg(inst, state));
+        effect.push_str(&ip_changed_text);
     }
 
     // Print change in flags register, if needed
@@ -461,7 +461,7 @@ fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) -> String {
     format!(" ip:0x{:x}->0x{:x}", current_ip, cpu_state.ip)
 }
 
-pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
+pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: bool) {
     let ax_val = state.reg_file.get(&RegName::Ax).unwrap_or(&0);
     let bx_val = state.reg_file.get(&RegName::Bx).unwrap_or(&0);
     let cx_val = state.reg_file.get(&RegName::Cx).unwrap_or(&0);
@@ -509,7 +509,7 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     if *ds_val != 0 {
         lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
     }
-    if state.ip != 0 {
+    if state.ip != 0 && !no_ip {
         lines.push(format!("      ip: 0x{:04x} ({})", state.ip, state.ip));
     }
     lines.push(format!("   flags: {}", state.flags_reg));
