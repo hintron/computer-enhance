@@ -764,7 +764,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         }
     }
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-        dest_text.push_str(&process_ip_bytes(
+        dest_text.push_str(&get_ip_increment_str(
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
@@ -1789,7 +1789,7 @@ fn process_data_bytes(
     }
 }
 
-/// Take in IP offset bytes and return a destination text.
+/// Take in IP offset bytes and return the IP increment value as an i16.
 ///
 /// The tricky part is that we can't recreate label text - but all labels are
 /// just translated into relative offsets to the IP. So we use `$` in NASM to
@@ -1798,23 +1798,29 @@ fn process_data_bytes(
 /// next instruction. Thus, $ == IP - 2. So when a jump instruction does IP =
 /// IP + X, that is really IP = ($ + 2) + X, which is why we add 2 to ip_inc8
 /// below.
-fn process_ip_bytes(
-    ip_inc8: Option<&u8>,
-    ip_inc_lo: Option<&u8>,
-    ip_inc_hi: Option<&u8>,
-) -> String {
+fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lo: Option<&u8>, ip_inc_hi: Option<&u8>) -> i16 {
     match (ip_inc8, ip_inc_lo, ip_inc_hi) {
-        (Some(ip_inc8), _, _) => format!("${:+}", *ip_inc8 as i8 + 2),
+        (Some(ip_inc8), _, _) => (*ip_inc8 as i8 + 2) as i16,
         (None, Some(lo), Some(hi)) => {
             // Combine lo and hi
             let ip_inc = ((*hi as i16) << 8) | (*lo as i16);
             // TODO: I'm not sure why we need to add three , not two. I think it
             // has to do with the fact that there was a no op byte for
             // alignment.
-            format!("${:+}", ip_inc + 3)
+            ip_inc + 3
         }
         _ => unreachable!(),
     }
+}
+
+/// Take in IP offset bytes and return the IP increment value as a string
+fn get_ip_increment_str(
+    ip_inc8: Option<&u8>,
+    ip_inc_lo: Option<&u8>,
+    ip_inc_hi: Option<&u8>,
+) -> String {
+    let ip_inc = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi);
+    format!("${:+}", ip_inc)
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
