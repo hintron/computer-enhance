@@ -518,7 +518,7 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: b
 
 /// Add two 16-bit numbers together. If the sign bit of the lhs changes, set
 /// the overflow flag. Return the result, whether there was a signed arithmetic
-/// overflow., and whether there was an auxilliary carry.
+/// overflow, and whether there was an auxilliary carry.
 ///
 /// 8086 defines overflow as the sign bit of the left hand side (destination)
 /// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
