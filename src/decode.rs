@@ -322,6 +322,8 @@ impl fmt::Display for OpCodeType {
 
 /// Register type uniquely identifying an addressable (or unaddressable)
 /// register. Derive Ord so we can create a map with RegName keys.
+/// NOTE: The IP reg will NOT be part of the reg file, since it can't be written
+/// to directly and it's easier to track it separately from the other registers.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum RegName {
     Ax,
@@ -340,8 +342,6 @@ pub enum RegName {
     Ss,
     /// Segment register ds
     Ds,
-    /// Instruction pointer (implicit register)
-    Ip,
 }
 
 impl fmt::Display for RegName {
@@ -359,7 +359,6 @@ impl fmt::Display for RegName {
             RegName::Cs => write!(f, "cs"),
             RegName::Ss => write!(f, "ss"),
             RegName::Ds => write!(f, "ds"),
-            RegName::Ip => write!(f, "ip"),
         }
     }
 }

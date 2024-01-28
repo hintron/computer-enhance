@@ -8,6 +8,8 @@ use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
+    /// The instruction pointer (IP) register
+    ip: u16,
     // MGH TODO: Make reg_file an array, and map RegNames to an index via a
     // match statement. Compare performance!
     reg_file: BTreeMap<RegName, u16>,
@@ -431,10 +433,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     // Tack on the IP change to the instruction effect string
     if !no_ip {
         // Get the length of this instruction so we know what to set IP to
-        effect.push_str(&advance_ip_reg(
-            inst.processed_bytes.len() as u16,
-            &mut state.reg_file,
-        ));
+        effect.push_str(&advance_ip_reg(inst, state));
     }
 
     // Print change in flags register, if needed
@@ -445,27 +444,21 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     return effect;
 }
 
-/// Advance the IP according to the instruction length
+/// Advance the IP by modifying ip in the CPU state object according to the
+/// instruction length.
 ///
-/// inst_length: The length of this instruction in # of bytes.
-/// state_reg_file: The register file data structure within the CPU state that
-/// contains IP.
-fn advance_ip_reg(inst_length: u16, state_reg_file: &mut BTreeMap<RegName, u16>) -> String {
+/// inst: The instruction that was executed.
+/// cpu_state: The CPU state object, which contains the IP.
+///
+/// Returns a string indicating the change in IP.
+fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) -> String {
+    // Get executed instruction's length
+    let inst_length = inst.processed_bytes.len() as u16;
     // Get the current value for IP
-    let current_ip = match state_reg_file.get(&RegName::Ip) {
-        Some(x) => *x,
-        None => 0,
-    };
+    let current_ip = cpu_state.ip;
     // Advance IP according to the length of this instruction
-    let new_ip = current_ip + inst_length;
-    match state_reg_file.insert(RegName::Ip, new_ip) {
-        // Assert that the only time there is no IP entry in the reg file is
-        // when we first start the program and current_ip is 0
-        None => assert!(current_ip == 0),
-        // Assert that the old IP value matches current_ip
-        Some(old_val) => assert!(current_ip == old_val),
-    }
-    format!(" ip:0x{:x}->0x{:x}", current_ip, new_ip)
+    cpu_state.ip = current_ip + inst_length;
+    format!(" ip:0x{:x}->0x{:x}", current_ip, cpu_state.ip)
 }
 
 pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
@@ -480,7 +473,6 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     let es_val = state.reg_file.get(&RegName::Es).unwrap_or(&0);
     let ss_val = state.reg_file.get(&RegName::Ss).unwrap_or(&0);
     let ds_val = state.reg_file.get(&RegName::Ds).unwrap_or(&0);
-    let ip_val = state.reg_file.get(&RegName::Ip).unwrap_or(&0);
 
     lines.push(format!(""));
     lines.push(format!("Final registers:"));
@@ -517,8 +509,8 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>) {
     if *ds_val != 0 {
         lines.push(format!("      ds: 0x{:04x} ({})", ds_val, ds_val));
     }
-    if *ip_val != 0 {
-        lines.push(format!("      ip: 0x{:04x} ({})", ip_val, ip_val));
+    if state.ip != 0 {
+        lines.push(format!("      ip: 0x{:04x} ({})", state.ip, state.ip));
     }
     lines.push(format!("   flags: {}", state.flags_reg));
     lines.push(format!(""));
