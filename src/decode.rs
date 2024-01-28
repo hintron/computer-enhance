@@ -536,6 +536,11 @@ pub fn decode_execute(
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
+    // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
+    // see if the first n bytes match any decoded instructions. If so, skip
+    // decode, use that InstType, and advance the IP. Use the # of
+    // processed bytes in InstType to advance the IP.
+
     while iter.peek().is_some() {
         // Decode one (possibly multi-byte) instruction at a time
         match decode_single(&mut iter, verbose) {
