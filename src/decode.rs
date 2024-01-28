@@ -681,6 +681,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         }
     }
 
+    // MGH TODO: Get the jump immediate values and put them into immediate_value
     // Get the actual value of any immediates, for use in simulation
     match (inst.immediate_source, inst.sign_extend_data_lo) {
         (Some(ExtraBytesType::DataHi), _) => {
@@ -693,6 +694,10 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         }
         (Some(ExtraBytesType::DataLo), false) => {
             let val = inst.data_lo.unwrap() as u16;
+            inst.immediate_value = Some(val);
+        }
+        (Some(ExtraBytesType::IpInc8), false) => {
+            let val = inst.ip_inc8.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
         (None, _) => {}
@@ -1123,6 +1128,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xEB => {
             inst.op_type = Some(OpCodeType::Jmp);
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.immediate_source = Some(ExtraBytesType::IpInc8);
         }
         // call - Direct within segment
         0xE8 => {
@@ -1382,6 +1388,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.immediate_source = Some(ExtraBytesType::IpInc8);
             match byte {
                 // je/jz
                 0x74 => inst.op_type = Some(OpCodeType::Je),
