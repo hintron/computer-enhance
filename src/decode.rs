@@ -522,8 +522,8 @@ pub struct InstType {
     pub text: Option<String>,
 }
 
-/// Decode and execute an 8086 instruction stream. This will decode whatever
-/// the IP points to and simulates that instruction.
+/// Decode and execute an 8086 program. This will decode and execute whatever
+/// the IP points to and supports branches and jumps.
 ///
 /// no_ip: If true, do NOT print out IP changes or the final state of IP
 pub fn decode_execute(
