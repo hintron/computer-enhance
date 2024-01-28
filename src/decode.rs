@@ -527,12 +527,12 @@ pub struct InstType {
 ///
 /// no_ip: If true, do NOT print out IP changes or the final state of IP
 pub fn decode_execute(
-    inst_stream: Vec<u8>,
+    program_bytes: Vec<u8>,
     print: bool,
     verbose: bool,
     no_ip: bool,
 ) -> Vec<String> {
-    let mut iter = inst_stream.iter().peekable();
+    let mut iter = program_bytes.iter().peekable();
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
