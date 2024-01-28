@@ -18,8 +18,8 @@ use std::fs::OpenOptions;
 use std::io::Read;
 
 /// Takes in a file path string and returns a byte vector containing the
-/// instruction stream in the file.
-pub fn inst_stream_from_file(input_path: &Option<String>) -> Result<Vec<u8>> {
+/// entire contents of the file.
+pub fn file_to_byte_vec(input_path: &Option<String>) -> Result<Vec<u8>> {
     // Make sure required args exist
     let mut input_file = match input_path {
         Some(file) => {

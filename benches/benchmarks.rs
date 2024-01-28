@@ -2,16 +2,16 @@ use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use computer_enhance::decode::{decode, decode_execute};
-use computer_enhance::inst_stream_from_file;
+use computer_enhance::file_to_byte_vec;
 
 fn benchmark_decode(input: &str) -> Result<()> {
-    let inst_stream = inst_stream_from_file(&Some(input.to_string()))?;
+    let inst_stream = file_to_byte_vec(&Some(input.to_string()))?;
     let _insts = decode(inst_stream, false, false);
     Ok(())
 }
 
 fn benchmark_decode_execute(input: &str) -> Result<()> {
-    let inst_stream = inst_stream_from_file(&Some(input.to_string()))?;
+    let inst_stream = file_to_byte_vec(&Some(input.to_string()))?;
     let _output = decode_execute(inst_stream, false, false);
     Ok(())
 }

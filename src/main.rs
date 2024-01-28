@@ -6,7 +6,7 @@ use std::io::Write;
 
 // Internal imports
 use computer_enhance::decode::{decode, decode_execute};
-use computer_enhance::{get_output_file_from_path, inst_stream_from_file};
+use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
@@ -142,7 +142,7 @@ fn main() -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
 
-    let inst_stream = inst_stream_from_file(&args.input_file)?;
+    let inst_stream = file_to_byte_vec(&args.input_file)?;
     let mut output_file = get_output_file_from_path(&args.output_file)?;
     println!(
         "Decoding instructions from file '{}'...",
