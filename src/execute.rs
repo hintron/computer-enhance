@@ -126,6 +126,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_overflowed = false;
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
+    let current_ip = state.ip;
 
     match op_type {
         // Handle all movs
@@ -430,10 +431,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         None => {}
     }
 
-    // Tack on the IP change to the instruction effect string
-    let ip_changed_text = advance_ip_reg(inst, state);
+    // Advance the IP
+    advance_ip_reg(inst, state);
+
     if !no_ip {
-        effect.push_str(&ip_changed_text);
+        // Tack on the IP change to the instruction effect string
+        effect.push_str(&format!(" ip:0x{:x}->0x{:x}", current_ip, state.ip));
     }
 
     // Print change in flags register, if needed
@@ -451,14 +454,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 /// cpu_state: The CPU state object, which contains the IP.
 ///
 /// Returns a string indicating the change in IP.
-fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) -> String {
+fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) {
     // Get executed instruction's length
     let inst_length = inst.processed_bytes.len() as u16;
     // Get the current value for IP
     let current_ip = cpu_state.ip;
     // Advance IP according to the length of this instruction
     cpu_state.ip = current_ip + inst_length;
-    format!(" ip:0x{:x}->0x{:x}", current_ip, cpu_state.ip)
 }
 
 pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: bool) {
