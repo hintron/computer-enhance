@@ -126,6 +126,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_overflowed = false;
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
+    let mut jumped = false;
     let current_ip = state.ip;
 
     match op_type {
@@ -397,6 +398,32 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
             }
         }
+        OpCodeType::Jne => {
+            new_val = None;
+            dest_name = None;
+            match inst.immediate_value {
+                Some(immediate) => {
+                    let ip_inc_8 = (immediate as i8) as i16;
+                    println!("ip_inc_8: {}", ip_inc_8);
+                    if !state.flags_reg.zero {
+                        println!("state.ip before: {}", state.ip);
+                        let (result, overflowed) = (state.ip as i16).overflowing_add(ip_inc_8);
+                        if overflowed {
+                            println!("Warning: IP register overflowed!: IP: {}", result);
+                        }
+                        state.ip = result as u16;
+                        jumped = true;
+                        println!("state.ip after: {}", state.ip);
+                    }
+                }
+                _ => {
+                    unimplemented!(
+                        "Unimplemented jne variant: `{}`",
+                        inst.text.as_ref().unwrap()
+                    );
+                }
+            }
+        }
         _ => {
             unimplemented!(
                 "Execution of instruction `{}` is unimplemented",
@@ -405,34 +432,38 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         }
     }
 
-    let new_val = new_val.unwrap();
-
     effect.push_str(inst.text.as_ref().unwrap());
     effect.push_str(" ;");
 
-    if modify_flags {
-        // Set parity if even number of ones *in the bottom byte only*
-        // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
-        state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
-        state.flags_reg.zero = new_val == 0;
-        state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
-        state.flags_reg.overflow = new_val_overflowed;
-        state.flags_reg.carry = new_val_carry;
-        state.flags_reg.auxiliary_carry = new_val_aux_carry;
+    match (modify_flags, new_val) {
+        (true, Some(new_val)) => {
+            // Set parity if even number of ones *in the bottom byte only*
+            // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
+            state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
+            state.flags_reg.zero = new_val == 0;
+            state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
+            state.flags_reg.overflow = new_val_overflowed;
+            state.flags_reg.carry = new_val_carry;
+            state.flags_reg.auxiliary_carry = new_val_aux_carry;
+        }
+        // No new val to process
+        _ => {}
     }
 
-    match dest_name {
-        Some(dest_name) => {
+    match (dest_name, new_val) {
+        (Some(dest_name), Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(dest_name, new_val).unwrap_or(0);
             effect.push_str(&format!(" {}:0x{:x}->0x{:x}", dest_name, old_val, new_val));
         }
         // Nothing is stored back into destination
-        None => {}
+        _ => {}
     }
 
-    // Advance the IP
-    advance_ip_reg(inst, state);
+    // Advance the IP only if we haven't jumped already
+    if !jumped {
+        advance_ip_reg(inst, state);
+    }
 
     if !no_ip {
         // Tack on the IP change to the instruction effect string

@@ -695,6 +695,9 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
+        (Some(ExtraBytesType::IpInc8), _) => {
+            inst.immediate_value = Some(get_ip_increment(inst.ip_inc8.as_ref(), None, None) as u16);
+        }
         (None, _) => {}
         _ => println!("Unknown immediate source"),
     };
@@ -1123,6 +1126,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xEB => {
             inst.op_type = Some(OpCodeType::Jmp);
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.immediate_source = Some(ExtraBytesType::IpInc8);
         }
         // call - Direct within segment
         0xE8 => {
@@ -1382,6 +1386,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
             inst.extra_bytes.push(ExtraBytesType::IpInc8);
+            inst.immediate_source = Some(ExtraBytesType::IpInc8);
             match byte {
                 // je/jz
                 0x74 => inst.op_type = Some(OpCodeType::Je),
