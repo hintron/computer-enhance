@@ -119,8 +119,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
     // The destination value
     let new_val;
-    // The final register to store new_val into. If None, throw it away (cmp)
-    let dest_name;
+    // The final register to store new_val into, if any
+    let dest_reg_name;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
     let mut new_val_overflowed = false;
@@ -214,7 +214,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 _ => unreachable!(),
             });
             // CMP does not store the result, but the others do
-            dest_name = if op == OpCodeType::Cmp {
+            dest_reg_name = if op == OpCodeType::Cmp {
                 None
             } else {
                 Some(dest_reg.name)
@@ -227,7 +227,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         }
         jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
-            dest_name = None;
+            dest_reg_name = None;
             jumped = handle_jmp_variants(jump_op, inst, state);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
@@ -235,7 +235,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             // Decrement cx by 1 and jump if cx != 0
             let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
             new_val = Some(cx);
-            dest_name = Some(RegName::Cx);
+            dest_reg_name = Some(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             jumped = (cx != 0) && handle_jmp_variants(jump_op, inst, state);
@@ -267,11 +267,14 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         _ => {}
     }
 
-    match (dest_name, new_val) {
-        (Some(dest_name), Some(new_val)) => {
+    match (dest_reg_name, new_val) {
+        (Some(dest_reg_name), Some(new_val)) => {
             // Store new val in the dest register
-            let old_val = state.reg_file.insert(dest_name, new_val).unwrap_or(0);
-            effect.push_str(&format!(" {}:0x{:x}->0x{:x}", dest_name, old_val, new_val));
+            let old_val = state.reg_file.insert(dest_reg_name, new_val).unwrap_or(0);
+            effect.push_str(&format!(
+                " {}:0x{:x}->0x{:x}",
+                dest_reg_name, old_val, new_val
+            ));
         }
         // Nothing is stored back into destination
         _ => {}
