@@ -409,7 +409,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
                 _ => {
                     unimplemented!(
-                        "Unimplemented jne variant: `{}`",
+                        "Jump variant {jump_op} is missing an immediate: {}",
                         inst.text.as_ref().unwrap()
                     );
                 }
