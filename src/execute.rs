@@ -150,7 +150,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     };
                     (dest_reg, dest_val)
                 }
-                _ => unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap()),
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap())
+                }
             };
 
             // Get the op's source val either from a source reg or an immediate
@@ -173,6 +176,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     source_val_sized
                 }
                 _ => {
+                    println!("inst debug: {:#?}", inst);
                     unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
                 }
             };
@@ -237,6 +241,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             jumped = (cx != 0) && handle_jmp_variants(jump_op, inst, state);
         }
         _ => {
+            println!("inst debug: {:#?}", inst);
             unimplemented!(
                 "Execution of instruction `{}` is unimplemented",
                 inst.text.as_ref().unwrap()
@@ -296,6 +301,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
     let immediate = match inst.immediate_value {
         Some(immediate) => immediate,
         _ => {
+            println!("inst debug: {:#?}", inst);
             unimplemented!(
                 "Jump variant {jump_op} is missing an immediate: {}",
                 inst.text.as_ref().unwrap()
@@ -320,6 +326,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         OpCodeType::Loop => true, // Only cx != 0
         OpCodeType::Jp => state.flags_reg.parity,
         x @ _ => {
+            println!("inst debug: {:#?}", inst);
             unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
         }
     };
