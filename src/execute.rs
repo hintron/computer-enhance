@@ -127,8 +127,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let mut jumped = false;
-    // Loops need to occur after a reg modify. Evaluate later
-    let mut delayed_jump = false;
     let current_ip = state.ip;
 
     match op_type {
@@ -415,15 +413,25 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
             }
         }
-        OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop => {
+        jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
             // Decrement cx by 1 and jump if cx != 0
             let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
-            delayed_jump = cx != 0;
             new_val = Some(cx);
             dest_name = Some(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
+            match inst.immediate_value {
+                Some(immediate) => {
+                    jumped = (cx != 0) && handle_jmp_variants(jump_op, immediate, state);
+                }
+                _ => {
+                    unimplemented!(
+                        "Loop variant {jump_op} is missing an immediate: {}",
+                        inst.text.as_ref().unwrap()
+                    );
+                }
+            }
         }
         _ => {
             unimplemented!(
@@ -459,19 +467,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         }
         // Nothing is stored back into destination
         _ => {}
-    }
-
-    // Take care of delayed jumps here
-    if delayed_jump {
-        jumped = match inst.immediate_value {
-            Some(immediate) => handle_jmp_variants(op_type, immediate, state),
-            None => {
-                unimplemented!(
-                    "delayed jump {op_type} is missing an immediate: {}",
-                    inst.op_type.as_ref().unwrap()
-                )
-            }
-        };
     }
 
     // Advance the IP only if we haven't jumped already
