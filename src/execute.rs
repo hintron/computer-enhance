@@ -133,7 +133,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         // Handle all movs
         OpCodeType::Mov => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
-                // Handle immediate to dest reg movs
+                // Handle immediate to dest reg
                 (Some(dest_reg), _, Some(immediate)) => {
                     let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
@@ -186,7 +186,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         // CF, OF, PF, SF, and ZF.
         op @ (OpCodeType::Sub | OpCodeType::Cmp) => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
-                // Handle immediate to dest reg movs
+                // Handle immediate to dest reg
                 (Some(dest_reg), _, Some(immediate)) => {
                     let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
@@ -263,7 +263,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         // CF, OF, PF, SF, and ZF.
         OpCodeType::Add => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
-                // Handle immediate to dest reg movs
+                // Handle immediate to dest reg
                 (Some(dest_reg), _, Some(immediate)) => {
                     let old_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
