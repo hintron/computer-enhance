@@ -445,7 +445,7 @@ fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
 }
 
 /// Subtract two 16 bit numbers (rhs from lhs) and return the result, whether
-/// there was a signed arithmetic overflow., and whether there was an auxilliary
+/// there was a signed arithmetic overflow, and whether there was an auxilliary
 /// carry.
 fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     let left_sign_bit = lhs & 0x8000;
