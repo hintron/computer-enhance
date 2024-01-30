@@ -696,6 +696,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
             inst.immediate_value = Some(val);
         }
         (Some(ExtraBytesType::IpInc8), _) => {
+            // MGH TODO: Handle ip inc lo and hi as well
             inst.immediate_value = Some(get_ip_increment(inst.ip_inc8.as_ref(), None, None) as u16);
         }
         (None, _) => {}
