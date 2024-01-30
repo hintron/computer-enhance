@@ -463,7 +463,15 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
     // Take care of delayed jumps here
     if delayed_jump {
-        jumped = handle_jmp_variants(op_type, inst.immediate_value.unwrap(), state);
+        jumped = match inst.immediate_value {
+            Some(immediate) => handle_jmp_variants(op_type, immediate, state),
+            None => {
+                unimplemented!(
+                    "delayed jump {op_type} is missing an immediate: {}",
+                    inst.op_type.as_ref().unwrap()
+                )
+            }
+        };
     }
 
     // Advance the IP only if we haven't jumped already
