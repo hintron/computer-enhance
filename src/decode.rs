@@ -498,7 +498,7 @@ pub struct InstType {
     has_disp: bool,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
-    mem_access: Option<bool>,
+    mem_access: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected "extra" byte types to parse after we parse the 1st byte and
@@ -749,7 +749,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         );
 
         // If this is a mem access, use data bytes for the mem access
-        if inst.mem_access.is_some() {
+        if inst.mem_access {
             match inst.add_data_to {
                 Some(AddTo::Source) => {
                     source_text.push_str(&format!("[{}]", data_bytes_text));
@@ -1079,7 +1079,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Mov);
             let w_field = (byte & 0x1) == 1;
             let accumulator = Some(RegType{name: RegName::Ax, width: RegWidth::Word});
-            inst.mem_access = Some(true);
+            inst.mem_access = true;
             match ((byte & 0x2) >> 1) == 1 {
                 false => {
                     inst.dest_reg = accumulator;
