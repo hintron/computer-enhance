@@ -475,13 +475,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, immediate: u16, state: &mut CpuState
     println!("state.ip before: {}", state.ip);
 
     let jump = match jump_op {
-        OpCodeType::Jne => {
-            if !state.flags_reg.zero {
-                true
-            } else {
-                false
-            }
-        }
+        OpCodeType::Jne => !state.flags_reg.zero,
         x @ _ => {
             unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
         }
