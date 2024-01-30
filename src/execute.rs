@@ -181,27 +181,27 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             // bytes of the dest register to replace
             new_val = Some(match (op, dest_reg.width) {
                 (OpCodeType::Mov, RegWidth::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
-                (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
-                (OpCodeType::Mov, RegWidth::Word) => source_val,
+                (OpCodeType::Add, RegWidth::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
                     (dest_val & 0xFF00) - (source_val & 0xFF)
                 }
+                (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
+                (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
                     (dest_val & 0x00FF) - (source_val << 8)
                 }
-                (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
+                (OpCodeType::Mov, RegWidth::Word) => source_val,
+                (OpCodeType::Add, RegWidth::Word) => {
                     let (result, overflowed, carry, aux_carry) =
-                        sub_with_overflow(dest_val, source_val);
+                        add_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                (OpCodeType::Add, RegWidth::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
-                (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
-                (OpCodeType::Add, RegWidth::Word) => {
+                (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
                     let (result, overflowed, carry, aux_carry) =
-                        add_with_overflow(dest_val, source_val);
+                        sub_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
