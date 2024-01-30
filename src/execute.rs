@@ -398,23 +398,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
             }
         }
-        OpCodeType::Jne => {
+        jump_op @ OpCodeType::Jne => {
             new_val = None;
             dest_name = None;
             match inst.immediate_value {
                 Some(immediate) => {
-                    let ip_inc_8 = (immediate as i8) as i16;
-                    println!("ip_inc_8: {}", ip_inc_8);
-                    if !state.flags_reg.zero {
-                        println!("state.ip before: {}", state.ip);
-                        let (result, overflowed) = (state.ip as i16).overflowing_add(ip_inc_8);
-                        if overflowed {
-                            println!("Warning: IP register overflowed!: IP: {}", result);
-                        }
-                        state.ip = result as u16;
-                        jumped = true;
-                        println!("state.ip after: {}", state.ip);
-                    }
+                    jumped = handle_jmp_variants(jump_op, immediate, state);
                 }
                 _ => {
                     unimplemented!(
@@ -476,6 +465,31 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     }
 
     return effect;
+}
+
+/// Handle the logic for the given jump op code. Modify the IP register in the
+/// CPU state. If the jump op jumped, then return true. Otherwise, return false.
+fn handle_jmp_variants(jump_op: OpCodeType, immediate: u16, state: &mut CpuStateType) -> bool {
+    let ip_inc_8 = (immediate as i8) as i16;
+    println!("ip_inc_8: {}", ip_inc_8);
+    println!("state.ip before: {}", state.ip);
+
+    let jump = match jump_op {
+        OpCodeType::Jne => !state.flags_reg.zero,
+        x @ _ => {
+            unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
+        }
+    };
+    // If jump, add the IP increment value to IP and return true
+    if jump {
+        let (result, overflowed) = (state.ip as i16).overflowing_add(ip_inc_8);
+        if overflowed {
+            println!("Warning: IP register overflowed!: IP: {}", result);
+        }
+        state.ip = result as u16;
+        println!("state.ip after: {}", state.ip);
+    }
+    jump
 }
 
 /// Advance the IP by modifying ip in the CPU state object according to the
