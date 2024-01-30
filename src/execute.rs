@@ -271,14 +271,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     };
                     // Figure out what part of the immediate value to put where
                     new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => {
-                            println!("Add byte");
-                            (old_val & 0xFF00) + (immediate & 0xFF)
-                        }
-                        RegWidth::Hi8 => {
-                            println!("Add hi8");
-                            (old_val & 0x00FF) + (immediate << 8)
-                        }
+                        RegWidth::Byte => (old_val & 0xFF00) + (immediate & 0xFF),
+                        RegWidth::Hi8 => (old_val & 0x00FF) + (immediate << 8),
                         RegWidth::Word => {
                             let (result, overflowed, carry, aux_carry) =
                                 add_with_overflow(old_val, immediate);
