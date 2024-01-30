@@ -129,9 +129,17 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut jumped = false;
     let current_ip = state.ip;
 
+    // SUB/CMP: The source operand is subtracted from the destination operand,
+    // and the result replaces the destination operand.
+
+    // ADD: The source operand is added to the destination operand,
+    // and the result replaces the destination operand.
+
+    // SUB/CMP/ADD updates flags AF, CF, OF, PF, SF, and ZF.
+    // MOV does not update any flags.
+
     match op_type {
-        // Handle all movs
-        OpCodeType::Mov => {
+        op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
             match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
                 // Handle immediate to dest reg
                 (Some(dest_reg), _, Some(immediate)) => {
@@ -140,63 +148,19 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         None => 0,
                     };
                     // Figure out what part of the immediate value to put where
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (old_val & 0xFF00) | (immediate & 0xFF),
-                        RegWidth::Hi8 => (old_val & 0x00FF) | (immediate << 8),
-                        RegWidth::Word => immediate,
-                    });
-                    dest_name = Some(dest_reg.name);
-                }
-                // Handle source reg to dest reg
-                (Some(dest_reg), Some(source_reg), _) => {
-                    // Get the value of the source register
-                    let source_val = match state.reg_file.get(&source_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Get the value of the dest register
-                    let dest_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Figure out which bytes to get from the source
-                    let source_val_sized = match source_reg.width {
-                        RegWidth::Byte => source_val & 0xFF,
-                        RegWidth::Hi8 => (source_val & 0xFF00) >> 8,
-                        RegWidth::Word => source_val,
-                    };
-                    // Figure out which bytes to replace in dest
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (dest_val & 0xFF00) | (source_val_sized & 0xFF),
-                        RegWidth::Hi8 => (dest_val & 0xFF) | (source_val_sized << 8),
-                        RegWidth::Word => source_val_sized,
-                    });
-                    dest_name = Some(dest_reg.name);
-                }
-                _ => {
-                    unimplemented!(
-                        "Unimplemented mov variant: `{}`",
-                        inst.text.as_ref().unwrap()
-                    );
-                }
-            }
-        }
-        // The source operand is subtracted from the destination operand, and
-        // the result replaces the destination operand. SUB updates flags AF,
-        // CF, OF, PF, SF, and ZF.
-        op @ (OpCodeType::Sub | OpCodeType::Cmp) => {
-            match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
-                // Handle immediate to dest reg
-                (Some(dest_reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Figure out what part of the immediate value to put where
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (old_val & 0xFF00) - (immediate & 0xFF),
-                        RegWidth::Hi8 => (old_val & 0x00FF) - (immediate << 8),
-                        RegWidth::Word => {
+                    new_val = Some(match (op, dest_reg.width) {
+                        (OpCodeType::Mov, RegWidth::Byte) => {
+                            (old_val & 0xFF00) | (immediate & 0xFF)
+                        }
+                        (OpCodeType::Mov, RegWidth::Hi8) => (old_val & 0x00FF) | (immediate << 8),
+                        (OpCodeType::Mov, RegWidth::Word) => immediate,
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
+                            (old_val & 0xFF00) - (immediate & 0xFF)
+                        }
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
+                            (old_val & 0x00FF) - (immediate << 8)
+                        }
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
                             let (result, overflowed, carry, aux_carry) =
                                 sub_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
@@ -204,76 +168,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                             new_val_aux_carry = aux_carry;
                             result
                         }
-                    });
-                    dest_name = match op {
-                        OpCodeType::Sub => Some(dest_reg.name),
-                        OpCodeType::Cmp => None,
-                        _ => unreachable!(),
-                    };
-                    modify_flags = true;
-                }
-                // Handle source reg to dest reg
-                (Some(dest_reg), Some(source_reg), _) => {
-                    // Get the value of the source register
-                    let source_val = match state.reg_file.get(&source_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Get the value of the dest register
-                    let dest_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Figure out which bytes to get from the source
-                    let source_val_sized = match source_reg.width {
-                        RegWidth::Byte => source_val & 0xFF,
-                        RegWidth::Hi8 => (source_val & 0xFF00) >> 8,
-                        RegWidth::Word => source_val,
-                    };
-                    // Figure out which bytes to replace in dest
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (dest_val & 0xFF00) - (source_val_sized & 0xFF),
-                        RegWidth::Hi8 => (dest_val & 0xFF) - (source_val_sized << 8),
-                        RegWidth::Word => {
-                            let (result, overflowed, carry, aux_carry) =
-                                sub_with_overflow(dest_val, source_val_sized);
-                            new_val_overflowed = overflowed;
-                            new_val_carry = carry;
-                            new_val_aux_carry = aux_carry;
-                            result
+                        (OpCodeType::Add, RegWidth::Byte) => {
+                            (old_val & 0xFF00) + (immediate & 0xFF)
                         }
-                    });
-                    dest_name = match op {
-                        OpCodeType::Sub => Some(dest_reg.name),
-                        OpCodeType::Cmp => None,
-                        _ => unreachable!(),
-                    };
-                    modify_flags = true;
-                }
-                _ => {
-                    unimplemented!(
-                        "Unimplemented {op} variant: `{}`",
-                        inst.text.as_ref().unwrap()
-                    );
-                }
-            }
-        }
-        // The source operand is added to the destination operand, and
-        // the result replaces the destination operand. ADD updates flags AF,
-        // CF, OF, PF, SF, and ZF.
-        OpCodeType::Add => {
-            match (inst.dest_reg, inst.source_reg, inst.immediate_value) {
-                // Handle immediate to dest reg
-                (Some(dest_reg), _, Some(immediate)) => {
-                    let old_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    // Figure out what part of the immediate value to put where
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (old_val & 0xFF00) + (immediate & 0xFF),
-                        RegWidth::Hi8 => (old_val & 0x00FF) + (immediate << 8),
-                        RegWidth::Word => {
+                        (OpCodeType::Add, RegWidth::Hi8) => (old_val & 0x00FF) + (immediate << 8),
+                        (OpCodeType::Add, RegWidth::Word) => {
                             let (result, overflowed, carry, aux_carry) =
                                 add_with_overflow(old_val, immediate);
                             new_val_overflowed = overflowed;
@@ -281,9 +180,16 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                             new_val_aux_carry = aux_carry;
                             result
                         }
+                        _ => unreachable!(),
                     });
-                    dest_name = Some(dest_reg.name);
-                    modify_flags = true;
+                    dest_name = match op {
+                        OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Add => Some(dest_reg.name),
+                        OpCodeType::Cmp => None,
+                        _ => unreachable!(),
+                    };
+                    if op != OpCodeType::Mov {
+                        modify_flags = true;
+                    }
                 }
                 // Handle source reg to dest reg
                 (Some(dest_reg), Some(source_reg), _) => {
@@ -304,10 +210,35 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         RegWidth::Word => source_val,
                     };
                     // Figure out which bytes to replace in dest
-                    new_val = Some(match dest_reg.width {
-                        RegWidth::Byte => (dest_val & 0xFF00) + (source_val_sized & 0xFF),
-                        RegWidth::Hi8 => (dest_val & 0xFF) + (source_val_sized << 8),
-                        RegWidth::Word => {
+                    new_val = Some(match (op, dest_reg.width) {
+                        (OpCodeType::Mov, RegWidth::Byte) => {
+                            (dest_val & 0xFF00) | (source_val_sized & 0xFF)
+                        }
+                        (OpCodeType::Mov, RegWidth::Hi8) => {
+                            (dest_val & 0xFF) | (source_val_sized << 8)
+                        }
+                        (OpCodeType::Mov, RegWidth::Word) => source_val_sized,
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
+                            (dest_val & 0xFF00) - (source_val_sized & 0xFF)
+                        }
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
+                            (dest_val & 0xFF) - (source_val_sized << 8)
+                        }
+                        (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
+                            let (result, overflowed, carry, aux_carry) =
+                                sub_with_overflow(dest_val, source_val_sized);
+                            new_val_overflowed = overflowed;
+                            new_val_carry = carry;
+                            new_val_aux_carry = aux_carry;
+                            result
+                        }
+                        (OpCodeType::Add, RegWidth::Byte) => {
+                            (dest_val & 0xFF00) + (source_val_sized & 0xFF)
+                        }
+                        (OpCodeType::Add, RegWidth::Hi8) => {
+                            (dest_val & 0xFF) + (source_val_sized << 8)
+                        }
+                        (OpCodeType::Add, RegWidth::Word) => {
                             let (result, overflowed, carry, aux_carry) =
                                 add_with_overflow(dest_val, source_val_sized);
                             new_val_overflowed = overflowed;
@@ -315,13 +246,24 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                             new_val_aux_carry = aux_carry;
                             result
                         }
+                        _ => unimplemented!(),
                     });
-                    dest_name = Some(dest_reg.name);
-                    modify_flags = true;
+
+                    // CMP does not store the result, but the others do
+                    dest_name = if op == OpCodeType::Cmp {
+                        None
+                    } else {
+                        Some(dest_reg.name)
+                    };
+
+                    // MOV does not modify flags, but the others do
+                    if op != OpCodeType::Mov {
+                        modify_flags = true;
+                    }
                 }
                 _ => {
                     unimplemented!(
-                        "Unimplemented add variant: `{}`",
+                        "Unimplemented {op} variant: `{}`",
                         inst.text.as_ref().unwrap()
                     );
                 }
