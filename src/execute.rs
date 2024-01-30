@@ -127,6 +127,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let mut jumped = false;
+    // Loops need to occur after a reg modify. Evaluate later
+    let mut delayed_jump = false;
     let current_ip = state.ip;
 
     match op_type {
@@ -398,7 +400,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
             }
         }
-        jump_op @ OpCodeType::Jne => {
+        jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
             dest_name = None;
             match inst.immediate_value {
@@ -412,6 +414,16 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     );
                 }
             }
+        }
+        OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop => {
+            // pg 2-45 - 2-46
+            // Decrement cx by 1 and jump if cx != 0
+            let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
+            delayed_jump = cx != 0;
+            new_val = Some(cx);
+            dest_name = Some(RegName::Cx);
+            println!("loop: cx is now {cx}");
+            // NOTE: We do NOT modify flags when modifying cs in loops
         }
         _ => {
             unimplemented!(
@@ -449,6 +461,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         _ => {}
     }
 
+    // Take care of delayed jumps here
+    if delayed_jump {
+        jumped = handle_jmp_variants(op_type, inst.immediate_value.unwrap(), state);
+    }
+
     // Advance the IP only if we haven't jumped already
     if !jumped {
         advance_ip_reg(inst, state);
@@ -474,8 +491,18 @@ fn handle_jmp_variants(jump_op: OpCodeType, immediate: u16, state: &mut CpuState
     println!("ip_inc_8: {}", ip_inc_8);
     println!("state.ip before: {}", state.ip);
 
+    // See table 2-15 on pg. 2-46 of the 8086 documentation
     let jump = match jump_op {
         OpCodeType::Jne => !state.flags_reg.zero,
+        // je/jz - jump equal/zero
+        OpCodeType::Je => state.flags_reg.zero,
+        // jb/jnae - jump below/not above or equal
+        OpCodeType::Jb => state.flags_reg.carry,
+        // NOTE: For loops, cx was already checked to be != 0
+        OpCodeType::Loopnz => !state.flags_reg.zero,
+        OpCodeType::Loopz => state.flags_reg.zero,
+        OpCodeType::Loop => true, // Only cx != 0
+        OpCodeType::Jp => state.flags_reg.parity,
         x @ _ => {
             unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
         }
@@ -487,8 +514,8 @@ fn handle_jmp_variants(jump_op: OpCodeType, immediate: u16, state: &mut CpuState
             println!("Warning: IP register overflowed!: IP: {}", result);
         }
         state.ip = result as u16;
-        println!("state.ip after: {}", state.ip);
     }
+    println!("state.ip after: {}", state.ip);
     jump
 }
 
