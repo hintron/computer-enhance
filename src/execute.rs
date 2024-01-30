@@ -401,17 +401,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
             dest_name = None;
-            match inst.immediate_value {
-                Some(immediate) => {
-                    jumped = handle_jmp_variants(jump_op, immediate, state);
-                }
-                _ => {
-                    unimplemented!(
-                        "Jump variant {jump_op} is missing an immediate: {}",
-                        inst.text.as_ref().unwrap()
-                    );
-                }
-            }
+            jumped = handle_jmp_variants(jump_op, inst, state);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -421,17 +411,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             dest_name = Some(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
-            match inst.immediate_value {
-                Some(immediate) => {
-                    jumped = (cx != 0) && handle_jmp_variants(jump_op, immediate, state);
-                }
-                _ => {
-                    unimplemented!(
-                        "Loop variant {jump_op} is missing an immediate: {}",
-                        inst.text.as_ref().unwrap()
-                    );
-                }
-            }
+            jumped = (cx != 0) && handle_jmp_variants(jump_op, inst, state);
         }
         _ => {
             unimplemented!(
@@ -489,7 +469,17 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
 /// Handle the logic for the given jump op code. Modify the IP register in the
 /// CPU state. If the jump op jumped, then return true. Otherwise, return false.
-fn handle_jmp_variants(jump_op: OpCodeType, immediate: u16, state: &mut CpuStateType) -> bool {
+fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStateType) -> bool {
+    let immediate = match inst.immediate_value {
+        Some(immediate) => immediate,
+        _ => {
+            unimplemented!(
+                "Jump variant {jump_op} is missing an immediate: {}",
+                inst.text.as_ref().unwrap()
+            );
+        }
+    };
+
     let ip_inc_8 = (immediate as i8) as i16;
     println!("ip_inc_8: {}", ip_inc_8);
     println!("state.ip before: {}", state.ip);
