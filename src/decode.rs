@@ -98,11 +98,11 @@ enum ModRmByteType {
     ModSrRm,
 }
 
-/// An enum representing the possible types of "extra" bytes containing data
-/// that come after the first byte and the mod r/m byte. Extra bytes include
-/// displacement bytes and "data" bytes for immediate values.
+/// The possible types of immediate bytes that can be included in an instruction
+/// other than the first byte and the mod r/m byte. Immediate bytes include
+/// displacement and data bytes used to construct immediate values.
 #[derive(Copy, Clone, Debug)]
-enum ExtraBytesType {
+enum ImmBytesType {
     /// An 8-bit unsigned value.
     Data8,
     /// An 8-bit signed value, optionally extended by DataHi
@@ -471,7 +471,7 @@ pub struct InstType {
     /// If true, then the first byte was a REP and there is a second string
     /// manipulation byte to follow.
     has_string_byte: Option<bool>,
-    /// The actual data for the extra bytes
+    /// The actual data for the immediate bytes
     data_8: Option<u8>,
     data_lo: Option<u8>,
     data_hi: Option<u8>,
@@ -484,26 +484,26 @@ pub struct InstType {
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
     add_data_to: Option<AddTo>,
-    /// This indicates that there is an immediate value contained in extra
-    /// bytes, and which extra byte(s) to use. E.g. if data_hi is specified, use
+    /// This indicates that there is an immediate value contained in immediate
+    /// bytes, and which bytes to use. E.g. if data_hi is specified, use
     /// both data_lo and data_hi. If data_lo is specified, only use data_lo.
-    immediate_source: Option<ExtraBytesType>,
+    immediate_source: Option<ImmBytesType>,
     /// The actual value of the immediate. It's stored as a u16, even if it's
     /// only a u8.
     pub immediate_value: Option<u16>,
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
-    /// If true, then there are displacement bytes in extra_bytes.
+    /// If true, then there are displacement bytes in immediate_bytes.
     has_disp: bool,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
     mem_access: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
-    /// The expected "extra" byte types to parse after we parse the 1st byte and
-    /// the mod/rm byte (if it exists).
-    extra_bytes: Vec<ExtraBytesType>,
+    /// The expected immediate byte types to parse after we parse the 1st byte
+    /// and the mod/rm byte (if it exists).
+    immediate_bytes: Vec<ImmBytesType>,
     /// The source register, if the source is a register
     pub source_reg: Option<RegType>,
     source_prefix: Option<&'static str>,
@@ -655,8 +655,8 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         decode_mod_rm_byte(*byte, &mut inst);
     }
 
-    // Get extra bytes and store in inst
-    for byte_type in &inst.extra_bytes {
+    // Get immediate bytes and store in inst
+    for byte_type in &inst.immediate_bytes {
         if iter.peek().is_none() {
             println!("Unexpected end of instruction stream");
             return None;
@@ -669,33 +669,33 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         inst.processed_bytes.push(*byte);
 
         match byte_type {
-            ExtraBytesType::DispLo => inst.disp_lo = Some(*byte),
-            ExtraBytesType::DispHi => inst.disp_hi = Some(*byte),
-            ExtraBytesType::DataLo => inst.data_lo = Some(*byte),
-            ExtraBytesType::Data8 => inst.data_8 = Some(*byte),
-            ExtraBytesType::DataHi => inst.data_hi = Some(*byte),
-            ExtraBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
-            ExtraBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
-            ExtraBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
-            ExtraBytesType::DoNotCare => {}
+            ImmBytesType::DispLo => inst.disp_lo = Some(*byte),
+            ImmBytesType::DispHi => inst.disp_hi = Some(*byte),
+            ImmBytesType::DataLo => inst.data_lo = Some(*byte),
+            ImmBytesType::Data8 => inst.data_8 = Some(*byte),
+            ImmBytesType::DataHi => inst.data_hi = Some(*byte),
+            ImmBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
+            ImmBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
+            ImmBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
+            ImmBytesType::DoNotCare => {}
         }
     }
 
     // Get the actual value of any immediates, for use in simulation
     match (inst.immediate_source, inst.sign_extend_data_lo) {
-        (Some(ExtraBytesType::DataHi), _) => {
+        (Some(ImmBytesType::DataHi), _) => {
             let val = inst.data_lo.unwrap() as u16 | ((inst.data_hi.unwrap() as u16) << 8);
             inst.immediate_value = Some(val);
         }
-        (Some(ExtraBytesType::DataLo), true) => {
+        (Some(ImmBytesType::DataLo), true) => {
             let val = inst.data_lo.unwrap();
             inst.immediate_value = Some(sign_extend_byte(val) as u16);
         }
-        (Some(ExtraBytesType::DataLo), false) => {
+        (Some(ImmBytesType::DataLo), false) => {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
         }
-        (Some(ExtraBytesType::IpInc8), _) => {
+        (Some(ImmBytesType::IpInc8), _) => {
             // MGH TODO: Handle ip inc lo and hi as well
             inst.immediate_value = Some(get_ip_increment(inst.ip_inc8.as_ref(), None, None) as u16);
         }
@@ -892,10 +892,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Add);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -913,10 +913,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Adc);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -951,13 +951,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xD4 => {
             inst.op_type = Some(OpCodeType::Aam);
             // The second byte doesn't add anything. Ignore it for now.
-            inst.extra_bytes.push(ExtraBytesType::DoNotCare)
+            inst.immediate_bytes.push(ImmBytesType::DoNotCare)
         }
         // aad - ASCII adjust for divide
         0xD5 => {
             inst.op_type = Some(OpCodeType::Aad);
             // The second byte doesn't add anything. Ignore it for now.
-            inst.extra_bytes.push(ExtraBytesType::DoNotCare)
+            inst.immediate_bytes.push(ImmBytesType::DoNotCare)
         }
         // cbw - Convert byte to word
         0x98 => {
@@ -985,10 +985,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::And);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1006,10 +1006,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Or);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1027,10 +1027,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Xor);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1065,13 +1065,13 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // Indicate that there are source data bytes after this byte
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             match inst.w_field {
                 Some(true) => {
-                    inst.extra_bytes.push(ExtraBytesType::DataHi);
-                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                    inst.immediate_bytes.push(ImmBytesType::DataHi);
+                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 },
-                _ => inst.immediate_source = Some(ExtraBytesType::DataLo),
+                _ => inst.immediate_source = Some(ImmBytesType::DataLo),
             }
         }
         // mov - Memory to accumulator or accumulator to memory
@@ -1090,12 +1090,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                     inst.add_data_to = Some(AddTo::Dest);
                 }
             };
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
-                inst.immediate_source = Some(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
+                inst.immediate_source = Some(ImmBytesType::DataHi);
             } else {
-                inst.immediate_source = Some(ExtraBytesType::DataLo);
+                inst.immediate_source = Some(ImmBytesType::DataLo);
             }
             inst.w_field = Some(w_field);
         }
@@ -1120,20 +1120,20 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // jmp - Direct within segment
         0xE9 => {
             inst.op_type = Some(OpCodeType::Jmp);
-            inst.extra_bytes.push(ExtraBytesType::IpIncLo);
-            inst.extra_bytes.push(ExtraBytesType::IpIncHi);
+            inst.immediate_bytes.push(ImmBytesType::IpIncLo);
+            inst.immediate_bytes.push(ImmBytesType::IpIncHi);
         }
         // jmp - Direct within segment-short
         0xEB => {
             inst.op_type = Some(OpCodeType::Jmp);
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.immediate_source = Some(ExtraBytesType::IpInc8);
+            inst.immediate_bytes.push(ImmBytesType::IpInc8);
+            inst.immediate_source = Some(ImmBytesType::IpInc8);
         }
         // call - Direct within segment
         0xE8 => {
             inst.op_type = Some(OpCodeType::Call);
-            inst.extra_bytes.push(ExtraBytesType::IpIncLo);
-            inst.extra_bytes.push(ExtraBytesType::IpIncHi);
+            inst.immediate_bytes.push(ImmBytesType::IpIncLo);
+            inst.immediate_bytes.push(ImmBytesType::IpIncHi);
         }
         // ret - Within segment
         0xC3 => {
@@ -1142,8 +1142,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // ret - Within segment adding immediate to SP
         0xC2 => {
             inst.op_type = Some(OpCodeType::Ret);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
-            inst.extra_bytes.push(ExtraBytesType::DataHi);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
         }
         // retf - Intersegment ret
@@ -1153,8 +1153,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // retf - Intersegment ret adding immediate to SP
         0xCA => {
             inst.op_type = Some(OpCodeType::Retf);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
-            inst.extra_bytes.push(ExtraBytesType::DataHi);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
         }
         // push - Register
@@ -1217,7 +1217,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
-            inst.extra_bytes.push(ExtraBytesType::Data8);
+            inst.immediate_bytes.push(ImmBytesType::Data8);
             inst.add_data_to = Some(AddTo::Source);
             inst.w_field = Some(w_field);
         }
@@ -1242,7 +1242,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.source_reg = Some(RegType { name: RegName::Ax, width:RegWidth::Byte });
             }
-            inst.extra_bytes.push(ExtraBytesType::Data8);
+            inst.immediate_bytes.push(ImmBytesType::Data8);
             inst.add_data_to = Some(AddTo::Dest);
             inst.w_field = Some(w_field);
         }
@@ -1320,10 +1320,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Sub);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1341,10 +1341,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Sbb);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1376,18 +1376,18 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Cmp);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
             inst.w_field = Some(w_field);
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
-            inst.extra_bytes.push(ExtraBytesType::IpInc8);
-            inst.immediate_source = Some(ExtraBytesType::IpInc8);
+            inst.immediate_bytes.push(ImmBytesType::IpInc8);
+            inst.immediate_source = Some(ImmBytesType::IpInc8);
             match byte {
                 // je/jz
                 0x74 => inst.op_type = Some(OpCodeType::Je),
@@ -1442,10 +1442,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Test);
             let w_field = (byte & 0x1) == 1;
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
-                inst.extra_bytes.push(ExtraBytesType::DataHi);
+                inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
             }
@@ -1455,7 +1455,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xCD => {
             inst.op_type = Some(OpCodeType::Int);
             inst.add_data_to = Some(AddTo::Source);
-            inst.extra_bytes.push(ExtraBytesType::Data8);
+            inst.immediate_bytes.push(ImmBytesType::Data8);
         }
         // int - Type 3
         0xCC => {
@@ -1562,17 +1562,17 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Displacement bytes come before immediate/data bytes
     match (mode, rm_field) {
         (ModType::MemoryMode8, _) => {
-            inst.extra_bytes.push(ExtraBytesType::DispLo);
+            inst.immediate_bytes.push(ImmBytesType::DispLo);
             inst.has_disp = true;
         }
         (ModType::MemoryMode16, _) => {
-            inst.extra_bytes.push(ExtraBytesType::DispLo);
-            inst.extra_bytes.push(ExtraBytesType::DispHi);
+            inst.immediate_bytes.push(ImmBytesType::DispLo);
+            inst.immediate_bytes.push(ImmBytesType::DispHi);
             inst.has_disp = true;
         }
         (ModType::MemoryMode0, DIRECT_ADDR) => {
-            inst.extra_bytes.push(ExtraBytesType::DispLo);
-            inst.extra_bytes.push(ExtraBytesType::DispHi);
+            inst.immediate_bytes.push(ImmBytesType::DispLo);
+            inst.immediate_bytes.push(ImmBytesType::DispHi);
             inst.disp_direct_address = true;
         }
         _ => {}
@@ -1613,13 +1613,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             // a register source/dest to indicate size
         }
         Some(ModRmByteType::ModMovRm) => {
-            inst.extra_bytes.push(ExtraBytesType::DataLo);
+            inst.immediate_bytes.push(ImmBytesType::DataLo);
             match inst.w_field {
                 Some(true) => {
-                    inst.extra_bytes.push(ExtraBytesType::DataHi);
-                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                    inst.immediate_bytes.push(ImmBytesType::DataHi);
+                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 }
-                _ => inst.immediate_source = Some(ExtraBytesType::DataLo),
+                _ => inst.immediate_source = Some(ImmBytesType::DataLo),
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
@@ -1638,20 +1638,20 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                     panic!("This ModImmedRm inst is missing the w field!")
                 }
                 (Some(false), _) => {
-                    inst.extra_bytes.push(ExtraBytesType::DataLo);
-                    inst.immediate_source = Some(ExtraBytesType::DataLo);
+                    inst.immediate_bytes.push(ImmBytesType::DataLo);
+                    inst.immediate_source = Some(ImmBytesType::DataLo);
                 }
                 (Some(true), Some(true)) => {
-                    inst.extra_bytes.push(ExtraBytesType::DataLo);
+                    inst.immediate_bytes.push(ImmBytesType::DataLo);
                     inst.sign_extend_data_lo = true;
                     // The sign_extend_data_lo will sign extend DataLo as a
                     // 16-bit value
-                    inst.immediate_source = Some(ExtraBytesType::DataLo);
+                    inst.immediate_source = Some(ImmBytesType::DataLo);
                 }
                 (Some(true), None | Some(false)) => {
-                    inst.extra_bytes.push(ExtraBytesType::DataLo);
-                    inst.extra_bytes.push(ExtraBytesType::DataHi);
-                    inst.immediate_source = Some(ExtraBytesType::DataHi);
+                    inst.immediate_bytes.push(ImmBytesType::DataLo);
+                    inst.immediate_bytes.push(ImmBytesType::DataHi);
+                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 }
             }
             inst.add_data_to = Some(AddTo::Source);
@@ -1688,9 +1688,9 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
             if is_test_inst {
                 inst.add_data_to = Some(AddTo::Source);
-                inst.extra_bytes.push(ExtraBytesType::DataLo);
+                inst.immediate_bytes.push(ImmBytesType::DataLo);
                 match inst.w_field {
-                    Some(true) => inst.extra_bytes.push(ExtraBytesType::DataHi),
+                    Some(true) => inst.immediate_bytes.push(ImmBytesType::DataHi),
                     _ => {}
                 }
             }
