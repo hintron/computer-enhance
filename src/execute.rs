@@ -126,8 +126,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_overflowed = false;
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
-    let mut jumped = false;
     let current_ip = state.ip;
+
+    // "While an instruction is executing, IP refers to the next instruction."
+    // BYU RTOS Website, 8086InstructionSet.html
+    // So, always advance the IP before executing each instruction so that it
+    // points to the next instruction.
+    advance_ip_reg(inst, state);
 
     // SUB/CMP: The source operand is subtracted from the destination operand,
     // and the result replaces the destination operand.
@@ -228,7 +233,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
             dest_reg_name = None;
-            jumped = handle_jmp_variants(jump_op, inst, state);
+            handle_jmp_variants(jump_op, inst, state);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -238,7 +243,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             dest_reg_name = Some(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
-            jumped = (cx != 0) && handle_jmp_variants(jump_op, inst, state);
+            if cx != 0 {
+                handle_jmp_variants(jump_op, inst, state);
+            }
         }
         _ => {
             println!("inst debug: {:#?}", inst);
@@ -278,11 +285,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         }
         // Nothing is stored back into destination
         _ => {}
-    }
-
-    // Advance the IP only if we haven't jumped already
-    if !jumped {
-        advance_ip_reg(inst, state);
     }
 
     if !no_ip {

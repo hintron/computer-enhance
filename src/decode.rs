@@ -783,6 +783,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
+            inst.processed_bytes.len(),
         ));
     }
 
@@ -1805,34 +1806,35 @@ fn process_data_bytes(
 }
 
 /// Take in IP offset bytes and return the IP increment value as an i16.
-///
-/// The tricky part is that we can't recreate label text - but all labels are
-/// just translated into relative offsets to the IP. So we use `$` in NASM to
-/// encode this relative offset. $ refers to the IP of the current assembly
-/// line. However, while executing an instruction, the IP always refers to the
-/// next instruction. Thus, $ == IP - 2. So when a jump instruction does IP =
-/// IP + X, that is really IP = ($ + 2) + X, which is why we add 2 to ip_inc8
-/// below.
 fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lo: Option<&u8>, ip_inc_hi: Option<&u8>) -> i16 {
     match (ip_inc8, ip_inc_lo, ip_inc_hi) {
-        (Some(ip_inc8), _, _) => (*ip_inc8 as i8 + 2) as i16,
+        (Some(ip_inc8), _, _) => (*ip_inc8 as i8) as i16,
         (None, Some(lo), Some(hi)) => {
             // Combine lo and hi
             let ip_inc = ((*hi as i16) << 8) | (*lo as i16);
-            // Add 3 to ip, since a hi:lo jmp inst has 3 total bytes
-            ip_inc + 3
+            ip_inc
         }
         _ => unreachable!(),
     }
 }
 
-/// Take in IP offset bytes and return the IP increment value as a string
+/// Take in IP offset bytes and instruction length and return the IP increment
+/// value as a string.
+///
+/// The tricky part is that we can't recreate label text - but all labels are
+/// just translated into relative offsets to the IP. So we use `$` in NASM to
+/// encode this relative offset. $ refers to the IP of the current assembly
+/// line. However, while executing an instruction, the IP always refers to the
+/// next instruction. Thus, $ == IP - len. So when a jump instruction does IP =
+/// IP + X, that is really IP = ($ + len) + X, which is why we add len.
 fn get_ip_increment_str(
     ip_inc8: Option<&u8>,
     ip_inc_lo: Option<&u8>,
     ip_inc_hi: Option<&u8>,
+    len: usize,
 ) -> String {
-    let ip_inc = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi);
+    let mut ip_inc = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi);
+    ip_inc += len as i16;
     format!("${:+}", ip_inc)
 }
 
