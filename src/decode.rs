@@ -684,9 +684,24 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         }
     }
 
-    // Now that we have all the data decoded, figure out what info we want to
-    // pass to the execute side
+    // Now that we have all the data decoded, massage and set any additional
+    // info that we want to pass to the execution side.
+    calculate_execution_values(&mut inst);
 
+    let inst_test = build_inst_string(&inst);
+
+    // Print out instruction to log, for debug
+    if debug {
+        println!("inst: {inst_test}");
+    }
+
+    inst.text = Some(inst_test);
+
+    return Some(inst);
+}
+
+/// Set additional public info in the instruction to pass to the execution side.
+fn calculate_execution_values(inst: &mut InstType) {
     // Calculate any jump displacement value
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
         inst.jmp_value = Some(get_ip_increment(
@@ -713,17 +728,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         (None, _) => {}
         _ => println!("Unknown immediate source"),
     };
-
-    let inst_test = build_inst_string(&inst);
-
-    // Print out instruction to log, for debug
-    if debug {
-        println!("inst: {inst_test}");
-    }
-
-    inst.text = Some(inst_test);
-
-    return Some(inst);
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (String, String) {
