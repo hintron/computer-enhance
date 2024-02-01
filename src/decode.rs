@@ -1819,9 +1819,7 @@ fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lo: Option<&u8>, ip_inc_hi: Opt
         (None, Some(lo), Some(hi)) => {
             // Combine lo and hi
             let ip_inc = ((*hi as i16) << 8) | (*lo as i16);
-            // TODO: I'm not sure why we need to add three , not two. I think it
-            // has to do with the fact that there was a no op byte for
-            // alignment.
+            // Add 3 to ip, since a hi:lo jmp inst has 3 total bytes
             ip_inc + 3
         }
         _ => unreachable!(),
