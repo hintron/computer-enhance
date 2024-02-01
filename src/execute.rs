@@ -301,18 +301,18 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 /// Handle the logic for the given jump op code. Modify the IP register in the
 /// CPU state. If the jump op jumped, then return true. Otherwise, return false.
 fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStateType) -> bool {
-    let immediate = match inst.immediate_value {
-        Some(immediate) => immediate,
+    let jmp_value = match inst.jmp_value {
+        Some(jmp_value) => jmp_value,
         _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!(
-                "Jump variant {jump_op} is missing an immediate: {}",
+                "Jump variant {jump_op} is missing a jmp_value: {}",
                 inst.text.as_ref().unwrap()
             );
         }
     };
 
-    let ip_inc_8 = (immediate as i8) as i16;
+    let ip_inc_8 = (jmp_value as i8) as i16;
     println!("ip_inc_8: {}", ip_inc_8);
     println!("state.ip before: {}", state.ip);
 

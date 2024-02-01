@@ -491,6 +491,9 @@ pub struct InstType {
     /// The actual value of the immediate. It's stored as a u16, even if it's
     /// only a u8.
     pub immediate_value: Option<u16>,
+    /// The jump displacement that will be passed to the execution side. Derived
+    /// from IP inc 8 or IP inc hi + lo
+    pub jmp_value: Option<i16>,
     /// If true, then the displacement is a direct address instead of added to
     /// any
     disp_direct_address: bool,
@@ -681,6 +684,18 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         }
     }
 
+    // Now that we have all the data decoded, figure out what info we want to
+    // pass to the execute side
+
+    // Calculate any jump displacement value
+    if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
+        inst.jmp_value = Some(get_ip_increment(
+            inst.ip_inc8.as_ref(),
+            inst.ip_inc_lo.as_ref(),
+            inst.ip_inc_hi.as_ref(),
+        ));
+    }
+
     // Get the actual value of any immediates, for use in simulation
     match (inst.immediate_source, inst.sign_extend_data_lo) {
         (Some(ImmBytesType::DataHi), _) => {
@@ -694,10 +709,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         (Some(ImmBytesType::DataLo), false) => {
             let val = inst.data_lo.unwrap() as u16;
             inst.immediate_value = Some(val);
-        }
-        (Some(ImmBytesType::IpInc8), _) => {
-            // MGH TODO: Handle ip inc lo and hi as well
-            inst.immediate_value = Some(get_ip_increment(inst.ip_inc8.as_ref(), None, None) as u16);
         }
         (None, _) => {}
         _ => println!("Unknown immediate source"),
@@ -1127,7 +1138,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xEB => {
             inst.op_type = Some(OpCodeType::Jmp);
             inst.immediate_bytes.push(ImmBytesType::IpInc8);
-            inst.immediate_source = Some(ImmBytesType::IpInc8);
         }
         // call - Direct within segment
         0xE8 => {
@@ -1387,7 +1397,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
             inst.immediate_bytes.push(ImmBytesType::IpInc8);
-            inst.immediate_source = Some(ImmBytesType::IpInc8);
             match byte {
                 // je/jz
                 0x74 => inst.op_type = Some(OpCodeType::Je),
