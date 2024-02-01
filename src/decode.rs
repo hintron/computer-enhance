@@ -484,13 +484,9 @@ pub struct InstType {
     add_disp_to: Option<AddTo>,
     /// If set, we expect to add data bytes to what AddTo specifies
     add_data_to: Option<AddTo>,
-    /// This indicates that there is an immediate value contained in immediate
-    /// bytes, and which bytes to use. E.g. if data_hi is specified, use
-    /// both data_lo and data_hi. If data_lo is specified, only use data_lo.
-    immediate_source: Option<ImmBytesType>,
-    /// The actual value of the immediate. It's stored as a u16, even if it's
-    /// only a u8.
-    pub immediate_value: Option<u16>,
+    /// The actual value of the data immediate bytes (either data_8 or data_hi +
+    /// data_lo). It's stored as a u16, even if it's only a u8.
+    pub data_value: Option<u16>,
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
@@ -711,23 +707,15 @@ fn calculate_execution_values(inst: &mut InstType) {
         ));
     }
 
-    // Get the actual value of any immediates, for use in simulation
-    match (inst.immediate_source, inst.sign_extend_data_lo) {
-        (Some(ImmBytesType::DataHi), _) => {
-            let val = inst.data_lo.unwrap() as u16 | ((inst.data_hi.unwrap() as u16) << 8);
-            inst.immediate_value = Some(val);
-        }
-        (Some(ImmBytesType::DataLo), true) => {
-            let val = inst.data_lo.unwrap();
-            inst.immediate_value = Some(sign_extend_byte(val) as u16);
-        }
-        (Some(ImmBytesType::DataLo), false) => {
-            let val = inst.data_lo.unwrap() as u16;
-            inst.immediate_value = Some(val);
-        }
-        (None, _) => {}
-        _ => println!("Unknown immediate source"),
-    };
+    // Get the actual u16 value of the data immediate bytes
+    if inst.add_data_to.is_some() {
+        inst.data_value = Some(get_data_value(
+            inst.data_lo.as_ref(),
+            inst.data_hi.as_ref(),
+            inst.data_8.as_ref(),
+            inst.sign_extend_data_lo,
+        ));
+    }
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (String, String) {
@@ -1085,9 +1073,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             match inst.w_field {
                 Some(true) => {
                     inst.immediate_bytes.push(ImmBytesType::DataHi);
-                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 },
-                _ => inst.immediate_source = Some(ImmBytesType::DataLo),
+                _ => {},
             }
         }
         // mov - Memory to accumulator or accumulator to memory
@@ -1109,9 +1096,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
-                inst.immediate_source = Some(ImmBytesType::DataHi);
-            } else {
-                inst.immediate_source = Some(ImmBytesType::DataLo);
             }
             inst.w_field = Some(w_field);
         }
@@ -1631,9 +1615,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match inst.w_field {
                 Some(true) => {
                     inst.immediate_bytes.push(ImmBytesType::DataHi);
-                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 }
-                _ => inst.immediate_source = Some(ImmBytesType::DataLo),
+                _ => {}
             }
             inst.add_data_to = Some(AddTo::Source);
             // source_text will be filled in later
@@ -1653,19 +1636,16 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
                 (Some(false), _) => {
                     inst.immediate_bytes.push(ImmBytesType::DataLo);
-                    inst.immediate_source = Some(ImmBytesType::DataLo);
                 }
                 (Some(true), Some(true)) => {
                     inst.immediate_bytes.push(ImmBytesType::DataLo);
                     inst.sign_extend_data_lo = true;
                     // The sign_extend_data_lo will sign extend DataLo as a
                     // 16-bit value
-                    inst.immediate_source = Some(ImmBytesType::DataLo);
                 }
                 (Some(true), None | Some(false)) => {
                     inst.immediate_bytes.push(ImmBytesType::DataLo);
                     inst.immediate_bytes.push(ImmBytesType::DataHi);
-                    inst.immediate_source = Some(ImmBytesType::DataHi);
                 }
             }
             inst.add_data_to = Some(AddTo::Source);
@@ -1784,6 +1764,24 @@ fn mod_rm_disp_str(
     }
 }
 
+fn get_data_value(
+    data_lo: Option<&u8>,
+    data_hi: Option<&u8>,
+    data_8: Option<&u8>,
+    sign_extend_data_lo: bool,
+) -> u16 {
+    match (data_lo, data_hi, data_8, sign_extend_data_lo) {
+        (Some(lo), None, None, false) => *lo as u16,
+        (Some(lo), None, None, true) => sign_extend_byte(*lo) as u16,
+        (Some(lo), Some(hi), None, _) => *lo as u16 | ((*hi as u16) << 8),
+        (None, None, Some(data8), _) => *data8 as u16,
+        (None, _, _, true) => unreachable!("ERROR: sign_extend_data_lo set when no data_lo"),
+        (None, None, None, _) => unreachable!("ERROR: No data bytes found"),
+        (None, Some(_), _, _) => unreachable!("ERROR: Low data byte not set"),
+        _ => panic!("Unhandled case in process_data_bytes()"),
+    }
+}
+
 /// Process the data (immediate) bytes by applying it to the needed fields in
 /// the instruction struct
 fn process_data_bytes(
@@ -1792,14 +1790,13 @@ fn process_data_bytes(
     data_8: Option<&u8>,
     sign_extend_data_lo: bool,
 ) -> String {
-    // TODO: Use inst.immediate_value instead, so we only have to bit
-    // fiddle with this in one place?
+    let data_value = get_data_value(data_lo, data_hi, data_8, sign_extend_data_lo);
+    // The value is formatted differently depending on what data bytes were set
     match (data_lo, data_hi, data_8, sign_extend_data_lo) {
-        (Some(lo), None, None, false) => format!("{}", *lo as i8),
-        (Some(lo), None, None, true) => format!("{}", sign_extend_byte(*lo)),
-        (Some(lo), Some(hi), None, _) => {
-            let lo_hi = *lo as u16 | ((*hi as u16) << 8);
-            format!("{}", lo_hi)
+        (Some(_), None, None, false) => format!("{}", data_value as i8),
+        (Some(_), None, None, true) => format!("{}", data_value as i16),
+        (Some(_), Some(_), None, _) => {
+            format!("{}", data_value)
         }
         (None, None, Some(data8), _) => format!("{}", *data8),
         (None, _, _, true) => unreachable!("ERROR: sign_extend_data_lo set when no data_lo"),

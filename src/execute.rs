@@ -162,9 +162,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let source_val = match (inst.source_reg, inst.immediate_value) {
+            let source_val = match (inst.source_reg, inst.data_value) {
                 // Handle immediate to dest reg
-                (_, Some(immediate)) => immediate,
+                (_, Some(data_value)) => data_value,
                 // Handle source reg to dest reg
                 (Some(source_reg), _) => {
                     // Get the value of the source register
