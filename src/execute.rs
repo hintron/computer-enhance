@@ -14,6 +14,7 @@ pub struct CpuStateType {
     // match statement. Compare performance!
     reg_file: BTreeMap<RegName, u16>,
     flags_reg: FlagsRegType,
+    memory: Vec<u8>,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -95,6 +96,8 @@ impl fmt::Display for FlagsRegType {
 
 pub fn init_state() -> CpuStateType {
     CpuStateType {
+        // Initialize the memory array to 1 MB
+        memory: vec![2 ^ 20],
         ..Default::default()
     }
 }
@@ -121,6 +124,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let new_val;
     // The final register to store new_val into, if any
     let dest_reg_name;
+    // The final destination index into memory, if there is one
+    let dest_mem;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
     let mut new_val_overflowed = false;
@@ -274,14 +279,18 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         _ => {}
     }
 
-    match (dest_reg_name, new_val) {
-        (Some(dest_reg_name), Some(new_val)) => {
+    match (dest_reg_name, dest_mem, new_val) {
+        (Some(dest_reg_name), _, Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(dest_reg_name, new_val).unwrap_or(0);
             effect.push_str(&format!(
                 " {}:0x{:x}->0x{:x}",
                 dest_reg_name, old_val, new_val
             ));
+        }
+        (_, Some(dest_mem), Some(new_val)) => {
+            state.memory[dest_mem] = new_val;
+            // Don't print out memory changes (yet)
         }
         // Nothing is stored back into destination
         _ => {}
