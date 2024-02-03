@@ -5,10 +5,14 @@ programming language][5] by following the [Computer Enhance][1] performance
 awareness course by Casey Muratori.
 
 This is mainly a personal project for my own benefit. However, I'm hoping to get
-this into a state where I can run the real-time operating system I implemented
-for an 8086 emulator for a college class. [See here for the 8086 emulator, 8086
-compiler, NASM assembler, "YAK" RTOS design specifications, and other BYU ECEn
-425 class materials][4].
+this into a state where I can run the real-time operating system (RTOS) I
+implemented in 8086 for a college class.
+
+If you too would like to try your hand at creating an RTOS on the 8086 in C,
+take a look at [github.com/hintron/8086-toolchain][4]! This repo contains all
+the lectures, 8086 documentation, and lab files needed to implement the "YAK"
+RTOS. It also contains an 8086 emulator/debugger, an 8086 compiler, and the NASM
+assembler (all easily built from source).
 
 
 # Quick start
