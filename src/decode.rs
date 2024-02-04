@@ -121,7 +121,7 @@ enum ImmBytesType {
 
 /// Indicates whether to apply some data to the source or the destination
 #[derive(Copy, Clone, Debug)]
-enum AddTo {
+pub enum AddTo {
     Dest,
     Source,
 }
@@ -477,7 +477,7 @@ pub struct InstType {
     /// A list of all bytes processed for this instruction
     pub processed_bytes: Vec<u8>,
     /// Processed data from the mod rm byte
-    mod_rm_data: Option<ModRmDataType>,
+    pub mod_rm_data: Option<ModRmDataType>,
     mod_rm_byte: Option<ModRmByteType>,
     /// If true, then the first byte was a REP and there is a second string
     /// manipulation byte to follow.
@@ -486,24 +486,28 @@ pub struct InstType {
     data_8: Option<u8>,
     data_lo: Option<u8>,
     data_hi: Option<u8>,
-    disp_lo: Option<u8>,
-    disp_hi: Option<u8>,
-    ip_inc8: Option<u8>,
-    ip_inc_lo: Option<u8>,
-    ip_inc_hi: Option<u8>,
-    /// If set, we expect to add displacement bytes to what AddTo specifies
-    add_disp_to: Option<AddTo>,
-    /// If set, we expect to add data bytes to what AddTo specifies
-    add_data_to: Option<AddTo>,
     /// The actual value of the data immediate bytes (either data_8 or data_hi +
     /// data_lo). It's stored as a u16, even if it's only a u8.
     pub data_value: Option<u16>,
+    /// Whether data_value should be applied to the source or destination.
+    pub add_data_to: Option<AddTo>,
+    disp_lo: Option<u8>,
+    disp_hi: Option<u8>,
+    /// Displacement value. Signed. Can come from either one or two displacement
+    /// bytes. See add_disp_to to see whether disp is applied to source or
+    /// destination.
+    pub disp_value: Option<i16>,
+    /// Whether disp_value should be applied to the source or destination.
+    pub add_disp_to: Option<AddTo>,
+    ip_inc8: Option<u8>,
+    ip_inc_lo: Option<u8>,
+    ip_inc_hi: Option<u8>,
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
-    mem_access: bool,
+    pub mem_access: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected immediate byte types to parse after we parse the 1st byte
@@ -715,14 +719,19 @@ fn calculate_execution_values(inst: &mut InstType) {
         ));
     }
 
-    // Get the actual u16 value of the data immediate bytes
     if inst.add_data_to.is_some() {
+        // Get the actual u16 value of the data immediate bytes
         inst.data_value = Some(get_data_value(
             inst.data_lo.as_ref(),
             inst.data_hi.as_ref(),
             inst.data_8.as_ref(),
             inst.sign_extend_data_lo,
         ));
+    }
+
+    if inst.add_disp_to.is_some() {
+        // Get the actual i16 value of the disp immediate bytes
+        inst.disp_value = get_disp_value(inst.disp_lo.as_ref(), inst.disp_hi.as_ref());
     }
 }
 
@@ -738,7 +747,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         None => {}
     };
 
-    let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_lo, inst.disp_hi);
+    let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_value);
     match (mod_rm_op, inst.d_field) {
         (None, _) => {}
         (Some(mod_rm_op), None | Some(false)) => {
@@ -1735,42 +1744,38 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 }
 
 /// Return the string based on mod rm and disp bytes
-fn mod_rm_disp_str(
-    mod_rm_data: Option<ModRmDataType>,
-    disp_lo: Option<u8>,
-    disp_hi: Option<u8>,
-) -> Option<String> {
+fn mod_rm_disp_str(mod_rm_data: Option<ModRmDataType>, disp_value: Option<i16>) -> Option<String> {
     let mod_rm_data = match mod_rm_data {
         None => return None,
         Some(x) => x,
     };
 
-    match (mod_rm_data, disp_lo, disp_hi) {
-        (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => Some(format!("[0x{hi:02X}{lo:02X}]")),
-        (ModRmDataType::MemReg(reg), _, _) => Some(format!("[{reg}]")),
-        (ModRmDataType::MemRegReg(reg1, reg2), _, _) => Some(format!("[{reg1} + {reg2}]")),
-        (ModRmDataType::MemRegDisp(reg), Some(lo), None) => {
-            let lo = lo as i8;
-            Some(format!("[{reg} {lo:+}]"))
+    match (mod_rm_data, disp_value) {
+        (ModRmDataType::MemDirectAddr, Some(address)) => Some(format!("[0x{address:04X}]")),
+        (ModRmDataType::MemReg(reg), _) => Some(format!("[{reg}]")),
+        (ModRmDataType::MemRegReg(reg1, reg2), _) => Some(format!("[{reg1} + {reg2}]")),
+        (ModRmDataType::MemRegDisp(_), None) => {
+            unreachable!("ERROR: No displacement found for MemRegDisp")
         }
-        (ModRmDataType::MemRegDisp(reg), Some(lo), Some(hi)) => {
-            // If not direct address, print as signed 16 bit
-            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            Some(format!("[{reg} {lo_hi:+}]"))
+        (ModRmDataType::MemRegDisp(reg), Some(disp)) => Some(format!("[{reg} {disp:+}]")),
+        (ModRmDataType::MemRegRegDisp(_, _), None) => {
+            unreachable!("ERROR: No displacement found for MemRegRegDisp")
         }
-        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), None) => {
-            let lo = lo as i8;
-            Some(format!("[{reg1} + {reg2} {lo:+}]"))
-        }
-        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), Some(hi)) => {
-            // If not direct address, print as signed 16 bit
-            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            Some(format!("[{reg1} + {reg2} {lo_hi:+}]"))
+        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(disp)) => {
+            Some(format!("[{reg1} + {reg2} {disp:+}]"))
         }
         // Don't print anything here, since the reg will already have been
         // copied into a source or dest reg and printed via that.
-        (ModRmDataType::Reg(_), _, _) => None,
+        (ModRmDataType::Reg(_), _) => None,
         _ => unreachable!(),
+    }
+}
+
+fn get_disp_value(disp_lo: Option<&u8>, disp_hi: Option<&u8>) -> Option<i16> {
+    match (disp_lo, disp_hi) {
+        (Some(lo), None) => Some(*lo as i8 as i16),
+        (Some(lo), Some(hi)) => Some(*lo as i16 + ((*hi as i16) << 8)),
+        _ => None,
     }
 }
 
@@ -1969,7 +1974,7 @@ fn decode_sr_field(sr: u8) -> RegType {
 ///
 /// Return a ModRmDataType object, which encodes the result of table 4-10 on pg
 /// 4-20. Any displacement will be processed after the displacement bytes have
-/// been parsed.
+/// been parsed, so for now, set all displacements and direct addresses to None.
 fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> ModRmDataType {
     match (rm, mode, w) {
         (0b000, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
