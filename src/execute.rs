@@ -106,7 +106,7 @@ pub fn init_state() -> CpuStateType {
 /// Note: an immediate value can't be a dest, so always assume that the data
 /// bytes for a destination are always for an address.
 enum Target {
-    Immediate(u16),
+    // Immediate(u16),
     MemAddress(usize),
     RegisterName(RegName),
     // No target - don't store the result at dest or load from this source.
@@ -333,7 +333,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             // Don't print out memory changes (yet)
         }
         (Target::None, _) => {} // Nothing is stored back into destination
-        (Target::Immediate(_), _) => unreachable!("Cannot have immediate as dest!"),
+        // (Target::Immediate(_), _) => unreachable!("Cannot have immediate as dest!"),
         _ => {}
     }
 
