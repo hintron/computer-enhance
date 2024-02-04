@@ -6,6 +6,8 @@ use std::fmt;
 
 use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
 
+const MEMORY_SIZE: usize = 1024 * 1024;
+
 #[derive(Debug, Default)]
 pub struct CpuStateType {
     /// The instruction pointer (IP) register
@@ -97,7 +99,7 @@ impl fmt::Display for FlagsRegType {
 pub fn init_state() -> CpuStateType {
     CpuStateType {
         // Initialize the memory array to 1 MB
-        memory: vec![2 ^ 20],
+        memory: vec![0; MEMORY_SIZE],
         ..Default::default()
     }
 }
