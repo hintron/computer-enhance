@@ -728,8 +728,8 @@ fn calculate_execution_values(inst: &mut InstType) {
             inst.sign_extend_data_lo,
         ));
         match inst.add_data_to {
-            Some(AddTo::Source) => inst.data_value_dest = data_val,
-            Some(AddTo::Dest) => inst.data_value_source = data_val,
+            Some(AddTo::Source) => inst.data_value_source = data_val,
+            Some(AddTo::Dest) => inst.data_value_dest = data_val,
             _ => {}
         };
     }
