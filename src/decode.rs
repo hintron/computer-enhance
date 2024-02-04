@@ -502,6 +502,10 @@ pub struct InstType {
     /// The actual value of the data immediate bytes, but applied to the
     /// destination in some way (mem or immediate).
     pub data_value_dest: Option<u16>,
+    /// The value of the disp immediate bytes, to be applied to the source.
+    pub disp_value_source: Option<u16>,
+    /// The value of the disp immediate bytes, to be applied to the destination.
+    pub disp_value_dest: Option<u16>,
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
@@ -731,6 +735,21 @@ fn calculate_execution_values(inst: &mut InstType) {
             Some(AddTo::Source) => inst.data_value_source = data_val,
             Some(AddTo::Dest) => inst.data_value_dest = data_val,
             _ => {}
+        };
+    }
+
+    if inst.add_disp_to.is_some() {
+        // Get the actual u16 value of the data immediate bytes
+        let disp_val = match (inst.disp_lo, inst.disp_hi) {
+            (Some(lo), None) => lo as u16,
+            (Some(lo), Some(hi)) => lo as u16 | ((hi as u16) << 8),
+            _ => unreachable!(),
+        };
+
+        match inst.add_disp_to {
+            Some(AddTo::Source) => inst.disp_value_source = Some(disp_val),
+            Some(AddTo::Dest) => inst.disp_value_dest = Some(disp_val),
+            _ => unreachable!(),
         };
     }
 }

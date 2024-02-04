@@ -179,8 +179,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     match op_type {
         op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, inst.data_value_dest) {
-                (_, Some(address)) => {
+            match (inst.dest_reg, inst.data_value_dest, inst.disp_value_dest) {
+                (_, Some(_), Some(_)) => {
+                    unreachable!("Can't have both data_value_dest and disp_value_dest set!")
+                }
+                (_, Some(address), _) | (_, _, Some(address)) => {
                     // For now, we can assume that mem_access is true when
                     // data_value_dest exists. You can't store into an
                     // immediate value! I.e. we know it's [dest_val] as dest
@@ -194,7 +197,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         None => unreachable!("Dest width not set for mem dest!"),
                     };
                 }
-                (Some(dest_reg), _) => {
+                (Some(dest_reg), _, _) => {
                     // Get the value of the dest register
                     dest.val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
