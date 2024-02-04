@@ -375,6 +375,17 @@ pub enum RegWidth {
     // Dqword,
 }
 
+impl RegWidth {
+    /// Return a string + space to convert this RegWidth to a source or dest
+    /// prefix string
+    fn to_width_prefix_str(&self) -> &'static str {
+        match self {
+            RegWidth::Byte | RegWidth::Hi8 => "byte ",
+            RegWidth::Word => "word ",
+        }
+    }
+}
+
 /// Identifies a register and the size
 #[derive(Copy, Clone, Debug)]
 pub struct RegType {
@@ -505,12 +516,14 @@ pub struct InstType {
     immediate_bytes: Vec<ImmBytesType>,
     /// The source register, if the source is a register
     pub source_reg: Option<RegType>,
-    source_prefix: Option<&'static str>,
+    /// Explicitly indicate the source width. Needed when coming from memory.
+    pub source_width: Option<RegWidth>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
-    dest_prefix: Option<&'static str>,
+    /// Explicitly indicate the destination width. Needed when going to memory.
+    pub dest_width: Option<RegWidth>,
     /// The final instruction representation
     pub text: Option<String>,
 }
@@ -819,8 +832,9 @@ fn build_inst_string(inst: &InstType) -> String {
     /////////////////////////////////////////////////////////
     // Destination
     /////////////////////////////////////////////////////////
-    if inst.dest_prefix.is_some() {
-        inst_text.push_str(inst.dest_prefix.unwrap());
+    match inst.dest_width {
+        Some(width) => inst_text.push_str(width.to_width_prefix_str()),
+        _ => {}
     }
     if !dest_text.is_empty() {
         inst_text.push_str(&dest_text);
@@ -831,8 +845,9 @@ fn build_inst_string(inst: &InstType) -> String {
     /////////////////////////////////////////////////////////
     // Source
     /////////////////////////////////////////////////////////
-    if inst.source_prefix.is_some() {
-        inst_text.push_str(inst.source_prefix.unwrap());
+    match inst.source_width {
+        Some(width) => inst_text.push_str(width.to_width_prefix_str()),
+        _ => {}
     }
     if !source_text.is_empty() {
         inst_text.push_str(&source_text);
@@ -1623,8 +1638,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_prefix = Some("byte "),
-                (_, Some(true)) => inst.source_prefix = Some("word "),
+                (_, Some(false)) => inst.source_width = Some(RegWidth::Byte),
+                (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
                 _ => {}
             }
         }
@@ -1653,8 +1668,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_prefix = Some("byte "),
-                (_, Some(true)) => inst.source_prefix = Some("word "),
+                (_, Some(false)) => inst.source_width = Some(RegWidth::Byte),
+                (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
                 _ => {}
             }
         }
@@ -1664,8 +1679,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte "),
-                (_, Some(true)) => inst.dest_prefix = Some("word "),
+                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
+                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
                 (_, None) => unreachable!(),
             }
         }
@@ -1676,8 +1691,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp1Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte "),
-                (_, Some(true)) => inst.dest_prefix = Some("word "),
+                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
+                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
                 (_, None) => unreachable!(),
             }
             if is_test_inst {
@@ -1695,14 +1710,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_prefix = Some("byte "),
-                (_, Some(true)) => inst.dest_prefix = Some("word "),
+                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
+                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
                 (_, None) => unreachable!(),
             }
         }
         Some(ModRmByteType::ModPopRm) => match mode {
             ModType::RegisterMode => {}
-            _ => inst.dest_prefix = Some("word "),
+            _ => inst.dest_width = Some(RegWidth::Word),
         },
         // Similar to ModRegRm
         Some(ModRmByteType::ModSrRm) => {
