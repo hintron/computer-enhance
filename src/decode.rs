@@ -496,14 +496,22 @@ pub struct InstType {
     /// If set, we expect to add data bytes to what AddTo specifies
     add_data_to: Option<AddTo>,
     /// The actual value of the data immediate bytes (either data_8 or data_hi +
-    /// data_lo). It's stored as a u16, even if it's only a u8.
-    pub data_value: Option<u16>,
+    /// data_lo), but applied to the source in some way (as an immediate, mem
+    /// access, etc.). It's stored as a u16, even if it's only a u8.
+    pub data_value_source: Option<u16>,
+    /// The actual value of the data immediate bytes, but applied to the
+    /// destination in some way (mem or immediate).
+    pub data_value_dest: Option<u16>,
+    /// The value of the disp immediate bytes, to be applied to the source.
+    pub disp_value_source: Option<u16>,
+    /// The value of the disp immediate bytes, to be applied to the destination.
+    pub disp_value_dest: Option<u16>,
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
-    mem_access: bool,
+    pub mem_access: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected immediate byte types to parse after we parse the 1st byte
@@ -715,14 +723,34 @@ fn calculate_execution_values(inst: &mut InstType) {
         ));
     }
 
-    // Get the actual u16 value of the data immediate bytes
     if inst.add_data_to.is_some() {
-        inst.data_value = Some(get_data_value(
+        // Get the actual u16 value of the data immediate bytes
+        let data_val = Some(get_data_value(
             inst.data_lo.as_ref(),
             inst.data_hi.as_ref(),
             inst.data_8.as_ref(),
             inst.sign_extend_data_lo,
         ));
+        match inst.add_data_to {
+            Some(AddTo::Source) => inst.data_value_source = data_val,
+            Some(AddTo::Dest) => inst.data_value_dest = data_val,
+            _ => {}
+        };
+    }
+
+    if inst.add_disp_to.is_some() {
+        // Get the actual u16 value of the data immediate bytes
+        let disp_val = match (inst.disp_lo, inst.disp_hi) {
+            (Some(lo), None) => lo as u16,
+            (Some(lo), Some(hi)) => lo as u16 | ((hi as u16) << 8),
+            _ => unreachable!(),
+        };
+
+        match inst.add_disp_to {
+            Some(AddTo::Source) => inst.disp_value_source = Some(disp_val),
+            Some(AddTo::Dest) => inst.disp_value_dest = Some(disp_val),
+            _ => unreachable!(),
+        };
     }
 }
 
