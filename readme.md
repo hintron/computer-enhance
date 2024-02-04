@@ -59,6 +59,9 @@ Note that these regressions need to find `nasm` on your path in order to
 assemble the binaries to decode and simulate. I use a version of `nasm` provided
 by the [BYU ECEn 425 class 8086 toolchain repo][4].
 
+To make sure that the regressions are run before each Git commit, run
+`scripts/install-pre-commit.sh` for each instance of this repo that you clone.
+
 
 # Benchmarking
 
