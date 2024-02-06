@@ -501,11 +501,6 @@ pub struct InstType {
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
-    /// If true, then the displacement is a direct address instead of added to
-    /// any
-    disp_direct_address: bool,
-    /// If true, then there are displacement bytes in immediate_bytes.
-    has_disp: bool,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
     mem_access: bool,
@@ -1573,25 +1568,25 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 
     // Indicate that there are displacement bytes to process next
     // Displacement bytes come before immediate/data bytes
-    match (mode, rm_field) {
+    let has_disp = match (mode, rm_field) {
         (ModType::MemoryMode8, _) => {
             inst.immediate_bytes.push(ImmBytesType::DispLo);
-            inst.has_disp = true;
+            true
         }
         (ModType::MemoryMode16, _) => {
             inst.immediate_bytes.push(ImmBytesType::DispLo);
             inst.immediate_bytes.push(ImmBytesType::DispHi);
-            inst.has_disp = true;
+            true
         }
         (ModType::MemoryMode0, DIRECT_ADDR) => {
             inst.immediate_bytes.push(ImmBytesType::DispLo);
             inst.immediate_bytes.push(ImmBytesType::DispHi);
-            inst.disp_direct_address = true;
+            true
         }
-        _ => {}
-    }
+        _ => false,
+    };
 
-    if inst.has_disp || inst.disp_direct_address {
+    if has_disp {
         // Indicate what displacement should be added to: src or dest
         match inst.d_field {
             None | Some(false) => inst.add_disp_to = Some(AddTo::Dest),
