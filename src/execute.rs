@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::decode::{InstType, OpCodeType, RegName, RegWidth};
+use crate::decode::{AddTo, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
 const MEMORY_SIZE: usize = 1024 * 1024;
 
@@ -115,14 +115,13 @@ enum Target {
     None,
 }
 
-/// Where this source or dest operand is pointing to, what the current value is,
-/// and what the width is.
-struct SrcDestType {
-    /// Where the source/destination is
+/// Current op's destination information
+struct DestType {
+    /// Destination location/target
     target: Target,
-    // The current value of the source/destination
+    // The current value of the destination (will be overwritten)
     val: u16,
-    /// How wide it is
+    /// How many bytes wide the landing spot is
     width: RegWidth,
 }
 
@@ -152,10 +151,8 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let current_ip = state.ip;
-    // // The source of the op
-    // let mut src: SrcDestType;
     // The destination of the op (default to nothing)
-    let mut dest = SrcDestType {
+    let mut dest = DestType {
         target: Target::None,
         width: RegWidth::Byte,
         val: 0,
@@ -179,14 +176,27 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     match op_type {
         op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, inst.data_value_dest, inst.disp_value_dest) {
-                (_, Some(_), Some(_)) => {
-                    unreachable!("Can't have both data_value_dest and disp_value_dest set!")
+            match (inst.dest_reg, inst.add_data_to, inst.add_disp_to) {
+                (_, Some(AddTo::Dest), Some(AddTo::Dest)) => {
+                    unreachable!(
+                        "Can't have both data_value and disp_value applied to destination!"
+                    )
                 }
-                (_, Some(address), _) | (_, _, Some(address)) => {
+                (_, Some(AddTo::Dest), _) => {
                     // For now, we can assume that mem_access is true when
                     // data_value_dest exists. You can't store into an
                     // immediate value! I.e. we know it's [dest_val] as dest
+                    let address = inst.data_value.unwrap();
+                    dest.target = Target::MemAddress(address as usize);
+                    dest.val = load_u16_from_mem(&state.memory, address);
+                    dest.width = match inst.dest_width {
+                        Some(x) => x,
+                        None => unreachable!("Dest width not set for mem dest!"),
+                    };
+                }
+                (_, _, Some(AddTo::Dest)) => {
+                    let address =
+                        mod_rm_to_addr(inst.mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
                     dest.target = Target::MemAddress(address as usize);
                     dest.val = load_u16_from_mem(&state.memory, address);
                     // Also assume that dest_width was given
@@ -213,11 +223,23 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let source_val = match (inst.source_reg, inst.mem_access, inst.data_value_source) {
-                // If mem_access, use data as address into mem
-                (_, true, Some(address)) => load_u16_from_mem(&state.memory, address),
-                // Otherwise, use data as just an immediate value
-                (_, false, Some(data_value)) => data_value,
+            let source_val = match (inst.source_reg, inst.add_data_to, inst.add_disp_to) {
+                (_, Some(AddTo::Source), _) => {
+                    if inst.mem_access {
+                        // If mem_access, use data as address into mem
+                        load_u16_from_mem(&state.memory, inst.data_value.unwrap())
+                    } else {
+                        // Otherwise, use data as just an immediate value
+                        inst.data_value.unwrap()
+                    }
+                }
+                (_, _, Some(AddTo::Source)) => {
+                    if inst.mem_access {
+                        load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
+                    } else {
+                        inst.disp_value.unwrap() as u16
+                    }
+                }
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
                     // Get the value of the source register
@@ -353,6 +375,51 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     }
 
     return effect;
+}
+
+/// Convert the mod_rm and displacement bytes into a memory address.
+fn mod_rm_to_addr(
+    mod_rm_data: Option<ModRmDataType>,
+    disp: Option<i16>,
+    reg_file: &BTreeMap<RegName, u16>,
+) -> Option<u16> {
+    let mod_rm_data = match mod_rm_data {
+        None => return None,
+        Some(x) => x,
+    };
+
+    match (mod_rm_data, disp) {
+        (ModRmDataType::MemDirectAddr, Some(address)) => Some(address as u16),
+        (ModRmDataType::MemReg(reg), _) => {
+            // Get reg value and return
+            Some(*reg_file.get(&reg.name).unwrap_or(&0))
+        }
+        (ModRmDataType::MemRegReg(reg1, reg2), _) => {
+            let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
+            let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
+            Some(val1 + val2)
+        }
+        (ModRmDataType::MemRegDisp(_), None) => {
+            unreachable!("ERROR: No displacement found for MemRegDisp")
+        }
+        (ModRmDataType::MemRegDisp(reg), Some(disp)) => {
+            let val = *reg_file.get(&reg.name).unwrap_or(&0);
+            Some(val + disp as u16)
+        }
+        (ModRmDataType::MemRegRegDisp(_, _), None) => {
+            unreachable!("ERROR: No displacement found for MemRegRegDisp")
+        }
+        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(disp)) => {
+            // Get reg 1 + 2, add together with disp, and return
+            let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
+            let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
+            Some(val1 + val2 + disp as u16)
+        }
+        // Type Reg isn't a mem access, so this will be handled via source and
+        // dest registers
+        (ModRmDataType::Reg(_), _) => None,
+        _ => unreachable!(),
+    }
 }
 
 /// Given the memory array and a 16-bit address, return a 16-bit value
