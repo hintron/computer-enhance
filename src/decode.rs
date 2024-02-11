@@ -486,13 +486,6 @@ pub struct InstType {
     data_8: Option<u8>,
     data_lo: Option<u8>,
     data_hi: Option<u8>,
-    /// Whether disp_value should be applied to the source or destination.
-    pub add_disp_to: Option<AddTo>,
-    /// Whether data_value should be applied to the source or destination.
-    pub add_data_to: Option<AddTo>,
-    /// The actual value of the data immediate bytes (either data_8 or data_hi +
-    /// data_lo). It's stored as a u16, even if it's only a u8.
-    pub data_value: Option<u16>,
     disp_lo: Option<u8>,
     disp_hi: Option<u8>,
     /// Displacement value. Signed. Can come from either one or two displacement
@@ -502,6 +495,13 @@ pub struct InstType {
     ip_inc8: Option<u8>,
     ip_inc_lo: Option<u8>,
     ip_inc_hi: Option<u8>,
+    /// Whether disp_value should be applied to the source or destination.
+    pub add_disp_to: Option<AddTo>,
+    /// Whether data_value should be applied to the source or destination.
+    pub add_data_to: Option<AddTo>,
+    /// The actual value of the data immediate bytes (either data_8 or data_hi +
+    /// data_lo). It's stored as a u16, even if it's only a u8.
+    pub data_value: Option<u16>,
     /// The jump displacement that will be passed to the execution side. Derived
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
