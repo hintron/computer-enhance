@@ -163,13 +163,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             let dest_val;
 
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, inst.add_data_to, inst.add_disp_to) {
-                (_, Some(AddTo::Dest), Some(AddTo::Dest)) => {
-                    unreachable!(
-                        "Can't have both data_value and disp_value applied to destination!"
-                    )
-                }
+            match (inst.dest_reg, inst.add_data_to, inst.mod_rm_data) {
                 (Some(dest_reg), _, _) => {
+                    // Note: This also currently covers ModRmDataType::Reg(_)
                     // Get the value of the dest register
                     dest_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
@@ -185,9 +181,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
-                (_, _, Some(AddTo::Dest)) => {
+                (_, _, Some(mod_rm_data)) => {
                     let address =
-                        mod_rm_to_addr(inst.mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
+                        mod_rm_to_addr(mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
@@ -214,7 +210,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let source_val = match (inst.source_reg, inst.add_data_to, inst.add_disp_to) {
+            let source_val = match (inst.source_reg, inst.add_data_to, inst.mod_rm_data) {
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
                     // Get the value of the source register
@@ -239,8 +235,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         inst.data_value.unwrap()
                     }
                 }
-                (_, _, Some(AddTo::Source)) => {
-                    load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
+                (_, _, Some(mod_rm_data)) => {
+                    let address =
+                        mod_rm_to_addr(mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
+                    load_u16_from_mem(&state.memory, address)
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -368,15 +366,10 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 /// Convert the mod_rm and displacement bytes into a memory address.
 /// See Decode::mod_rm_disp_str()
 fn mod_rm_to_addr(
-    mod_rm_data: Option<ModRmDataType>,
+    mod_rm_data: ModRmDataType,
     disp: Option<i16>,
     reg_file: &BTreeMap<RegName, u16>,
 ) -> Option<u16> {
-    let mod_rm_data = match mod_rm_data {
-        None => return None,
-        Some(x) => x,
-    };
-
     match (mod_rm_data, disp) {
         (ModRmDataType::MemDirectAddr, Some(address)) => Some(address as u16),
         (ModRmDataType::MemReg(reg), _) => {
