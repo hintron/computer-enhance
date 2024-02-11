@@ -169,6 +169,14 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         "Can't have both data_value and disp_value applied to destination!"
                     )
                 }
+                (Some(dest_reg), _, _) => {
+                    // Get the value of the dest register
+                    dest_val = match state.reg_file.get(&dest_reg.name) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    dest_target = Target::RegisterName(dest_reg.name);
+                }
                 (_, Some(AddTo::Dest), _) => {
                     // For now, we can assume that mem_access is true when
                     // data_value_dest exists. You can't store into an
@@ -182,14 +190,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         mod_rm_to_addr(inst.mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
-                }
-                (Some(dest_reg), _, _) => {
-                    // Get the value of the dest register
-                    dest_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    dest_target = Target::RegisterName(dest_reg.name);
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -215,18 +215,6 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
             // Get the op's source val either from a source reg or an immediate
             let source_val = match (inst.source_reg, inst.add_data_to, inst.add_disp_to) {
-                (_, Some(AddTo::Source), _) => {
-                    if inst.mem_access {
-                        // If mem_access, use data as address into mem
-                        load_u16_from_mem(&state.memory, inst.data_value.unwrap())
-                    } else {
-                        // Otherwise, use data as just an immediate value
-                        inst.data_value.unwrap()
-                    }
-                }
-                (_, _, Some(AddTo::Source)) => {
-                    load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
-                }
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
                     // Get the value of the source register
@@ -241,6 +229,18 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         RegWidth::Word => source_val,
                     };
                     source_val_sized
+                }
+                (_, Some(AddTo::Source), _) => {
+                    if inst.mem_access {
+                        // If mem_access, use data as address into mem
+                        load_u16_from_mem(&state.memory, inst.data_value.unwrap())
+                    } else {
+                        // Otherwise, use data as just an immediate value
+                        inst.data_value.unwrap()
+                    }
+                }
+                (_, _, Some(AddTo::Source)) => {
+                    load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
