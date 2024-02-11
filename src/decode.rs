@@ -121,7 +121,7 @@ enum ImmBytesType {
 
 /// Indicates whether to apply some data to the source or the destination
 #[derive(Copy, Clone, Debug)]
-enum AddTo {
+pub enum AddTo {
     Dest,
     Source,
 }
@@ -477,7 +477,7 @@ pub struct InstType {
     /// A list of all bytes processed for this instruction
     pub processed_bytes: Vec<u8>,
     /// Processed data from the mod rm byte
-    mod_rm_data: Option<ModRmDataType>,
+    pub mod_rm_data: Option<ModRmDataType>,
     mod_rm_byte: Option<ModRmByteType>,
     /// If true, then the first byte was a REP and there is a second string
     /// manipulation byte to follow.
@@ -491,14 +491,14 @@ pub struct InstType {
     /// Displacement value. Signed. Can come from either one or two displacement
     /// bytes. See add_disp_to to see whether disp is applied to source or
     /// destination.
-    disp_value: Option<i16>,
+    pub disp_value: Option<i16>,
     ip_inc8: Option<u8>,
     ip_inc_lo: Option<u8>,
     ip_inc_hi: Option<u8>,
-    /// If set, we expect to add displacement bytes to what AddTo specifies
-    add_disp_to: Option<AddTo>,
-    /// If set, we expect to add data bytes to what AddTo specifies
-    add_data_to: Option<AddTo>,
+    /// Whether disp_value should be applied to the source or destination.
+    pub add_disp_to: Option<AddTo>,
+    /// Whether data_value should be applied to the source or destination.
+    pub add_data_to: Option<AddTo>,
     /// The actual value of the data immediate bytes (either data_8 or data_hi +
     /// data_lo). It's stored as a u16, even if it's only a u8.
     pub data_value: Option<u16>,
@@ -507,7 +507,7 @@ pub struct InstType {
     pub jmp_value: Option<i16>,
     /// If true, then use the data bytes as part of a memory reference, like
     /// \[DATA_BYTES].
-    mem_access: bool,
+    pub mem_access: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected immediate byte types to parse after we parse the 1st byte
