@@ -1744,6 +1744,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 }
 
 /// Return the string based on mod rm and disp bytes
+/// See Execute::mod_rm_to_addr()
 fn mod_rm_disp_str(mod_rm_data: Option<ModRmDataType>, disp_value: Option<i16>) -> Option<String> {
     let mod_rm_data = match mod_rm_data {
         None => return None,

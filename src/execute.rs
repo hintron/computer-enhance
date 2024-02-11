@@ -364,6 +364,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 }
 
 /// Convert the mod_rm and displacement bytes into a memory address.
+/// See Decode::mod_rm_disp_str()
 fn mod_rm_to_addr(
     mod_rm_data: Option<ModRmDataType>,
     disp: Option<i16>,
