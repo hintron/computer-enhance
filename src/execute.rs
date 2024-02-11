@@ -174,7 +174,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     };
                     // Figure out which bytes to get from the source
                     let source_val_sized = match source_reg.width {
-                        RegWidth::Byte => source_val & 0xFF,
+                        RegWidth::Byte => source_val & 0x00FF,
                         RegWidth::Hi8 => (source_val & 0xFF00) >> 8,
                         RegWidth::Word => source_val,
                     };
