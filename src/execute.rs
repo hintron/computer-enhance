@@ -154,7 +154,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     // The destination of the op (default to nothing)
     let mut dest = DestType {
         target: Target::None,
-        width: RegWidth::Byte,
+        width: RegWidth::Word,
         val: 0,
     };
 
