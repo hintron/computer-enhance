@@ -189,23 +189,12 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     let address = inst.data_value.unwrap();
                     dest.target = Target::MemAddress(address as usize);
                     dest.val = load_u16_from_mem(&state.memory, address);
-                    dest.width = match inst.dest_width {
-                        Some(x) => x,
-                        None => unreachable!("Dest width not set for mem dest!"),
-                    };
                 }
                 (_, _, Some(AddTo::Dest)) => {
                     let address =
                         mod_rm_to_addr(inst.mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
                     dest.target = Target::MemAddress(address as usize);
                     dest.val = load_u16_from_mem(&state.memory, address);
-                    // Also assume that dest_width was given
-                    // When storing into memory, we need to check what the
-                    // intended destination size is
-                    dest.width = match inst.dest_width {
-                        Some(x) => x,
-                        None => unreachable!("Dest width not set for mem dest!"),
-                    };
                 }
                 (Some(dest_reg), _, _) => {
                     // Get the value of the dest register
@@ -214,11 +203,26 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                         None => 0,
                     };
                     dest.target = Target::RegisterName(dest_reg.name);
-                    dest.width = dest_reg.width;
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
                     unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap())
+                }
+            };
+
+            // Figure out destination width
+            dest.width = match (
+                inst.dest_reg,
+                inst.dest_width,
+                inst.source_reg,
+                inst.source_width,
+            ) {
+                (Some(dest_reg), _, _, _) => dest_reg.width,
+                (_, Some(dest_width), _, _) => dest_width,
+                (_, _, Some(source_reg), _) => source_reg.width,
+                (_, _, _, Some(source_width)) => source_width,
+                _ => {
+                    unimplemented!("No dest reg, dest width, source reg, or source width")
                 }
             };
 
@@ -234,11 +238,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     }
                 }
                 (_, _, Some(AddTo::Source)) => {
-                    if inst.mem_access {
-                        load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
-                    } else {
-                        inst.disp_value.unwrap() as u16
-                    }
+                    load_u16_from_mem(&state.memory, inst.disp_value.unwrap() as u16)
                 }
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
