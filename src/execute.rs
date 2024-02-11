@@ -429,7 +429,7 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
     let lower = memory[address as usize] as u16;
     let upper = memory[(address + 1) as usize] as u16;
     // Combine into a single u16 value
-    lower & (upper << 8)
+    lower | (upper << 8)
 }
 
 /// Given the memory array and a 16-bit address, return a 16-bit value
