@@ -719,8 +719,8 @@ fn calculate_execution_values(inst: &mut InstType) {
         ));
     }
 
+    // Get the actual u16 value of the data immediate bytes
     if inst.add_data_to.is_some() {
-        // Get the actual u16 value of the data immediate bytes
         inst.data_value = Some(get_data_value(
             inst.data_lo.as_ref(),
             inst.data_hi.as_ref(),
