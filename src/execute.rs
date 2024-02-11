@@ -414,7 +414,12 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: b
     if state.ip != 0 && !no_ip {
         lines.push(format!("      ip: 0x{:04x} ({})", state.ip, state.ip));
     }
-    lines.push(format!("   flags: {}", state.flags_reg));
+    let default_flags = FlagsRegType {
+        ..Default::default()
+    };
+    if state.flags_reg != default_flags {
+        lines.push(format!("   flags: {}", state.flags_reg));
+    }
     lines.push(format!(""));
 }
 

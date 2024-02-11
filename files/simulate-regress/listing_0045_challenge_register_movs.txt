@@ -31,5 +31,4 @@ Final registers:
       es: 0x6677 (26231)
       ss: 0x4411 (17425)
       ds: 0x3344 (13124)
-   flags: 
 
