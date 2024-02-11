@@ -340,7 +340,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         (Target::RegisterName(reg_name), Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(reg_name, new_val).unwrap_or(0);
-            effect.push_str(&format!(" {}:0x{:x}->0x{:x}", reg_name, old_val, new_val));
+            if old_val != new_val {
+                effect.push_str(&format!(" {}:0x{:x}->0x{:x}", reg_name, old_val, new_val));
+            }
         }
         (Target::MemAddress(addr), Some(new_val)) => {
             store_u16_in_mem(&mut state.memory, addr, new_val);
