@@ -114,16 +114,6 @@ enum Target {
     None,
 }
 
-/// Current op's destination information
-struct DestType {
-    /// Destination location/target
-    target: Target,
-    // The current value of the destination (will be overwritten)
-    val: u16,
-    /// How many bytes wide the landing spot is
-    width: RegWidth,
-}
-
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred.
 ///
@@ -150,12 +140,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let current_ip = state.ip;
-    // The destination of the op (default to nothing)
-    let mut dest = DestType {
-        target: Target::None,
-        width: RegWidth::Word,
-        val: 0,
-    };
+    let mut dest_target;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -174,6 +159,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
     match op_type {
         op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
+            let dest_width;
+            let dest_val;
+
             // Get the op's destination reg and its current value
             match (inst.dest_reg, inst.add_data_to, inst.add_disp_to) {
                 (_, Some(AddTo::Dest), Some(AddTo::Dest)) => {
@@ -186,22 +174,22 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     // data_value_dest exists. You can't store into an
                     // immediate value! I.e. we know it's [dest_val] as dest
                     let address = inst.data_value.unwrap();
-                    dest.target = Target::MemAddress(address as usize);
-                    dest.val = load_u16_from_mem(&state.memory, address);
+                    dest_target = Target::MemAddress(address as usize);
+                    dest_val = load_u16_from_mem(&state.memory, address);
                 }
                 (_, _, Some(AddTo::Dest)) => {
                     let address =
                         mod_rm_to_addr(inst.mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
-                    dest.target = Target::MemAddress(address as usize);
-                    dest.val = load_u16_from_mem(&state.memory, address);
+                    dest_target = Target::MemAddress(address as usize);
+                    dest_val = load_u16_from_mem(&state.memory, address);
                 }
                 (Some(dest_reg), _, _) => {
                     // Get the value of the dest register
-                    dest.val = match state.reg_file.get(&dest_reg.name) {
+                    dest_val = match state.reg_file.get(&dest_reg.name) {
                         Some(x) => *x,
                         None => 0,
                     };
-                    dest.target = Target::RegisterName(dest_reg.name);
+                    dest_target = Target::RegisterName(dest_reg.name);
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -210,7 +198,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             };
 
             // Figure out destination width
-            dest.width = match (
+            dest_width = match (
                 inst.dest_reg,
                 inst.dest_width,
                 inst.source_reg,
@@ -262,21 +250,21 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
-            new_val = Some(match (op, dest.width) {
-                (OpCodeType::Mov, RegWidth::Byte) => (dest.val & 0xFF00) | (source_val & 0xFF),
-                (OpCodeType::Add, RegWidth::Byte) => (dest.val & 0xFF00) + (source_val & 0xFF),
+            new_val = Some(match (op, dest_width) {
+                (OpCodeType::Mov, RegWidth::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
+                (OpCodeType::Add, RegWidth::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
-                    (dest.val & 0xFF00) - (source_val & 0xFF)
+                    (dest_val & 0xFF00) - (source_val & 0xFF)
                 }
-                (OpCodeType::Mov, RegWidth::Hi8) => (dest.val & 0x00FF) | (source_val << 8),
-                (OpCodeType::Add, RegWidth::Hi8) => (dest.val & 0x00FF) + (source_val << 8),
+                (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
+                (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
-                    (dest.val & 0x00FF) - (source_val << 8)
+                    (dest_val & 0x00FF) - (source_val << 8)
                 }
                 (OpCodeType::Mov, RegWidth::Word) => source_val,
                 (OpCodeType::Add, RegWidth::Word) => {
                     let (result, overflowed, carry, aux_carry) =
-                        add_with_overflow(dest.val, source_val);
+                        add_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
@@ -284,7 +272,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                 }
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
                     let (result, overflowed, carry, aux_carry) =
-                        sub_with_overflow(dest.val, source_val);
+                        sub_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
@@ -295,7 +283,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
             // CMP does not store the result, but the others do
             if op == OpCodeType::Cmp {
-                dest.target = Target::None
+                dest_target = Target::None
             };
 
             // MOV does not modify flags, but the others do
@@ -305,7 +293,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
         }
         jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
-            dest.target = Target::None;
+            dest_target = Target::None;
             handle_jmp_variants(jump_op, inst, state);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
@@ -313,7 +301,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
             // Decrement cx by 1 and jump if cx != 0
             let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
             new_val = Some(cx);
-            dest.target = Target::RegisterName(RegName::Cx);
+            dest_target = Target::RegisterName(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
@@ -348,7 +336,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     }
 
     // Store the new value somewhere
-    match (dest.target, new_val) {
+    match (dest_target, new_val) {
         (Target::RegisterName(reg_name), Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(reg_name, new_val).unwrap_or(0);
