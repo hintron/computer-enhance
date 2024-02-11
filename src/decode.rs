@@ -488,6 +488,10 @@ pub struct InstType {
     data_hi: Option<u8>,
     disp_lo: Option<u8>,
     disp_hi: Option<u8>,
+    /// Displacement value. Signed. Can come from either one or two displacement
+    /// bytes. See add_disp_to to see whether disp is applied to source or
+    /// destination.
+    disp_value: Option<i16>,
     ip_inc8: Option<u8>,
     ip_inc_lo: Option<u8>,
     ip_inc_hi: Option<u8>,
@@ -724,6 +728,11 @@ fn calculate_execution_values(inst: &mut InstType) {
             inst.sign_extend_data_lo,
         ));
     }
+
+    if inst.add_disp_to.is_some() {
+        // Get the actual i16 value of the disp immediate bytes
+        inst.disp_value = get_disp_value(inst.disp_lo.as_ref(), inst.disp_hi.as_ref());
+    }
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (String, String) {
@@ -738,7 +747,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         None => {}
     };
 
-    let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_lo, inst.disp_hi);
+    let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_value);
     match (mod_rm_op, inst.d_field) {
         (None, _) => {}
         (Some(mod_rm_op), None | Some(false)) => {
@@ -1735,42 +1744,38 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 }
 
 /// Return the string based on mod rm and disp bytes
-fn mod_rm_disp_str(
-    mod_rm_data: Option<ModRmDataType>,
-    disp_lo: Option<u8>,
-    disp_hi: Option<u8>,
-) -> Option<String> {
+fn mod_rm_disp_str(mod_rm_data: Option<ModRmDataType>, disp_value: Option<i16>) -> Option<String> {
     let mod_rm_data = match mod_rm_data {
         None => return None,
         Some(x) => x,
     };
 
-    match (mod_rm_data, disp_lo, disp_hi) {
-        (ModRmDataType::MemDirectAddr, Some(lo), Some(hi)) => Some(format!("[0x{hi:02X}{lo:02X}]")),
-        (ModRmDataType::MemReg(reg), _, _) => Some(format!("[{reg}]")),
-        (ModRmDataType::MemRegReg(reg1, reg2), _, _) => Some(format!("[{reg1} + {reg2}]")),
-        (ModRmDataType::MemRegDisp(reg), Some(lo), None) => {
-            let lo = lo as i8;
-            Some(format!("[{reg} {lo:+}]"))
+    match (mod_rm_data, disp_value) {
+        (ModRmDataType::MemDirectAddr, Some(address)) => Some(format!("[0x{address:04X}]")),
+        (ModRmDataType::MemReg(reg), _) => Some(format!("[{reg}]")),
+        (ModRmDataType::MemRegReg(reg1, reg2), _) => Some(format!("[{reg1} + {reg2}]")),
+        (ModRmDataType::MemRegDisp(_), None) => {
+            unreachable!("ERROR: No displacement found for MemRegDisp")
         }
-        (ModRmDataType::MemRegDisp(reg), Some(lo), Some(hi)) => {
-            // If not direct address, print as signed 16 bit
-            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            Some(format!("[{reg} {lo_hi:+}]"))
+        (ModRmDataType::MemRegDisp(reg), Some(disp)) => Some(format!("[{reg} {disp:+}]")),
+        (ModRmDataType::MemRegRegDisp(_, _), None) => {
+            unreachable!("ERROR: No displacement found for MemRegRegDisp")
         }
-        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), None) => {
-            let lo = lo as i8;
-            Some(format!("[{reg1} + {reg2} {lo:+}]"))
-        }
-        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(lo), Some(hi)) => {
-            // If not direct address, print as signed 16 bit
-            let lo_hi = (lo as u16 | ((hi as u16) << 8)) as i16;
-            Some(format!("[{reg1} + {reg2} {lo_hi:+}]"))
+        (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(disp)) => {
+            Some(format!("[{reg1} + {reg2} {disp:+}]"))
         }
         // Don't print anything here, since the reg will already have been
         // copied into a source or dest reg and printed via that.
-        (ModRmDataType::Reg(_), _, _) => None,
+        (ModRmDataType::Reg(_), _) => None,
         _ => unreachable!(),
+    }
+}
+
+fn get_disp_value(disp_lo: Option<&u8>, disp_hi: Option<&u8>) -> Option<i16> {
+    match (disp_lo, disp_hi) {
+        (Some(lo), None) => Some(*lo as i8 as i16),
+        (Some(lo), Some(hi)) => Some(*lo as i16 + ((*hi as i16) << 8)),
+        _ => None,
     }
 }
 
