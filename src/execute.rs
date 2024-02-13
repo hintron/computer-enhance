@@ -492,7 +492,13 @@ fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) {
 /// Write the CPU memory array to a file.
 pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
     let mut file = File::create(output_file).expect("Failed to create file {output_file}");
-    file.write_all(memory).expect("Failed to write to file");
+    let all_zeros = memory.iter().all(|&x| x == 0);
+    if all_zeros {
+        file.write_all("Memory was empty".as_bytes())
+            .expect("Failed to write to file");
+    } else {
+        file.write_all(memory).expect("Failed to write to file");
+    }
     file.flush().expect("Failed to flush file");
 }
 
