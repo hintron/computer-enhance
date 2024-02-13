@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs::File;
+use std::io::Write;
 
 use crate::decode::{AddTo, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
@@ -485,6 +487,13 @@ fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) {
     let current_ip = cpu_state.ip;
     // Advance IP according to the length of this instruction
     cpu_state.ip = current_ip + inst_length;
+}
+
+/// Write the CPU memory array to a file.
+pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
+    let mut file = File::create(output_file).expect("Failed to create file {output_file}");
+    file.write_all(memory).expect("Failed to write to file");
+    file.flush().expect("Failed to flush file");
 }
 
 /// Display a 64x64 image from program memory, starting at location 0

@@ -6,7 +6,7 @@ use std::io::Write;
 
 // Internal imports
 use computer_enhance::decode::{decode, decode_execute};
-use computer_enhance::execute::{display_memory, print_final_state};
+use computer_enhance::execute::{display_memory, memory_to_file, print_final_state};
 use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
@@ -151,8 +151,10 @@ fn main() -> Result<()> {
     );
     println!(
         "Outputting decoded assembly to file '{}'...",
-        args.output_file.unwrap()
+        args.output_file.as_ref().unwrap()
     );
+
+    let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");
 
     if args.execute {
         let (text_lines, mut cpu_state) =
@@ -166,6 +168,7 @@ fn main() -> Result<()> {
             writeln!(output_file, "{}", line)?;
         }
 
+        memory_to_file(&mut cpu_state.memory, mem_image_output);
         display_memory(&mut cpu_state.memory);
     } else {
         let insts = decode(program_bytes, args.print, args.verbose);
