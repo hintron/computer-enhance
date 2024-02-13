@@ -6,7 +6,7 @@ use std::io::Write;
 
 // Internal imports
 use computer_enhance::decode::{decode, decode_execute};
-use computer_enhance::execute::print_final_state;
+use computer_enhance::execute::{display_memory, print_final_state};
 use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
@@ -155,7 +155,7 @@ fn main() -> Result<()> {
     );
 
     if args.execute {
-        let (text_lines, cpu_state) =
+        let (text_lines, mut cpu_state) =
             decode_execute(program_bytes, args.print, args.verbose, args.no_ip);
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
@@ -165,6 +165,8 @@ fn main() -> Result<()> {
         for line in &final_state_lines {
             writeln!(output_file, "{}", line)?;
         }
+
+        display_memory(&mut cpu_state.memory);
     } else {
         let insts = decode(program_bytes, args.print, args.verbose);
         // Print out instructions to the output file
