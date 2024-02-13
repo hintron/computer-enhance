@@ -1758,12 +1758,16 @@ fn mod_rm_disp_str(mod_rm_data: Option<ModRmDataType>, disp_value: Option<i16>) 
         (ModRmDataType::MemRegDisp(_), None) => {
             unreachable!("ERROR: No displacement found for MemRegDisp")
         }
-        (ModRmDataType::MemRegDisp(reg), Some(disp)) => Some(format!("[{reg} {disp:+}]")),
+        (ModRmDataType::MemRegDisp(reg), Some(disp)) => {
+            let sign = if disp >= 0 { "+" } else { "-" };
+            Some(format!("[{reg} {sign} {}]", disp.abs()))
+        }
         (ModRmDataType::MemRegRegDisp(_, _), None) => {
             unreachable!("ERROR: No displacement found for MemRegRegDisp")
         }
         (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(disp)) => {
-            Some(format!("[{reg1} + {reg2} {disp:+}]"))
+            let sign = if disp >= 0 { "+" } else { "-" };
+            Some(format!("[{reg1} + {reg2} {sign} {}]", disp.abs()))
         }
         // Don't print anything here, since the reg will already have been
         // copied into a source or dest reg and printed via that.
