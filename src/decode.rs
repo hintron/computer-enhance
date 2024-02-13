@@ -29,7 +29,7 @@
 
 use std::fmt;
 
-use crate::execute::{execute, init_state, print_final_state};
+use crate::execute::{display_memory, execute, init_state, print_final_state};
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
@@ -566,6 +566,7 @@ pub fn decode_execute(
     }
 
     print_final_state(&cpu_state, &mut output_text_lines, no_ip);
+    display_memory(&mut cpu_state.memory);
     output_text_lines
 }
 
