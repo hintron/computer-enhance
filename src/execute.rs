@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs::File;
+use std::io::Write;
 
 use crate::decode::{AddTo, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
@@ -487,6 +489,13 @@ fn advance_ip_reg(inst: &InstType, cpu_state: &mut CpuStateType) {
     cpu_state.ip = current_ip + inst_length;
 }
 
+/// Write the CPU memory array to a file.
+pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
+    let mut file = File::create(output_file).expect("Failed to create file {output_file}");
+    file.write_all(memory).expect("Failed to write to file");
+    file.flush().expect("Failed to flush file");
+}
+
 /// Display a 64x64 image from program memory, starting at location 0
 /// The output image is 4 bytes per pixel (RGBA). minifb expects 32 bits (4
 /// bytes) per pixel.
@@ -530,7 +539,8 @@ pub fn display_memory(memory: &mut Vec<u8>) {
     }
 }
 
-pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: bool) {
+pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
+    let mut lines = vec![];
     let ax_val = state.reg_file.get(&RegName::Ax).unwrap_or(&0);
     let bx_val = state.reg_file.get(&RegName::Bx).unwrap_or(&0);
     let cx_val = state.reg_file.get(&RegName::Cx).unwrap_or(&0);
@@ -588,6 +598,7 @@ pub fn print_final_state(state: &CpuStateType, lines: &mut Vec<String>, no_ip: b
         lines.push(format!("   flags: {}", state.flags_reg));
     }
     lines.push(format!(""));
+    lines
 }
 
 /// Add two 16-bit numbers together. If the sign bit of the lhs changes, set

@@ -29,7 +29,7 @@
 
 use std::fmt;
 
-use crate::execute::{display_memory, execute, init_state, print_final_state};
+use crate::execute::{execute, init_state, CpuStateType};
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
@@ -536,7 +536,7 @@ pub fn decode_execute(
     print: bool,
     verbose: bool,
     no_ip: bool,
-) -> Vec<String> {
+) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
 
@@ -565,9 +565,7 @@ pub fn decode_execute(
         };
     }
 
-    print_final_state(&cpu_state, &mut output_text_lines, no_ip);
-    display_memory(&mut cpu_state.memory);
-    output_text_lines
+    (output_text_lines, cpu_state)
 }
 
 /// Decode an 8086 instruction stream. This is a dumb line-by-line decode of an
