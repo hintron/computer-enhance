@@ -1,4 +1,4 @@
-# Computer Enhance x86 Decoder and Simulator
+# Computer Enhance 8086 Decoder and Simulator
 
 This is an 8086 instruction decoder and simulator, implemented in the [Rust
 programming language][5] by following the [Computer Enhance][1] performance
