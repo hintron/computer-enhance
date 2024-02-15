@@ -41,6 +41,7 @@ decoding it.
 -h|--help : Print this help message.
 -p|--print : Print out the instructions as decoded/executed.
 -v|--verbose : Increase verbosity of print to include debug information.
+--no-ip : If specified, do NOT print out IP register info.
 ";
 
 fn print_help() {
