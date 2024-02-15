@@ -29,10 +29,10 @@ struct ArgsType {
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
 const HELP: &str = "
-The Computer Enhance x86 Decoder and Simulator
+The Computer Enhance 8086 Decoder and Simulator
 
 Required Parameters:
-<input> : The input binary file containing x86 binary code.
+<input> : The input binary file containing 8086 binary code.
 <output> : The output file to print decoded assembly to.
 
 Options:
