@@ -27,6 +27,12 @@ struct ArgsType {
     no_ip: bool,
 }
 
+#[derive(PartialEq, Eq)]
+enum ArgType {
+    /// This arg is a flag, and does not have a value after it.
+    NoValue,
+}
+
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
 const HELP: &str = "
 The Computer Enhance 8086 Decoder and Simulator
@@ -49,24 +55,31 @@ fn print_help() {
     println!("{HELP}");
 }
 
+fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) -> Result<()> {
+    match arg_type {
+        ArgType::NoValue => unreachable!(),
+    };
+    Ok(())
+}
+
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
-fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<bool> {
+fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     if arg.starts_with("-h") || arg.starts_with("--help") {
         parsed_args.help = true;
-        Ok(false)
+        Ok(ArgType::NoValue)
     } else if arg.starts_with("-e") || arg.starts_with("--exec") {
         parsed_args.execute = true;
-        Ok(false)
+        Ok(ArgType::NoValue)
     } else if arg.starts_with("-p") || arg.starts_with("--print") {
         parsed_args.print = true;
-        Ok(false)
+        Ok(ArgType::NoValue)
     } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
         parsed_args.verbose = true;
-        Ok(false)
+        Ok(ArgType::NoValue)
     } else if arg.starts_with("--no-ip") {
         parsed_args.no_ip = true;
-        Ok(false)
+        Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -97,14 +110,14 @@ fn parse_args() -> Result<ArgsType> {
         ..Default::default()
     };
 
-    let mut get_arg_value = false;
+    let mut get_arg_value = ArgType::NoValue;
     // Now parse args, excluding the first arg
     for arg in args {
         if parsed_args.first_arg.is_none() {
             parsed_args.first_arg = Some(arg);
-        } else if get_arg_value {
-            // This argument is a value for the last argument
-            unimplemented!();
+        } else if get_arg_value != ArgType::NoValue {
+            // This argument is a value for the previous argument
+            parse_arg_value(arg, &get_arg_value, &mut parsed_args)?;
         } else if arg.starts_with("-") {
             get_arg_value = parse_optional(arg, &mut parsed_args)?;
         } else {
