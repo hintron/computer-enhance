@@ -115,7 +115,7 @@ previous baseline run.
 We'll use the [flamegraph][6] crate to profile our executable using flamegraphs
 in Linux.
 
-Fist, install the flamegraph crate globally:
+First, install the flamegraph crate globally:
 
 ```shell
 cargo install flamegraph
