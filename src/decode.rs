@@ -29,7 +29,7 @@
 
 use std::fmt;
 
-use crate::execute::{execute, init_state, CpuStateType};
+use crate::execute::{execute, init_state, CpuStateType, CycleEstType};
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
 const DIRECT_ADDR: u8 = 0b110;
@@ -441,6 +441,55 @@ pub enum ModRmDataType {
     MemRegRegDisp(RegType, RegType),
 }
 
+/// See table 2-20 and 2-21.
+/// From 2-50: "For instructions executing on an 8086, four clocks should be
+/// added for each instruction reference to a word operand located at an odd
+/// memory address to reflect any additional operand bus cycles required.
+/// Similarly for instructions executing on an 8088, four clocks should be added
+/// to each instruction reference to a 16-bit memory operand; this includes all
+/// stack operations."
+/// Table 2-21 lists the required number of memory transfers in an instruction.
+/// Whether there is a 4-clock transfer penalty depends on if it is an unaligned
+/// memory access (in the 8086) or any 16-bit memory access (in the 8088).
+#[derive(Default, Debug)]
+pub struct InstCycles {
+    /// The base clocks that this instruction takes
+    pub base_clocks: u64,
+    /// The clocks needed to calculate the effective address, if any
+    pub ea_clocks: Option<u64>,
+    /// Transfer penalty clocks for the 8086, if any.
+    pub transfer_clocks_8086: Option<u64>,
+    /// Transfer penalty clocks for the 8088, if any.
+    pub transfer_clocks_8088: Option<u64>,
+}
+
+impl fmt::Display for InstCycles {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match (self.base_clocks, self.ea_clocks, self.transfer_clocks) {
+            (inst, Some(ea), Some(t_penalty)) => write!(f, "{inst} + {ea}ea + {t_penalty}p"),
+            (inst, Some(ea), None) => write!(f, "{inst} + {ea}ea"),
+            (inst, None, Some(t_penalty)) => write!(f, "{inst} + {t_penalty}p"),
+            (inst, None, None) => write!(f, "{inst}"),
+        }
+    }
+}
+
+impl InstCycles {
+    /// Add up base_clocks, ea clocks, and transfer penalty clocks and return it
+    /// as the total clocks for this instruction
+    pub fn get_total_clocks(&self) -> u64 {
+        let mut total = self.base_clocks;
+        match self.ea_clocks {
+            Some(x) => total += x,
+            _ => {}
+        }
+        match self.transfer_clocks {
+            Some(x) => total += x,
+            _ => {}
+        }
+        total
+    }
+}
 /// A struct holding all the decoded data of a given instruction
 /// All public fields will be used in the execute module or printed out to the
 /// user.
@@ -525,6 +574,8 @@ pub struct InstType {
     pub dest_width: Option<RegWidth>,
     /// The final instruction representation
     pub text: Option<String>,
+    /// 8086 and 8088 instruction cycle/clock data, if specified
+    pub cycles: Option<InstCycles>,
 }
 
 /// Decode and execute an 8086 program. This will decode and execute whatever
@@ -538,6 +589,7 @@ pub fn decode_execute(
     print: bool,
     verbose: bool,
     no_ip: bool,
+    cycle_type: Option<CycleEstType>,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
@@ -558,7 +610,7 @@ pub fn decode_execute(
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state, no_ip);
+                let text = execute(&mut inst, &mut cpu_state, no_ip, cycle_type);
                 output_text_lines.push(text);
                 // On to the next instruction...
             }
@@ -1096,6 +1148,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 },
                 _ => {},
             }
+            inst.cycles = Some(InstCycles {
+                base_clocks: 4,
+                ..Default::default()
+            });
         }
         // mov - Memory to accumulator or accumulator to memory
         0xA0..=0xA3 => {
@@ -1117,6 +1173,15 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             if w_field {
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             }
+            let transfer_8088 = if w_field { Some(4) } else { None };
+            // NOTE: We need to check the memory byte for unaligned access
+            // to determine 8086 transfer penalty
+            // inst.check_mem_align = true;
+            inst.cycles = Some(InstCycles {
+                base_clocks: 10,
+                transfer_clocks_8088: transfer_8088,
+                ..Default::default()
+            });
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to segment register

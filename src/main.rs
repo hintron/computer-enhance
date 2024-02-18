@@ -6,7 +6,7 @@ use std::io::Write;
 
 // Internal imports
 use computer_enhance::decode::{decode, decode_execute};
-use computer_enhance::execute::{display_memory, memory_to_file, print_final_state};
+use computer_enhance::execute::{display_memory, memory_to_file, print_final_state, CycleEstType};
 use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
@@ -25,10 +25,15 @@ struct ArgsType {
     /// If true, do NOT calculate and print out changes to the IP register
     /// during execution.
     no_ip: bool,
+    /// If specified, do cycle estimates during execution for the given CPU
+    /// type.
+    cycle_type: Option<CycleEstType>,
 }
 
 #[derive(PartialEq, Eq)]
 enum ArgType {
+    /// This arg is the cycles estimate arg
+    Cycles,
     /// This arg is a flag, and does not have a value after it.
     NoValue,
 }
@@ -48,6 +53,8 @@ decoding it.
 -p|--print : Print out the instructions as decoded/executed.
 -v|--verbose : Increase verbosity of print to include debug information.
 --no-ip : If specified, do NOT print out IP register info.
+-c|--model-cycles {8086|8088} : If specified, estimate cycles during execution for the
+given CPU (8086 or 8088)
 ";
 
 fn print_help() {
@@ -58,6 +65,16 @@ fn print_help() {
 fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) -> Result<()> {
     match arg_type {
         ArgType::NoValue => unreachable!(),
+        ArgType::Cycles => {
+            parsed_args.cycle_type = if arg == "8086" {
+                Some(CycleEstType::Intel8086)
+            } else if arg == "8088" {
+                // default to 8086 cycle estimates
+                Some(CycleEstType::Intel8088)
+            } else {
+                bail!("Unsupported value for -c|--model-cycles: {arg}")
+            }
+        }
     };
     Ok(())
 }
@@ -80,6 +97,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--no-ip") {
         parsed_args.no_ip = true;
         Ok(ArgType::NoValue)
+    } else if arg.starts_with("-c") || arg.starts_with("--model-cycles") {
+        // Return true and get the value from the next arg iteration
+        Ok(ArgType::Cycles)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -171,13 +191,18 @@ fn main() -> Result<()> {
     let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");
 
     if args.execute {
-        let (text_lines, mut cpu_state) =
-            decode_execute(program_bytes, args.print, args.verbose, args.no_ip);
+        let (text_lines, mut cpu_state) = decode_execute(
+            program_bytes,
+            args.print,
+            args.verbose,
+            args.no_ip,
+            args.cycle_type,
+        );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
         }
 
-        let final_state_lines = print_final_state(&cpu_state, args.no_ip);
+        let final_state_lines = print_final_state(&cpu_state, args.no_ip, args.cycle_type);
         for line in &final_state_lines {
             writeln!(output_file, "{}", line)?;
         }

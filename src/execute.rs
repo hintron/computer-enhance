@@ -119,12 +119,40 @@ enum Target {
     None,
 }
 
+/// A type to determine if this execution run is for an 8086 or an 8088, and
+/// then to print out cycle estimates accordingly.
+///
+/// Cycle estimates will be different, depending on if this is an 8086 or an
+/// 8088. The 8086 has a 16-bit bus, while the 8088 has an 8-bit bus. The 8088
+/// was designed to be easier and cheaper to make, but with slightly worse
+/// latencies.
+#[derive(Copy, Clone)]
+pub enum CycleEstType {
+    Intel8086,
+    Intel8088,
+}
+
+impl fmt::Display for CycleEstType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Intel8086 => write!(f, "8086")?,
+            Self::Intel8088 => write!(f, "8088")?,
+        }
+        Ok(())
+    }
+}
+
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred.
 ///
 /// no_ip: If true, do NOT add IP changes or the final state of IP to the output
 /// string.
-pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> String {
+pub fn execute(
+    inst: &mut InstType,
+    state: &mut CpuStateType,
+    no_ip: bool,
+    cycle_model: Option<CycleEstType>,
+) -> String {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
         Some(op_type) => op_type,
@@ -146,6 +174,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let current_ip = state.ip;
+    let mut total_cycles = 0;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -322,6 +351,24 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
 
     effect.push_str(inst.text.as_ref().unwrap());
     effect.push_str(" ;");
+
+    // Print cycle estimation, if requested
+    match (cycle_model, inst.cycles.as_ref()) {
+        (Some(_cycle_model), Some(inst_cycles)) => {
+            let inst_total = inst_cycles.get_total_clocks();
+            total_cycles += inst_total;
+            effect.push_str(&format!(" Clocks: +{inst_total} = {total_cycles}",));
+            if inst_cycles.ea_clocks.is_some() || inst_cycles.transfer_clocks.is_some() {
+                effect.push_str(&format!(" ({inst_cycles})"));
+            }
+            effect.push_str(" |");
+        }
+        (Some(_), None) => {
+            println!("inst debug: {:#?}", &inst);
+            unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
+        }
+        (None, _) => {} // Do nothing if not modeling cycles
+    }
 
     match (modify_flags, new_val) {
         (true, Some(new_val)) => {
@@ -545,7 +592,14 @@ pub fn display_memory(memory: &mut Vec<u8>) {
     }
 }
 
-pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
+/// Print the final CPU state.
+/// If `no_ip` is specified, don't print out the IP register.
+/// If `cycle_type` is specified, print out cycle estimates.
+pub fn print_final_state(
+    state: &CpuStateType,
+    no_ip: bool,
+    cycle_type: Option<CycleEstType>,
+) -> Vec<String> {
     let mut lines = vec![];
     let ax_val = state.reg_file.get(&RegName::Ax).unwrap_or(&0);
     let bx_val = state.reg_file.get(&RegName::Bx).unwrap_or(&0);
@@ -560,6 +614,26 @@ pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
     let ds_val = state.reg_file.get(&RegName::Ds).unwrap_or(&0);
 
     lines.push(format!(""));
+    if cycle_type.is_some() {
+        lines.push("**************".to_string());
+        lines.push(format!("**** {} ****", cycle_type.unwrap()));
+        lines.push("**************".to_string());
+        lines.push("".to_string());
+        lines.push(
+            "WARNING: Clocks reported by this utility are strictly from the 8086 manual."
+                .to_string(),
+        );
+        lines.push(
+            "They will be inaccurate, both because the manual clocks are estimates, and because"
+                .to_string(),
+        );
+        lines.push(
+            "some of the entries in the manual look highly suspicious and are probably typos."
+                .to_string(),
+        );
+        lines.push("".to_string());
+    }
+
     lines.push(format!("Final registers:"));
     if *ax_val != 0 {
         lines.push(format!("      ax: 0x{:04x} ({})", ax_val, ax_val));
