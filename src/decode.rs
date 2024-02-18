@@ -748,16 +748,16 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         None => {}
     };
 
-    let mod_rm_op = mod_rm_disp_str(inst.mod_rm_data, inst.disp_value);
-    match (mod_rm_op, inst.d_field) {
+    let mod_rm_addr = get_mod_rm_addr_str(inst.mod_rm_data, inst.disp_value);
+    match (mod_rm_addr, inst.d_field) {
         (None, _) => {}
-        (Some(mod_rm_op), None | Some(false)) => {
+        (Some(mod_rm_addr), None | Some(false)) => {
             // Dest is rm field
-            dest_text.push_str(&mod_rm_op);
+            dest_text.push_str(&mod_rm_addr);
         }
-        (Some(mod_rm_op), Some(true)) => {
+        (Some(mod_rm_addr), Some(true)) => {
             // Source is rm field
-            source_text.push_str(&mod_rm_op);
+            source_text.push_str(&mod_rm_addr);
         }
     }
 
@@ -1744,9 +1744,12 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     inst.rm_field = Some(rm_field);
 }
 
-/// Return the string based on mod rm and disp bytes
+/// Return the memory address string from mod rm and the displacement.
 /// See Execute::mod_rm_to_addr()
-fn mod_rm_disp_str(mod_rm_data: Option<ModRmDataType>, disp_value: Option<i16>) -> Option<String> {
+fn get_mod_rm_addr_str(
+    mod_rm_data: Option<ModRmDataType>,
+    disp_value: Option<i16>,
+) -> Option<String> {
     let mod_rm_data = match mod_rm_data {
         None => return None,
         Some(x) => x,
