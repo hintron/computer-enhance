@@ -55,11 +55,10 @@ fn print_help() {
     println!("{HELP}");
 }
 
-fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) -> Result<()> {
+fn parse_arg_value(_arg: String, arg_type: &ArgType, _parsed_args: &mut ArgsType) -> Result<()> {
     match arg_type {
         ArgType::NoValue => unreachable!(),
     };
-    Ok(())
 }
 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
