@@ -184,14 +184,22 @@ fn get_reg_clock_penalty(reg1: RegName, reg2: RegName) -> u64 {
 
 /// Get the clocks associated with the effective address calculation.
 /// See table 2-20.
-pub fn get_effective_addr_clocks(mod_rm_data: ModRmDataType) -> Option<u64> {
+pub fn get_effective_addr_clocks(
+    mod_rm_data: ModRmDataType,
+    disp_value: Option<i16>,
+) -> Option<u64> {
+    // When disp is 0, there is no disp penalty! So reduce by 4
+    let disp_penalty = match disp_value {
+        None | Some(0) => 0,
+        Some(_) => 4,
+    };
     match mod_rm_data {
         // displacement only
         ModRmDataType::MemDirectAddr => Some(6),
         // base or index only
         ModRmDataType::MemReg(_) => Some(5),
         // displacement + base or index
-        ModRmDataType::MemRegDisp(_) => Some(9),
+        ModRmDataType::MemRegDisp(_) => Some(5 + disp_penalty),
         // base + index
         ModRmDataType::MemRegReg(reg1, reg2) => {
             let penalty = get_reg_clock_penalty(reg1.name, reg2.name);
@@ -200,7 +208,7 @@ pub fn get_effective_addr_clocks(mod_rm_data: ModRmDataType) -> Option<u64> {
         // displacement + base + index
         ModRmDataType::MemRegRegDisp(reg1, reg2) => {
             let penalty = get_reg_clock_penalty(reg1.name, reg2.name);
-            Some(11 + penalty)
+            Some(7 + disp_penalty + penalty)
         }
         _ => None,
     }
