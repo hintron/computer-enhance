@@ -4,7 +4,7 @@
 //! NOTE: "cycles" and "clocks" are used interchangeably.
 //!
 
-use crate::decode::{CpuType, InstType, ModRmDataType, OpCodeType, RegName};
+use crate::decode::{CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
 /// This in combination with the instruction's op code type index into table
 /// 2-21 to get clocks data for each instruction.
@@ -158,6 +158,66 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         "clocks: OpType={:?}, base={}",
         inst.operands_type, inst.clocks_base
     );
+
+    // Calculate 8088 word transfer penalties if not already set for the inst
+    if inst.mem_access_word == 0 {
+        // Current assumption is that both of these can't be set
+        // TODO: Create one width field, and use AddTo, to enforce this
+        assert!(inst.dest_width.is_none() || inst.source_width.is_none());
+
+        match inst.dest_width {
+            Some(RegWidth::Word) => inst.mem_access_word += 1,
+            _ => {}
+        }
+
+        match inst.source_width {
+            Some(RegWidth::Word) => inst.mem_access_word += 1,
+            _ => {}
+        }
+
+        // TODO: We need to track all memory accesses where the other side
+        // is a register with an implicit width. These cases aren't covered
+        // by dest_width or source_width.
+        let is_memory_inst = is_memory_inst(inst);
+        match (is_memory_inst, inst.dest_reg, inst.source_reg) {
+            (true, Some(dest_reg), _) => {
+                if dest_reg.width == RegWidth::Word {
+                    inst.mem_access_word += 1
+                }
+            }
+            (true, _, Some(src_reg)) => {
+                if src_reg.width == RegWidth::Word {
+                    inst.mem_access_word += 1
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Determine if this instruction is a memory instruction
+fn is_memory_inst(inst: &InstType) -> bool {
+    match (inst.mod_rm_data, inst.operands_type) {
+        // This is a reg to reg operation - no mem
+        (Some(ModRmDataType::Reg(_)), _) => false,
+        // The other ModRmDataTypes are all memory accesses
+        (Some(_), _) => true,
+        (
+            _,
+            Some(
+                OperandsType::AccMem
+                | OperandsType::MemImm
+                | OperandsType::MemReg
+                | OperandsType::MemSeg
+                | OperandsType::RegMem
+                | OperandsType::SegMem,
+            ),
+        ) => {
+            println!("NOTE: OperandsType used to determine this inst was mem!");
+            true
+        }
+        _ => false,
+    }
 }
 
 /// Return the clock penalty (if any) for the given combination of base + index
