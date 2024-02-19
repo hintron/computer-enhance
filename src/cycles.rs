@@ -142,6 +142,11 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
                 //     unimplemented!("Unimplemented inst + operands type: {}", inst.text.as_ref().unwrap())
                 // }
     }
+
+    println!(
+        "clocks: OpType={:?}, base={}",
+        inst.operands_type, inst.clocks_base
+    );
 }
 
 /// Return the clock penalty (if any) for the given combination of base + index
