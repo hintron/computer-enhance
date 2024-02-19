@@ -32,9 +32,6 @@ use std::fmt;
 use crate::cycles::{calculate_inst_clocks, OperandsType};
 use crate::execute::{execute, init_state, CpuStateType};
 
-/// The bits of r/m field that is direct address if mode is MemoryMode0
-const DIRECT_ADDR: u8 = 0b110;
-
 /// The four types of modes in the mod field of "mod r/m" bytes
 #[derive(Copy, Clone, Debug)]
 enum ModType {
@@ -1626,7 +1623,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 
     // Indicate that there are displacement bytes to process next
     // Displacement bytes come before immediate/data bytes
-    let has_disp = match (mode, rm_field) {
+    let has_disp = match (mode, mod_rm_data) {
         (ModType::MemoryMode8, _) => {
             inst.immediate_bytes.push(ImmBytesType::DispLo);
             true
@@ -1636,7 +1633,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.immediate_bytes.push(ImmBytesType::DispHi);
             true
         }
-        (ModType::MemoryMode0, DIRECT_ADDR) => {
+        (ModType::MemoryMode0, ModRmDataType::MemDirectAddr) => {
             inst.immediate_bytes.push(ImmBytesType::DispLo);
             inst.immediate_bytes.push(ImmBytesType::DispHi);
             true
