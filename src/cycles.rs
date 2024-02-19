@@ -28,6 +28,17 @@ pub enum OperandsType {
 
 /// Now that the instruction is all decoded, fill in clock information
 /// This contains all the clock information from table 2-21.
+///
+/// Regarding 8086 and 8088-specific clock penalties:
+/// From pg. 2-50: "For instructions executing on an 8086, four clocks should be
+/// added for each instruction reference to a word operand located at an odd
+/// memory address to reflect any additional operand bus cycles required.
+/// Similarly for instructions executing on an 8088, four clocks should be added
+/// to each instruction reference to a 16-bit memory operand; this includes all
+/// stack operations."
+/// Table 2-21 lists the required number of memory transfers in an instruction.
+/// Whether there is a 4-clock transfer penalty depends on if it is an unaligned
+/// memory access (in the 8086) or any 16-bit memory access (in the 8088).
 pub fn calculate_inst_clocks(inst: &mut InstType) {
     match (inst.op_type, inst.operands_type) {
         // TODO: Implement seg reg moves
@@ -231,16 +242,6 @@ pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType) -> Option<String
 
 /// Add up clocks_base, ea clocks, and transfer penalty clocks and return it
 /// as the total clocks for this instruction.
-///
-/// From pg. 2-50: "For instructions executing on an 8086, four clocks should be
-/// added for each instruction reference to a word operand located at an odd
-/// memory address to reflect any additional operand bus cycles required.
-/// Similarly for instructions executing on an 8088, four clocks should be added
-/// to each instruction reference to a 16-bit memory operand; this includes all
-/// stack operations."
-/// Table 2-21 lists the required number of memory transfers in an instruction.
-/// Whether there is a 4-clock transfer penalty depends on if it is an unaligned
-/// memory access (in the 8086) or any 16-bit memory access (in the 8088).
 pub fn get_total_clocks(inst: &InstType, cpu_type: CpuType) -> u64 {
     let mut total = inst.clocks_base;
     match inst.clocks_ea {
