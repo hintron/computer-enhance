@@ -22,7 +22,7 @@ mov cx, [bp + 1000] ; Clocks: +17 = 124 (8 + 9ea) | ip:0x22->0x26
 mov [si + 1000], cx ; Clocks: +18 = 142 (9 + 9ea) | ip:0x26->0x2a
 mov [di + 1000], cx ; Clocks: +18 = 160 (9 + 9ea) | ip:0x2a->0x2e
 add cx, dx ; Clocks: +3 = 163 | ip:0x2e->0x30 flags:->PZ
-add word [di + 1000], cx ; Clocks: +25 = 188 (16 + 9ea) | ip:0x30->0x34
+add [di + 1000], cx ; Clocks: +25 = 188 (16 + 9ea) | ip:0x30->0x34
 add dx, 50 ; Clocks: +4 = 192 | dx:0x0->0x32 ip:0x34->0x37 flags:PZ->
 
 Final registers:
