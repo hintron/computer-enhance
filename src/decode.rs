@@ -1159,9 +1159,6 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             if w_field {
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             }
-            if w_field { inst.mem_access_word += 1 }
-            // NOTE: We need to check the memory byte for unaligned access
-            // to determine 8086 transfer penalty
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to segment register
@@ -1687,8 +1684,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match inst.w_field {
                 Some(true) => {
                     inst.immediate_bytes.push(ImmBytesType::DataHi);
-                    // Penalize 8088 for 16-bit data transfer
-                    inst.mem_access_word += 1;
                 }
                 _ => {}
             }
