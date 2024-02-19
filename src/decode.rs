@@ -357,7 +357,7 @@ impl fmt::Display for RegName {
 }
 
 /// The width of a register
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum RegWidth {
     // 8 bits/low half of word
     Byte,
