@@ -25,6 +25,8 @@ struct ArgsType {
     /// If true, do NOT calculate and print out changes to the IP register
     /// during execution.
     no_ip: bool,
+    /// If true, overwrite the output file. If false (default), don't overwrite.
+    overwrite: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -48,6 +50,7 @@ decoding it.
 -p|--print : Print out the instructions as decoded/executed.
 -v|--verbose : Increase verbosity of print to include debug information.
 --no-ip : If specified, do NOT print out IP register info.
+--overwrite : If specified, overwrite the output file instead of appending to it.
 ";
 
 fn print_help() {
@@ -78,6 +81,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::NoValue)
     } else if arg.starts_with("--no-ip") {
         parsed_args.no_ip = true;
+        Ok(ArgType::NoValue)
+    } else if arg.starts_with("--overwrite") {
+        parsed_args.overwrite = true;
         Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
@@ -157,7 +163,7 @@ fn main() -> Result<()> {
     // Make sure required args exist
 
     let program_bytes = file_to_byte_vec(&args.input_file)?;
-    let mut output_file = get_output_file_from_path(&args.output_file)?;
+    let mut output_file = get_output_file_from_path(&args.output_file, args.overwrite)?;
     println!(
         "Decoding instructions from file '{}'...",
         args.input_file.unwrap()

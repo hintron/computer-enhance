@@ -35,13 +35,18 @@ pub fn file_to_byte_vec(input_path: &Option<String>) -> Result<Vec<u8>> {
 }
 
 /// Takes in an output file path string and returns a File handle
-pub fn get_output_file_from_path(output_path: &Option<String>) -> Result<File> {
+pub fn get_output_file_from_path(output_path: &Option<String>, overwrite: bool) -> Result<File> {
     let output_file = match output_path {
-        Some(file) => OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(file)?,
+        Some(file) => {
+            let mut file_options = OpenOptions::new();
+            file_options.write(true).create(true);
+            if overwrite {
+                file_options.truncate(true);
+            } else {
+                file_options.append(true);
+            }
+            file_options.open(file)?
+        }
         _ => unreachable!(),
     };
     Ok(output_file)
