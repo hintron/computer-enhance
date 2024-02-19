@@ -545,6 +545,8 @@ pub fn display_memory(memory: &mut Vec<u8>) {
     }
 }
 
+/// Print the final CPU state.
+/// If `no_ip` is specified, don't print out the IP register.
 pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
     let mut lines = vec![];
     let ax_val = state.reg_file.get(&RegName::Ax).unwrap_or(&0);
