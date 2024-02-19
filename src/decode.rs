@@ -1641,6 +1641,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         _ => false,
     };
 
+    // Figure out operand types, for clock estimation
+    match (mode, inst.d_field) {
+        (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::RegReg),
+        (_, Some(true)) => inst.operands_type = Some(OperandsType::RegMem),
+        (_, _) => inst.operands_type = Some(OperandsType::MemReg),
+    }
+
     if has_disp {
         // Indicate what displacement should be added to: src or dest
         match inst.d_field {
@@ -1672,7 +1679,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
             };
             inst.reg_field = Some(reg_field);
-            inst.operands_type = Some(OperandsType::RegReg);
             // We need no byte/word prefix for ModRegRm, since there is always
             // a register source/dest to indicate size
         }
