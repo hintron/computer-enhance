@@ -23,6 +23,7 @@ pub struct CpuStateType {
     reg_file: BTreeMap<RegName, u16>,
     flags_reg: FlagsRegType,
     pub memory: Vec<u8>,
+    total_cycles: u64,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -152,7 +153,6 @@ pub fn execute(
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let current_ip = state.ip;
-    let mut total_cycles = 0;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -339,8 +339,8 @@ pub fn execute(
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
             }
             let inst_total = get_total_clocks(inst, cpu_type);
-            total_cycles += inst_total;
-            effect.push_str(&format!(" Clocks: +{inst_total} = {total_cycles}"));
+            state.total_cycles += inst_total;
+            effect.push_str(&format!(" Clocks: +{inst_total} = {}", state.total_cycles));
             match get_total_clocks_str(inst, cpu_type) {
                 Some(str) => effect.push_str(&format!(" ({})", str)),
                 None => {}
