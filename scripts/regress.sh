@@ -16,6 +16,8 @@ SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
 SIMULATE_SRC_DIR="$FILE_DIR/simulate-regress"
 SIMULATE_IP_BUILD_DIR="$FILE_DIR/build-simulate-ip-regress"
 SIMULATE_IP_SRC_DIR="$FILE_DIR/simulate-ip-regress"
+SIMULATE_CYCLES_BUILD_DIR="$FILE_DIR/build-simulate-ip-cycles-regress"
+SIMULATE_CYCLES_SRC_DIR="$FILE_DIR/simulate-ip-cycles-regress"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
 CHECK_RTOS="false"
@@ -188,6 +190,42 @@ for file in "$SIMULATE_IP_BUILD_DIR"/*; do
 
 done
 
+# Check the decode and simulation of everything in simulate-ip-cycles-regress,
+# including the IP register AND cycle estimates. Run each file twice - once for
+# 8086 cycle estimates, and once for 8088 cycle estimates. Combine both those
+# runs into a single output txt file, and compare with the golden txt file.
+for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
+    # If the glob found nothing, it will be treated as a file, so skip it 
+    if [ ! -e "$file" ]; then continue; fi
+    echo "Checking simulation (w/ 8086 cycles) of $file..."
+    BASE=$(basename "$file")
+    SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
+    SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
+        echo "ERROR: 8086 simulation of program failed for $file"
+        rc=1
+        break
+    fi
+    # Append 8088 simulation results to 8086 simulation results
+    echo "Checking simulation (w/ 8088 cycles) of $file..."
+    SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
+        echo "ERROR: 8088 simulation of program failed for $file"
+        rc=1
+        break
+    fi
+    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_CYCLES_SRC_DIR/$BASE.txt"
+    DIFF="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.diff"
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+        echo "ERROR: 8086/8088 Simulation output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $SIMULATE_OUTPUT"
+        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+        rc=1
+        break
+    fi
+    rm "$DIFF"
+done
 
 
 if [ "$rc" == "0" ]; then

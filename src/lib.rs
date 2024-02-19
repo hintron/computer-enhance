@@ -6,6 +6,7 @@
 //! [1]: https://www.computerenhance.com/.
 //!
 // Define the modules in this library
+pub mod cycles;
 pub mod decode;
 pub mod execute;
 #[cfg(test)]
