@@ -729,9 +729,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         }
     }
 
-    // Now that the inst is fully decoded, calculate clock values
-    calculate_inst_clocks(&mut inst);
-
     // Now that we have all the data decoded, massage and set any additional
     // info that we want to pass to the execution side.
     calculate_execution_values(&mut inst);
@@ -744,6 +741,9 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
     }
 
     inst.text = Some(inst_test);
+
+    // Now that the inst is fully decoded, calculate clock values
+    calculate_inst_clocks(&mut inst);
 
     return Some(inst);
 }
