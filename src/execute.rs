@@ -198,7 +198,7 @@ pub fn execute(
                     let address = address.unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
-                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data);
+                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data, inst.disp_value);
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -250,7 +250,7 @@ pub fn execute(
                 }
                 (_, _, Some(mod_rm_data)) => {
                     let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
-                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data);
+                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data, inst.disp_value);
                     load_u16_from_mem(&state.memory, address.unwrap())
                 }
                 _ => {
