@@ -6,7 +6,8 @@ use std::fmt;
 use std::fs::File;
 use std::io::Write;
 
-use crate::decode::{AddTo, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
+use crate::cycles::{get_effective_addr_clocks, get_total_clocks, get_total_clocks_str};
+use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
 // Third-party imports
 use minifb::{Window, WindowOptions};
@@ -124,7 +125,12 @@ enum Target {
 ///
 /// no_ip: If true, do NOT add IP changes or the final state of IP to the output
 /// string.
-pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> String {
+pub fn execute(
+    inst: &mut InstType,
+    state: &mut CpuStateType,
+    no_ip: bool,
+    cycle_model: Option<CpuType>,
+) -> String {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
         Some(op_type) => op_type,
@@ -146,6 +152,7 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
     let current_ip = state.ip;
+    let mut total_cycles = 0;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -187,10 +194,11 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
                 (_, _, Some(mod_rm_data)) => {
-                    let address =
-                        mod_rm_to_addr(mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
+                    let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
+                    let address = address.unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
+                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data);
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -241,9 +249,9 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
                     }
                 }
                 (_, _, Some(mod_rm_data)) => {
-                    let address =
-                        mod_rm_to_addr(mod_rm_data, inst.disp_value, &state.reg_file).unwrap();
-                    load_u16_from_mem(&state.memory, address)
+                    let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
+                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data);
+                    load_u16_from_mem(&state.memory, address.unwrap())
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -323,6 +331,26 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     effect.push_str(inst.text.as_ref().unwrap());
     effect.push_str(" ;");
 
+    // Print cycle estimation, if requested
+    match cycle_model {
+        Some(cpu_type) => {
+            if inst.clocks_base == 0 {
+                println!("inst debug: {:#?}", inst);
+                unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
+            }
+            let inst_total = get_total_clocks(inst, cpu_type);
+            total_cycles += inst_total;
+            effect.push_str(&format!(" Clocks: +{inst_total} = {total_cycles}"));
+            match get_total_clocks_str(inst, cpu_type) {
+                Some(str) => effect.push_str(&format!(" ({})", str)),
+                None => {}
+            }
+
+            effect.push_str(" |");
+        }
+        None => {} // Do nothing if not modeling cycles
+    };
+
     match (modify_flags, new_val) {
         (true, Some(new_val)) => {
             // Set parity if even number of ones *in the bottom byte only*
@@ -368,9 +396,13 @@ pub fn execute(inst: &mut InstType, state: &mut CpuStateType, no_ip: bool) -> St
     return effect;
 }
 
-/// Convert the mod_rm and displacement bytes into a memory address.
+/// Convert the mod_rm and displacement bytes into a memory address (the single
+/// effective address) and also return the cycles taken to calculate the
+/// address. The EA address calculation is the same for both 8086 and 8088. See
+/// table 2-20 for clock information.
+/// TODO: Add 2 clocks for segment override when segments are implemented
 /// See Decode::get_mod_rm_addr_str()
-fn mod_rm_to_addr(
+fn get_effective_addr(
     mod_rm_data: ModRmDataType,
     disp: Option<i16>,
     reg_file: &BTreeMap<RegName, u16>,
@@ -382,6 +414,7 @@ fn mod_rm_to_addr(
             Some(*reg_file.get(&reg.name).unwrap_or(&0))
         }
         (ModRmDataType::MemRegReg(reg1, reg2), _) => {
+            // i.e. base + index
             let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
             let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
             Some(val1 + val2)

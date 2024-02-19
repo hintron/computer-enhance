@@ -29,6 +29,7 @@
 
 use std::fmt;
 
+use crate::cycles::{calculate_inst_clocks, OperandsType};
 use crate::execute::{execute, init_state, CpuStateType};
 
 /// The bits of r/m field that is direct address if mode is MemoryMode0
@@ -441,6 +442,30 @@ pub enum ModRmDataType {
     MemRegRegDisp(RegType, RegType),
 }
 
+/// A type to determine if this execution run is for an 8086 or an 8088. If
+/// specified, it means we care about cycles and want to print out cycle
+/// estimates accordingly.
+///
+/// Cycle estimates will be different, depending on if this is an 8086 or an
+/// 8088. The 8086 has a 16-bit bus, while the 8088 has an 8-bit bus. The 8088
+/// was designed to be easier and cheaper to make, but with slightly worse
+/// latencies.
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum CpuType {
+    Intel8086,
+    Intel8088,
+}
+
+impl fmt::Display for CpuType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Intel8086 => write!(f, "8086")?,
+            Self::Intel8088 => write!(f, "8088")?,
+        }
+        Ok(())
+    }
+}
+
 /// A struct holding all the decoded data of a given instruction
 /// All public fields will be used in the execute module or printed out to the
 /// user.
@@ -525,6 +550,19 @@ pub struct InstType {
     pub dest_width: Option<RegWidth>,
     /// The final instruction representation
     pub text: Option<String>,
+    /// The type of operands supplied to the instruction. Used to figure out
+    /// cycle information for the instruction.
+    pub operands_type: Option<OperandsType>,
+    /// The base clocks that this instruction takes
+    pub clocks_base: u64,
+    /// The clocks needed to calculate the effective address, if any
+    pub clocks_ea: Option<u64>,
+    /// The number of unaligned 16-bit (word) accesses. There is a transfer
+    /// penalty of 4 clocks per each unaligned access on the 8086.
+    pub mem_access_word_unaligned: u64,
+    /// The number of 16-bit (word) memory operands. There is a transfer penalty
+    /// of 4 clocks per 16-bit memory access on the 8088.
+    pub mem_access_word: u64,
 }
 
 /// Decode and execute an 8086 program. This will decode and execute whatever
@@ -538,6 +576,7 @@ pub fn decode_execute(
     print: bool,
     verbose: bool,
     no_ip: bool,
+    cycle_type: Option<CpuType>,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
@@ -558,7 +597,7 @@ pub fn decode_execute(
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state, no_ip);
+                let text = execute(&mut inst, &mut cpu_state, no_ip, cycle_type);
                 output_text_lines.push(text);
                 // On to the next instruction...
             }
@@ -692,6 +731,9 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
             ImmBytesType::DoNotCare => {}
         }
     }
+
+    // Now that the inst is fully decoded, calculate clock values
+    calculate_inst_clocks(&mut inst);
 
     // Now that we have all the data decoded, massage and set any additional
     // info that we want to pass to the execution side.
@@ -1096,6 +1138,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 },
                 _ => {},
             }
+            inst.operands_type = Some(OperandsType::RegImm);
         }
         // mov - Memory to accumulator or accumulator to memory
         0xA0..=0xA3 => {
@@ -1107,16 +1150,21 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 false => {
                     inst.dest_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Source);
+                    inst.operands_type = Some(OperandsType::AccMem);
                 }
                 true => {
                     inst.source_reg = accumulator;
                     inst.add_data_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemAcc);
                 }
             };
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             }
+            if w_field { inst.mem_access_word += 1 }
+            // NOTE: We need to check the memory byte for unaligned access
+            // to determine 8086 transfer penalty
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to segment register
@@ -1627,6 +1675,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
             };
             inst.reg_field = Some(reg_field);
+            inst.operands_type = Some(OperandsType::RegReg);
             // We need no byte/word prefix for ModRegRm, since there is always
             // a register source/dest to indicate size
         }
@@ -1635,6 +1684,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match inst.w_field {
                 Some(true) => {
                     inst.immediate_bytes.push(ImmBytesType::DataHi);
+                    // Penalize 8088 for 16-bit data transfer
+                    inst.mem_access_word += 1;
                 }
                 _ => {}
             }
@@ -1677,6 +1728,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
                 _ => {}
             }
+            inst.operands_type = Some(OperandsType::RegImm);
         }
         Some(ModRmByteType::ModShiftRm) => {
             inst.op_type = Some(decode_shift_op((byte & 0b00111000) >> 3));
