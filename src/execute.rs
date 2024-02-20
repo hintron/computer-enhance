@@ -6,7 +6,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::Write;
 
-use crate::cycles::{get_effective_addr_clocks, get_total_clocks, get_total_clocks_str};
+use crate::cycles::{get_total_clocks, get_total_clocks_str};
 use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
 // Third-party imports
@@ -198,7 +198,6 @@ pub fn execute(
                     let address = address.unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
-                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data, inst.disp_value);
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -250,7 +249,6 @@ pub fn execute(
                 }
                 (_, _, Some(mod_rm_data)) => {
                     let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
-                    inst.clocks_ea = get_effective_addr_clocks(mod_rm_data, inst.disp_value);
                     load_u16_from_mem(&state.memory, address.unwrap())
                 }
                 _ => {
