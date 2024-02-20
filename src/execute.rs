@@ -416,7 +416,9 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
     let lower = memory[address as usize] as u16;
     let upper = memory[(address + 1) as usize] as u16;
     // Combine into a single u16 value
-    lower | (upper << 8)
+    let val = lower | (upper << 8);
+    println!("Loaded {val} from {address}");
+    val
 }
 
 /// Given the memory array and a 16-bit address, return a 16-bit value
@@ -424,6 +426,7 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
     // Store 16-bit value in little endian order
     memory[address] = (new_val & 0x00FF) as u8;
     memory[address + 1] = (new_val & 0xFF00) as u8;
+    println!("Stored {new_val} at {address}");
 }
 
 /// Handle the logic for the given jump op code. Modify the IP register in the
