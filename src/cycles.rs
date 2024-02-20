@@ -27,7 +27,6 @@ pub enum OperandsType {
 }
 
 /// Now that the instruction is all decoded, fill in clock information
-/// This contains all the clock information from table 2-21.
 ///
 /// Regarding 8086 and 8088-specific clock penalties:
 /// From pg. 2-50: "For instructions executing on an 8086, four clocks should be
@@ -36,6 +35,54 @@ pub enum OperandsType {
 /// Similarly for instructions executing on an 8088, four clocks should be added
 /// to each instruction reference to a 16-bit memory operand; this includes all
 /// stack operations."
+pub fn calculate_inst_clocks(inst: &mut InstType) {
+    calculate_base_clocks_transfers(inst);
+
+    println!(
+        "clocks: OpType={:?}, base={}, transfers={}",
+        inst.operands_type, inst.clocks_base, inst.transfers
+    );
+
+    // Calculate effective address clocks
+    inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
+
+    // Calculate 8088 word transfer penalties if not already set for the inst
+    if inst.transfers > 0 {
+        // Current assumption is that both of these can't be set
+        // TODO: Create one width field, and use AddTo, to enforce this
+        assert!(inst.dest_width.is_none() || inst.source_width.is_none());
+
+        match inst.dest_width {
+            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
+            _ => {}
+        }
+
+        match inst.source_width {
+            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
+            _ => {}
+        }
+
+        // TODO: We need to track all memory accesses where the other side
+        // is a register with an implicit width. These cases aren't covered
+        // by dest_width or source_width.
+        let is_memory_inst = is_memory_inst(inst);
+        match (is_memory_inst, inst.dest_reg, inst.source_reg) {
+            (true, Some(dest_reg), _) => {
+                if dest_reg.width == RegWidth::Word {
+                    inst.mem_access_word += inst.transfers;
+                }
+            }
+            (true, _, Some(src_reg)) => {
+                if src_reg.width == RegWidth::Word {
+                    inst.mem_access_word += inst.transfers;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// This contains all the clock information from table 2-21.
 ///
 /// Table 2-21 lists the required number of memory transfers in an instruction.
 /// Whether there is a 4-clock transfer penalty depends on if it is an unaligned
@@ -57,7 +104,7 @@ pub enum OperandsType {
 /// * TEST, pg. 2-67: There should be 1 transfer instead of - for operand type
 /// 'memory, immediate'. (Any instruction with a memory access and EA should
 /// have at least one memory transfer.)
-pub fn calculate_inst_clocks(inst: &mut InstType) {
+pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
     match (inst.op_type, inst.operands_type) {
         // TODO: Implement seg reg moves
         (_, Some(OperandsType::SegReg)) => todo!(),
@@ -211,49 +258,6 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
             inst.transfers = 1;
         }
         _ => {}
-    }
-
-    println!(
-        "clocks: OpType={:?}, base={}, transfers={}",
-        inst.operands_type, inst.clocks_base, inst.transfers
-    );
-
-    // Calculate effective address clocks
-    inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
-
-    // Calculate 8088 word transfer penalties if not already set for the inst
-    if inst.transfers > 0 {
-        // Current assumption is that both of these can't be set
-        // TODO: Create one width field, and use AddTo, to enforce this
-        assert!(inst.dest_width.is_none() || inst.source_width.is_none());
-
-        match inst.dest_width {
-            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
-            _ => {}
-        }
-
-        match inst.source_width {
-            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
-            _ => {}
-        }
-
-        // TODO: We need to track all memory accesses where the other side
-        // is a register with an implicit width. These cases aren't covered
-        // by dest_width or source_width.
-        let is_memory_inst = is_memory_inst(inst);
-        match (is_memory_inst, inst.dest_reg, inst.source_reg) {
-            (true, Some(dest_reg), _) => {
-                if dest_reg.width == RegWidth::Word {
-                    inst.mem_access_word += inst.transfers;
-                }
-            }
-            (true, _, Some(src_reg)) => {
-                if src_reg.width == RegWidth::Word {
-                    inst.mem_access_word += inst.transfers;
-                }
-            }
-            _ => {}
-        }
     }
 }
 
