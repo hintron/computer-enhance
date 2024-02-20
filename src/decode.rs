@@ -554,6 +554,11 @@ pub struct InstType {
     pub clocks_base: u64,
     /// The clocks needed to calculate the effective address, if any
     pub clocks_ea: Option<u64>,
+    /// The number of memory accesses that this instruction performs.
+    /// E.g. `mov [ADDR], 1` only accesses memory once, while `add [ADDR], 1`
+    /// accesses memory twice - once to load dest in before adding 1 to it, and
+    /// once to store the result back into ADDR. See table 2-21.
+    pub transfers: u64,
     /// The number of unaligned 16-bit (word) accesses. There is a transfer
     /// penalty of 4 clocks per each unaligned access on the 8086.
     pub mem_access_word_unaligned: u64,
