@@ -148,7 +148,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_BUILD_DIR/simulate.diff"
+    DIFF="$SIMULATE_BUILD_DIR/$BASE-simulate.diff"
     if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
         echo "ERROR: Simulation output didn't match golden output."
         echo "See $DIFF"
@@ -177,7 +177,7 @@ for file in "$SIMULATE_IP_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_IP_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_IP_BUILD_DIR/simulate.diff"
+    DIFF="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.diff"
     if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
         echo "ERROR: Simulation output didn't match golden output."
         echo "See $DIFF"
@@ -214,7 +214,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
         break
     fi
     SIMULATE_GOLDEN_OUTPUT="$SIMULATE_CYCLES_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_CYCLES_BUILD_DIR/simulate.diff"
+    DIFF="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.diff"
     if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
         echo "ERROR: 8086/8088 Simulation output didn't match golden output."
         echo "See $DIFF"
