@@ -218,6 +218,9 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         inst.operands_type, inst.clocks_base, inst.transfers
     );
 
+    // Calculate effective address clocks
+    inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
+
     // Calculate 8088 word transfer penalties if not already set for the inst
     if inst.transfers > 0 {
         // Current assumption is that both of these can't be set
@@ -304,7 +307,7 @@ fn get_reg_clock_penalty(reg1: RegName, reg2: RegName) -> u64 {
 /// Get the clocks associated with the effective address calculation.
 /// See table 2-20.
 pub fn get_effective_addr_clocks(
-    mod_rm_data: ModRmDataType,
+    mod_rm_data: Option<ModRmDataType>,
     disp_value: Option<i16>,
 ) -> Option<u64> {
     // When disp is 0, there is no disp penalty! So reduce by 4
@@ -314,18 +317,18 @@ pub fn get_effective_addr_clocks(
     };
     match mod_rm_data {
         // displacement only
-        ModRmDataType::MemDirectAddr => Some(6),
+        Some(ModRmDataType::MemDirectAddr) => Some(6),
         // base or index only
-        ModRmDataType::MemReg(_) => Some(5),
+        Some(ModRmDataType::MemReg(_)) => Some(5),
         // displacement + base or index
-        ModRmDataType::MemRegDisp(_) => Some(5 + disp_penalty),
+        Some(ModRmDataType::MemRegDisp(_)) => Some(5 + disp_penalty),
         // base + index
-        ModRmDataType::MemRegReg(reg1, reg2) => {
+        Some(ModRmDataType::MemRegReg(reg1, reg2)) => {
             let penalty = get_reg_clock_penalty(reg1.name, reg2.name);
             Some(7 + penalty)
         }
         // displacement + base + index
-        ModRmDataType::MemRegRegDisp(reg1, reg2) => {
+        Some(ModRmDataType::MemRegRegDisp(reg1, reg2)) => {
             let penalty = get_reg_clock_penalty(reg1.name, reg2.name);
             Some(7 + disp_penalty + penalty)
         }
