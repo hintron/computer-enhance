@@ -2232,8 +2232,8 @@ fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> ModRmDataType {
     }
 }
 
-/// Get the op code an instruction starting with 0b100000. `bits` is the value
-/// of the middle 3 'op' bits in the second mod-op-r/m byte.
+/// Get the op code for an instruction starting with 0b100000. `bits` is the
+/// value of the middle 3 'op' bits in the second mod-op-r/m byte.
 fn decode_immed_op(bits: u8) -> OpCodeType {
     match bits {
         0b000 => OpCodeType::Add,
