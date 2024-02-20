@@ -38,16 +38,21 @@ pub enum OperandsType {
 pub fn calculate_inst_clocks(inst: &mut InstType) {
     calculate_base_clocks_transfers(inst);
 
-    println!(
-        "clocks: OpType={:?}, base={}, transfers={}",
-        inst.operands_type, inst.clocks_base, inst.transfers
-    );
-
     // Calculate effective address clocks
     inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
 
     // Calculate 8088 clock penalties
     calculate_8088_clocks(inst);
+
+    println!(
+        "clocks: OpType={:?}, base={}, ea={:?}, transfers={}, mem_word={}, mem_word_odd={}",
+        inst.operands_type,
+        inst.clocks_base,
+        inst.clocks_ea,
+        inst.transfers,
+        inst.mem_access_word,
+        inst.mem_access_word_unaligned
+    );
 }
 
 // Calculate 8088 word transfer penalties if not already set for the inst
