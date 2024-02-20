@@ -1731,7 +1731,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
                 _ => {}
             }
-            inst.operands_type = Some(OperandsType::RegImm);
+            // Set cycle info
+            match mode {
+                ModType::RegisterMode => inst.operands_type = Some(OperandsType::RegImm),
+                _ => inst.operands_type = Some(OperandsType::MemImm),
+            }
         }
         Some(ModRmByteType::ModShiftRm) => {
             inst.op_type = Some(decode_shift_op((byte & 0b00111000) >> 3));
