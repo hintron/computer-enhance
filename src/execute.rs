@@ -456,7 +456,7 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
 fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
     // Store 16-bit value in little endian order
     memory[address] = (new_val & 0x00FF) as u8;
-    memory[address + 1] = (new_val & 0xFF00) as u8;
+    memory[address + 1] = ((new_val & 0xFF00) >> 8) as u8;
     println!("Stored {new_val} at {address}");
 }
 
