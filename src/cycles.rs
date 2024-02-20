@@ -36,9 +36,27 @@ pub enum OperandsType {
 /// Similarly for instructions executing on an 8088, four clocks should be added
 /// to each instruction reference to a 16-bit memory operand; this includes all
 /// stack operations."
+///
 /// Table 2-21 lists the required number of memory transfers in an instruction.
 /// Whether there is a 4-clock transfer penalty depends on if it is an unaligned
 /// memory access (in the 8086) or any 16-bit memory access (in the 8088).
+///
+/// Regarding transfers, remember that an `add` is different than a `mov`.
+/// For example, consider the difference bewteen these two instructions:
+///     mov [0x1000], word 1
+///     add [0x1000], word 1
+///
+/// `mov` simply moves 1 into the memory address 0x1000. However, `add`
+/// does `DEST = DEST + SOURCE`. So it must first read out `[0x1000]` into some
+/// temporary storage location on-chip, add 1 to that value, and then send the
+/// result back to `[0x1000]`. This means there are *two* memory accesses in
+/// this instruction! So in the case of the 8088, there will be 2 word mem
+/// access penalties instead of one for an `add` of this form.
+///
+/// Typos in table 2-21:
+/// * TEST, pg. 2-67: There should be 1 transfer instead of - for operand type
+/// 'memory, immediate'. (Any instruction with a memory access and EA should
+/// have at least one memory transfer.)
 pub fn calculate_inst_clocks(inst: &mut InstType) {
     match (inst.op_type, inst.operands_type) {
         // TODO: Implement seg reg moves
@@ -70,7 +88,10 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
                 | OpCodeType::Xor,
             ),
             Some(OperandsType::RegMem),
-        ) => inst.clocks_base = 9,
+        ) => {
+            inst.clocks_base = 9;
+            inst.transfers = 1;
+        }
         (
             Some(
                 OpCodeType::Adc
@@ -82,7 +103,10 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
                 | OpCodeType::Xor,
             ),
             Some(OperandsType::MemReg),
-        ) => inst.clocks_base = 16,
+        ) => {
+            inst.clocks_base = 16;
+            inst.transfers = 2;
+        }
         (
             Some(
                 OpCodeType::Adc
@@ -106,7 +130,10 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
                 | OpCodeType::Xor,
             ),
             Some(OperandsType::MemImm),
-        ) => inst.clocks_base = 17,
+        ) => {
+            inst.clocks_base = 17;
+            inst.transfers = 2;
+        }
         (
             Some(
                 OpCodeType::Adc
@@ -121,57 +148,89 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         ) => inst.clocks_base = 4,
         // Cmp
         (Some(OpCodeType::Cmp), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
-        (Some(OpCodeType::Cmp), Some(OperandsType::RegMem)) => inst.clocks_base = 9,
-        (Some(OpCodeType::Cmp), Some(OperandsType::MemReg)) => inst.clocks_base = 9,
+        (Some(OpCodeType::Cmp), Some(OperandsType::RegMem)) => {
+            inst.clocks_base = 9;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Cmp), Some(OperandsType::MemReg)) => {
+            inst.clocks_base = 9;
+            inst.transfers = 1;
+        }
         (Some(OpCodeType::Cmp), Some(OperandsType::RegImm)) => inst.clocks_base = 4,
-        (Some(OpCodeType::Cmp), Some(OperandsType::MemImm)) => inst.clocks_base = 10,
+        (Some(OpCodeType::Cmp), Some(OperandsType::MemImm)) => {
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
         (Some(OpCodeType::Cmp), Some(OperandsType::AccImm)) => inst.clocks_base = 4,
         // Lds
-        (Some(OpCodeType::Lds), _) => inst.clocks_base = 16,
+        (Some(OpCodeType::Lds), _) => {
+            inst.clocks_base = 16;
+            inst.transfers = 2;
+        }
         // Lea
         (Some(OpCodeType::Lea), _) => inst.clocks_base = 2,
         // Les
-        (Some(OpCodeType::Les), _) => inst.clocks_base = 16,
+        (Some(OpCodeType::Les), _) => {
+            inst.clocks_base = 16;
+            inst.transfers = 2;
+        }
         // Mov
-        (Some(OpCodeType::Mov), Some(OperandsType::AccMem)) => inst.clocks_base = 10,
-        (Some(OpCodeType::Mov), Some(OperandsType::MemAcc)) => inst.clocks_base = 10,
+        (Some(OpCodeType::Mov), Some(OperandsType::AccMem)) => {
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Mov), Some(OperandsType::MemAcc)) => {
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
         (Some(OpCodeType::Mov), Some(OperandsType::RegReg)) => inst.clocks_base = 2,
-        (Some(OpCodeType::Mov), Some(OperandsType::RegMem)) => inst.clocks_base = 8,
-        (Some(OpCodeType::Mov), Some(OperandsType::MemReg)) => inst.clocks_base = 9,
+        (Some(OpCodeType::Mov), Some(OperandsType::RegMem)) => {
+            inst.clocks_base = 8;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Mov), Some(OperandsType::MemReg)) => {
+            inst.clocks_base = 9;
+            inst.transfers = 1;
+        }
         (Some(OpCodeType::Mov), Some(OperandsType::RegImm)) => inst.clocks_base = 4,
-        (Some(OpCodeType::Mov), Some(OperandsType::MemImm)) => inst.clocks_base = 10,
+        (Some(OpCodeType::Mov), Some(OperandsType::MemImm)) => {
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
         // Test
         (Some(OpCodeType::Test), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
-        (Some(OpCodeType::Test), Some(OperandsType::RegMem)) => inst.clocks_base = 9,
+        (Some(OpCodeType::Test), Some(OperandsType::RegMem)) => {
+            inst.clocks_base = 9;
+            inst.transfers = 1;
+        }
         (Some(OpCodeType::Test), Some(OperandsType::AccImm)) => inst.clocks_base = 4,
         (Some(OpCodeType::Test), Some(OperandsType::RegImm)) => inst.clocks_base = 5,
-        (Some(OpCodeType::Test), Some(OperandsType::MemImm)) => inst.clocks_base = 11,
-
-        _ => {} // (_, None) => {},
-                // (_, _) => {
-                //     println!("inst debug: {:#?}", inst);
-                //     unimplemented!("Unimplemented inst + operands type: {}", inst.text.as_ref().unwrap())
-                // }
+        (Some(OpCodeType::Test), Some(OperandsType::MemImm)) => {
+            inst.clocks_base = 11;
+            // NOTE: This is not in the docs, but I believe it is a typo
+            inst.transfers = 1;
+        }
+        _ => {}
     }
 
     println!(
-        "clocks: OpType={:?}, base={}",
-        inst.operands_type, inst.clocks_base
+        "clocks: OpType={:?}, base={}, transfers={}",
+        inst.operands_type, inst.clocks_base, inst.transfers
     );
 
     // Calculate 8088 word transfer penalties if not already set for the inst
-    if inst.mem_access_word == 0 {
+    if inst.transfers > 0 {
         // Current assumption is that both of these can't be set
         // TODO: Create one width field, and use AddTo, to enforce this
         assert!(inst.dest_width.is_none() || inst.source_width.is_none());
 
         match inst.dest_width {
-            Some(RegWidth::Word) => inst.mem_access_word += 1,
+            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
             _ => {}
         }
 
         match inst.source_width {
-            Some(RegWidth::Word) => inst.mem_access_word += 1,
+            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
             _ => {}
         }
 
@@ -182,12 +241,12 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         match (is_memory_inst, inst.dest_reg, inst.source_reg) {
             (true, Some(dest_reg), _) => {
                 if dest_reg.width == RegWidth::Word {
-                    inst.mem_access_word += 1
+                    inst.mem_access_word += inst.transfers;
                 }
             }
             (true, _, Some(src_reg)) => {
                 if src_reg.width == RegWidth::Word {
-                    inst.mem_access_word += 1
+                    inst.mem_access_word += inst.transfers;
                 }
             }
             _ => {}
