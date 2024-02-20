@@ -130,7 +130,7 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         (Some(OpCodeType::Lds), _) => inst.clocks_base = 16,
         // Lea
         (Some(OpCodeType::Lea), _) => inst.clocks_base = 2,
-        // Lea
+        // Les
         (Some(OpCodeType::Les), _) => inst.clocks_base = 16,
         // Mov
         (Some(OpCodeType::Mov), Some(OperandsType::AccMem)) => inst.clocks_base = 10,
