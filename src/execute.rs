@@ -707,8 +707,10 @@ fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     (result, overflow, carry, aux_carry)
 }
 
-const fn calc_aux_carry_add(lhs: u16, rhs: u16) -> bool {
-    ((lhs & 0xF) + (rhs & 0xF)) > 0xF
+fn calc_aux_carry_add(lhs: u16, rhs: u16) -> bool {
+    let result = ((lhs & 0xF) + (rhs & 0xF)) > 0xF;
+    println!("calc_aux_carry_add: ((lhs({lhs}) & 0xF) + (rhs({rhs}) & 0xF)) > 0xF ? {result}");
+    result
 }
 
 const fn calc_aux_carry_sub(lhs: u16, rhs: u16) -> bool {
