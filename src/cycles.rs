@@ -46,7 +46,12 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
     // Calculate effective address clocks
     inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
 
-    // Calculate 8088 word transfer penalties if not already set for the inst
+    // Calculate 8088 clock penalties
+    calculate_8088_clocks(inst);
+}
+
+// Calculate 8088 word transfer penalties if not already set for the inst
+fn calculate_8088_clocks(inst: &mut InstType) {
     if inst.transfers > 0 {
         // Current assumption is that both of these can't be set
         // TODO: Create one width field, and use AddTo, to enforce this
