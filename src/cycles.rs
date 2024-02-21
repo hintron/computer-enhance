@@ -257,6 +257,42 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.transfers = 1;
         }
         (Some(OpCodeType::Cmp), Some(OperandsType::AccImm)) => inst.clocks_base = 4,
+        (
+            Some(
+                OpCodeType::Ja
+                | OpCodeType::Jnb
+                | OpCodeType::Jb
+                | OpCodeType::Jbe
+                | OpCodeType::Je
+                | OpCodeType::Jg
+                | OpCodeType::Jnl
+                | OpCodeType::Jl
+                | OpCodeType::Jle
+                | OpCodeType::Jne
+                | OpCodeType::Jno
+                | OpCodeType::Jnp
+                | OpCodeType::Jns
+                | OpCodeType::Jo
+                | OpCodeType::Jp
+                | OpCodeType::Js,
+            ),
+            _,
+        ) => {
+            inst.clocks_base = 4;
+            inst.clocks_jump = Some(12);
+        }
+        (Some(OpCodeType::Jcxz | OpCodeType::Loopz), _) => {
+            inst.clocks_base = 6;
+            inst.clocks_jump = Some(12);
+        }
+        (Some(OpCodeType::Loop), _) => {
+            inst.clocks_base = 5;
+            inst.clocks_jump = Some(12);
+        }
+        (Some(OpCodeType::Loopnz), _) => {
+            inst.clocks_base = 5;
+            inst.clocks_jump = Some(14);
+        }
         // Lds
         (Some(OpCodeType::Lds), _) => {
             inst.clocks_base = 16;
@@ -390,7 +426,7 @@ pub fn get_effective_addr_clocks(
 
 /// Return a string showing the clocks in parts. If the
 /// instruction only has base clocks or no clocks set, return None.
-pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType) -> Option<String> {
+pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType, jumped: bool) -> Option<String> {
     let print_clocks = inst.clocks_ea.is_some()
         || (inst.mem_access_word_unaligned > 0 && cpu_type == CpuType::Intel8086)
         || (inst.mem_access_word > 0 && cpu_type == CpuType::Intel8088);
@@ -405,7 +441,12 @@ pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType) -> Option<String
         inst.mem_access_word * 4
     };
 
-    let clocks_str = match (inst.clocks_base, inst.clocks_ea, clocks_transfer) {
+    let mut base = inst.clocks_base;
+    if jumped {
+        base += inst.clocks_jump.unwrap()
+    };
+
+    let clocks_str = match (base, inst.clocks_ea, clocks_transfer) {
         (inst, Some(ea), 0) => format!("{inst} + {ea}ea"),
         (inst, Some(ea), t_penalty) => format!("{inst} + {ea}ea + {t_penalty}p"),
         (inst, None, 0) => format!("{inst}"),
