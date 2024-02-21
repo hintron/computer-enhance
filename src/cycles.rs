@@ -45,7 +45,9 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
 
     // Calculate 8088 clock penalties
     calculate_8088_clocks(inst);
+}
 
+pub fn print_inst_clock_debug(inst: &InstType) {
     println!(
         "clocks: OpType={:?}, base={}, ea={:?}, transfers={}, mem_word={}, mem_word_odd={}",
         inst.operands_type,

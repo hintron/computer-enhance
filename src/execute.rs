@@ -6,7 +6,9 @@ use std::fmt;
 use std::fs::File;
 use std::io::Write;
 
-use crate::cycles::{calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str};
+use crate::cycles::{
+    calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
+};
 use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
 
 // Third-party imports
@@ -167,6 +169,9 @@ pub fn execute(
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
     inst.mem_access_word_unaligned = calculate_8086_unaligned_access(mem_addr, inst.transfers);
+
+    // Print this instruction's clock debug info now that all clock data is set
+    print_inst_clock_debug(inst);
 
     // SUB/CMP: The source operand is subtracted from the destination operand,
     // and the result replaces the destination operand.
