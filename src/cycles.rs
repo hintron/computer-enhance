@@ -41,6 +41,8 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
     // Calculate effective address clocks
     inst.clocks_ea = get_effective_addr_clocks(inst.mod_rm_data, inst.disp_value);
 
+    // NOTE: Calculate 8086 clocks at the beginning of execution
+
     // Calculate 8088 clock penalties
     calculate_8088_clocks(inst);
 
@@ -53,6 +55,40 @@ pub fn calculate_inst_clocks(inst: &mut InstType) {
         inst.mem_access_word,
         inst.mem_access_word_unaligned
     );
+}
+
+/// Return the number of 8086 unaligned word memory access penalties for an
+/// instruction.
+///
+/// Returns the value of the instruction's transfers if the memory address is
+/// unaligned - i.e. it's an odd address. If the mem_addr does not exist, or the
+/// instructions do not have any transfers, or addr is aligned/even, then return
+/// 0.
+///
+/// `mem_addr` is the final memory address for the instruction, if it exists.
+/// `transfers` is the number of times this instruction either loads or stores
+/// at the memory address. E.g. `add [addr], 1` accesses memory two times, while
+/// `mov [addr], 1` only accesses memory once.
+///
+/// NOTE: This must be called in execute, because mem_addr could be derived from
+/// an effective address, which needs register values from the CPU state.
+pub fn calculate_8086_unaligned_access(mem_addr: Option<u16>, transfers: u64) -> u64 {
+    // If an instruction has a mem addr, it should also have transfers. If not,
+    // then the transfers value was probably not set properly.
+    assert!(mem_addr.is_some() == (transfers > 0));
+    if transfers == 0 {
+        return 0;
+    }
+    match mem_addr {
+        Some(addr) => {
+            if addr & 0x1 == 1 {
+                transfers
+            } else {
+                0
+            }
+        }
+        _ => 0,
+    }
 }
 
 // Calculate 8088 word transfer penalties if not already set for the inst
