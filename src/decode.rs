@@ -1467,7 +1467,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 0x7C => inst.op_type = Some(OpCodeType::Jl),
                 // jle/jng - jump less or equal/not greater
                 0x7E => inst.op_type = Some(OpCodeType::Jle),
-                // jb/jnae - jump below/not above or equal
+                // jb/jnae/jc - jump below/not above or equal/carry
                 0x72 => inst.op_type = Some(OpCodeType::Jb),
                 // jbe/jna - jump below or equal/not above
                 0x76 => inst.op_type = Some(OpCodeType::Jbe),
@@ -1483,7 +1483,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 0x7D => inst.op_type = Some(OpCodeType::Jnl),
                 // jnle/jg - jump greater or not less+equal
                 0x7F => inst.op_type = Some(OpCodeType::Jg),
-                // jnb/jae - jump on not below or above+equal
+                // jnb/jae/jnc - jump if not below/above or equal/not carry
                 0x73 => inst.op_type = Some(OpCodeType::Jnb),
                 // jnbe/ja - jump above or not below+equal
                 0x77 => inst.op_type = Some(OpCodeType::Ja),
