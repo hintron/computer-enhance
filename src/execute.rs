@@ -127,6 +127,7 @@ enum Target {
 enum ArithOp {
     Add,
     Sub,
+    And,
 }
 
 impl fmt::Display for ArithOp {
@@ -134,6 +135,7 @@ impl fmt::Display for ArithOp {
         match self {
             Self::Add => write!(f, "+")?,
             Self::Sub => write!(f, "-")?,
+            Self::And => write!(f, "&")?,
         }
         Ok(())
     }
@@ -204,7 +206,12 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
+        op @ (OpCodeType::Mov
+        | OpCodeType::Sub
+        | OpCodeType::Cmp
+        | OpCodeType::Add
+        | OpCodeType::And
+        | OpCodeType::Test) => {
             let dest_width;
             let dest_val;
 
@@ -310,15 +317,19 @@ pub fn execute(
                     new_val_aux_carry = aux_carry;
                     result
                 }
+                OpCodeType::And | OpCodeType::Test => {
+                    execute_op(dest_val, source_val, dest_width, source_width, ArithOp::And)
+                }
                 _ => unreachable!(),
             });
 
             new_val_width = dest_width;
 
-            // CMP does not store the result, but the others do
-            if op == OpCodeType::Cmp {
-                dest_target = Target::None
-            };
+            // CMP and TEST do not store the result
+            match op {
+                OpCodeType::Cmp | OpCodeType::Test => dest_target = Target::None,
+                _ => {}
+            }
 
             // MOV does not modify flags, but the others do
             if op != OpCodeType::Mov {
@@ -749,6 +760,7 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
                     let (result, _) = dst.overflowing_sub(src);
                     result
                 }
+                ArithOp::And => dst & src,
             };
             println!(
                 "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
@@ -778,6 +790,7 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
                     let (result, _) = dst_u8.overflowing_sub(src_u8);
                     result
                 }
+                ArithOp::And => dst_u8 & src_u8,
             };
 
             let merged_result = match dst_width {
@@ -834,14 +847,17 @@ fn arith_with_overflow(
         // Since we're subtracting, left and right sign must be opposite for
         // overflow to occur.
         ArithOp::Sub => (dst_sign_bit != src_sign_bit) && (dst_sign_bit != result_sign_bit),
+        _ => unimplemented!(),
     };
     let carry = match op {
         ArithOp::Add => calc_carry_add(dst, src, dst_width, src_width),
         ArithOp::Sub => calc_carry_sub(dst, src, dst_width, src_width),
+        _ => unimplemented!(),
     };
     let aux_carry = match op {
         ArithOp::Add => calc_aux_carry_add(dst, src, dst_width, src_width),
         ArithOp::Sub => calc_aux_carry_sub(dst, src, dst_width, src_width),
+        _ => unimplemented!(),
     };
     if overflow {
         println!("overflow!")
