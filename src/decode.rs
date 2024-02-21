@@ -156,23 +156,41 @@ pub enum OpCodeType {
     Int3,
     Into,
     Iret,
+    /// ja/jnbe - jump if above/not below or equal
     Ja,
+    /// jb/jnae/jc - jump if below/not above or equal/on carry
     Jb,
+    /// jbe/jna - jump if below or equal/not above
     Jbe,
+    /// Jcxz - jump if cx is zero
     Jcxz,
+    /// je/jz - jump if equal/zero
     Je,
+    /// jg/jnle - jump if greater/not less than or equal
     Jg,
+    /// jl/jnge - jump if less than/not greater or equal
     Jl,
+    /// jle/jng - jump if less than or equal/not greater
     Jle,
+    /// jmp - unconditional jump
     Jmp,
+    /// jnb/jae/jnc - jump if not below/above or equal/on not carry
     Jnb,
+    /// jne/jnz - jump if not equal/zero
     Jne,
+    /// jnl/jge - jump if not less/greater or equal
     Jnl,
+    /// Jno - jump on not overflow
     Jno,
+    /// jnp/jpo - jump if not par/par odd
     Jnp,
+    /// jns - jump on not overflow
     Jns,
+    /// jump on overflow
     Jo,
+    /// jp/jpe - jump on parity/parity even
     Jp,
+    /// js - jump on sign
     Js,
     Lahf,
     Lds,
@@ -180,7 +198,9 @@ pub enum OpCodeType {
     Les,
     Lods,
     Loop,
+    /// loopnz/loopne - loop while not zero/equal
     Loopnz,
+    /// loopz/loope - loop while zero/equal
     Loopz,
     Mov,
     Movs,
@@ -1464,42 +1484,24 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x70..=0x7F | 0xE0..=0xE3 => {
             inst.immediate_bytes.push(ImmBytesType::IpInc8);
             match byte {
-                // je/jz
                 0x74 => inst.op_type = Some(OpCodeType::Je),
-                // jl/jnge - jump less/not greater or equal
                 0x7C => inst.op_type = Some(OpCodeType::Jl),
-                // jle/jng - jump less or equal/not greater
                 0x7E => inst.op_type = Some(OpCodeType::Jle),
-                // jb/jnae/jc - jump below/not above or equal/carry
                 0x72 => inst.op_type = Some(OpCodeType::Jb),
-                // jbe/jna - jump below or equal/not above
                 0x76 => inst.op_type = Some(OpCodeType::Jbe),
-                // jp/jpe - jump on parity/parity even
                 0x7A => inst.op_type = Some(OpCodeType::Jp),
-                // jo - jump on overflow
                 0x70 => inst.op_type = Some(OpCodeType::Jo),
-                // js - jump on sign
                 0x78 => inst.op_type = Some(OpCodeType::Js),
-                // jne/jnz - jump not equal/zero
                 0x75 => inst.op_type = Some(OpCodeType::Jne),
-                // jnl/jge - jump not less or greater+equal
                 0x7D => inst.op_type = Some(OpCodeType::Jnl),
-                // jnle/jg - jump greater or not less+equal
                 0x7F => inst.op_type = Some(OpCodeType::Jg),
-                // jnb/jae/jnc - jump if not below/above or equal/not carry
                 0x73 => inst.op_type = Some(OpCodeType::Jnb),
-                // jnbe/ja - jump above or not below+equal
                 0x77 => inst.op_type = Some(OpCodeType::Ja),
-                // jnp/jpo - jump not par or par odd
                 0x7B => inst.op_type = Some(OpCodeType::Jnp),
-                // jno - jump on not overflow
                 0x71 => inst.op_type = Some(OpCodeType::Jno),
-                // jns - jump on not overflow
                 0x79 => inst.op_type = Some(OpCodeType::Jns),
                 0xE2 => inst.op_type = Some(OpCodeType::Loop),
-                // loopz/loope - loop while zero/equal
                 0xE1 => inst.op_type = Some(OpCodeType::Loopz),
-                // loopnz/loopne - loop while not zero/equal
                 0xE0 => inst.op_type = Some(OpCodeType::Loopnz),
                 0xE3 => inst.op_type = Some(OpCodeType::Jcxz),
                 _ => unreachable!(),
