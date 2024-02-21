@@ -55,7 +55,7 @@ for file in "$DECODE_BUILD_DIR"/*; do
         break
     fi
     DECODE_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF="$DECODE_BUILD_DIR/code.diff"
+    DIFF="$DECODE_BUILD_DIR/$BASE-code.diff"
     if ! diff "$DECODE_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
         echo "ERROR: Decoded output didn't match golden output."
         echo "See $DIFF"
@@ -118,7 +118,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
         break
     fi
     RTOS_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF="$DECODE_BUILD_DIR/rtos.diff"
+    DIFF="$DECODE_BUILD_DIR/$BASE-rtos.diff"
     if ! diff "$RTOS_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
         echo "ERROR: Decoded RTOS output didn't match golden output."
         echo "See $DIFF"
