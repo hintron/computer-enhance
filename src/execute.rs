@@ -505,7 +505,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         OpCodeType::Jne => !state.flags_reg.zero,
         // je/jz - jump equal/zero
         OpCodeType::Je => state.flags_reg.zero,
-        // jb/jnae - jump below/not above or equal
+        // jb/jnae/jc - jump below/not above or equal/carry
         OpCodeType::Jb => state.flags_reg.carry,
         // NOTE: For loops, cx was already checked to be != 0
         OpCodeType::Loopnz => !state.flags_reg.zero,
