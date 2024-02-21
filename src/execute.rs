@@ -462,8 +462,14 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
 fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
     // Store 16-bit value in little endian order
     memory[address] = (new_val & 0x00FF) as u8;
+    println!("Stored byte {} at {address}", (new_val & 0x00FF) as u8);
     memory[address + 1] = ((new_val & 0xFF00) >> 8) as u8;
-    println!("Stored {new_val} at {address}");
+    println!(
+        "Stored byte {} at {}",
+        ((new_val & 0xFF00) >> 8) as u8,
+        address + 1
+    );
+    println!("Stored word {new_val} at {address}");
 }
 
 /// Handle the logic for the given jump op code. Modify the IP register in the
