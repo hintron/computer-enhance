@@ -160,6 +160,10 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    // Get the final memory address, if applicable, whether it's an effective
+    // address or straight address literal.
+    let (mem_addr, add_mem_to) = get_inst_mem_addr(inst, state);
+
     // SUB/CMP: The source operand is subtracted from the destination operand,
     // and the result replaces the destination operand.
 
@@ -175,8 +179,8 @@ pub fn execute(
             let dest_val;
 
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, inst.add_data_to, inst.mod_rm_data) {
-                (Some(dest_reg), _, _) => {
+            match (inst.dest_reg, add_mem_to) {
+                (Some(dest_reg), _) => {
                     // Note: This also currently covers ModRmDataType::Reg(_)
                     // Get the value of the dest register
                     dest_val = match state.reg_file.get(&dest_reg.name) {
@@ -185,20 +189,12 @@ pub fn execute(
                     };
                     dest_target = Target::RegisterName(dest_reg.name);
                 }
-                (_, Some(AddTo::Dest), _) => {
-                    // For now, we can assume that mem_access is true when
-                    // data_value_dest exists. You can't store into an
-                    // immediate value! I.e. we know it's [dest_val] as dest
-                    let address = inst.data_value.unwrap();
+                (_, Some(AddTo::Dest)) => {
+                    let address = mem_addr.unwrap();
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
-                (_, _, Some(mod_rm_data)) => {
-                    let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
-                    let address = address.unwrap();
-                    dest_target = Target::MemAddress(address as usize);
-                    dest_val = load_u16_from_mem(&state.memory, address);
-                }
+                // Immediate values can't be a destination
                 _ => {
                     println!("inst debug: {:#?}", inst);
                     unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap())
@@ -222,7 +218,7 @@ pub fn execute(
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let source_val = match (inst.source_reg, inst.add_data_to, inst.mod_rm_data) {
+            let source_val = match (inst.source_reg, add_mem_to, inst.add_data_to) {
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
                     // Get the value of the source register
@@ -238,18 +234,10 @@ pub fn execute(
                     };
                     source_val_sized
                 }
-                (_, Some(AddTo::Source), _) => {
-                    if inst.mem_access {
-                        // If mem_access, use data as address into mem
-                        load_u16_from_mem(&state.memory, inst.data_value.unwrap())
-                    } else {
-                        // Otherwise, use data as just an immediate value
-                        inst.data_value.unwrap()
-                    }
-                }
-                (_, _, Some(mod_rm_data)) => {
-                    let address = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
-                    load_u16_from_mem(&state.memory, address.unwrap())
+                (_, Some(AddTo::Source), _) => load_u16_from_mem(&state.memory, mem_addr.unwrap()),
+                (_, _, Some(AddTo::Source)) => {
+                    // Otherwise, use data as just an immediate value
+                    inst.data_value.unwrap()
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -392,6 +380,20 @@ pub fn execute(
     }
 
     return effect;
+}
+
+/// Get the memory address for this instruction (if any) and whether it's for
+// the source or the dest operand
+fn get_inst_mem_addr(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Option<AddTo>) {
+    // Consolidate parts of the inst into a single memory address
+    match (inst.mem_access, inst.mod_rm_data) {
+        (true, _) => (Some(inst.data_value.unwrap()), inst.add_data_to),
+        (_, Some(mod_rm_data)) => {
+            let ea = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
+            (ea, inst.add_mod_rm_mem_to)
+        }
+        _ => (None, None),
+    }
 }
 
 /// Convert the mod_rm and displacement bytes into a memory address (the single
