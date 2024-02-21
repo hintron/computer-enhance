@@ -175,6 +175,7 @@ pub fn execute(
     // the entire word.
     let mut new_val_width = WidthType::Word;
     let current_ip = state.ip;
+    let mut jumped = false;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -327,7 +328,7 @@ pub fn execute(
         jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
             new_val = None;
             dest_target = Target::None;
-            handle_jmp_variants(jump_op, inst, state);
+            jumped = handle_jmp_variants(jump_op, inst, state);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -338,7 +339,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                handle_jmp_variants(jump_op, inst, state);
+                jumped = handle_jmp_variants(jump_op, inst, state);
             }
         }
         OpCodeType::Ret => {
@@ -373,7 +374,7 @@ pub fn execute(
             let inst_total = get_total_clocks(inst, cpu_type);
             state.total_cycles += inst_total;
             effect.push_str(&format!(" Clocks: +{inst_total} = {}", state.total_cycles));
-            match get_total_clocks_str(inst, cpu_type) {
+            match get_total_clocks_str(inst, cpu_type, jumped) {
                 Some(str) => effect.push_str(&format!(" ({})", str)),
                 None => {}
             }
