@@ -201,7 +201,11 @@ pub fn execute(
                 // Immediate values can't be a destination
                 _ => {
                     println!("inst debug: {:#?}", inst);
-                    unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap())
+                    unimplemented!(
+                        "{op} has no dest: `{}`;  {:#?}",
+                        inst.text.as_ref().unwrap(),
+                        add_mem_to
+                    )
                 }
             };
 
