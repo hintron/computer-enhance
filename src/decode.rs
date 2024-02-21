@@ -601,6 +601,7 @@ pub fn decode_execute(
     verbose: bool,
     no_ip: bool,
     cycle_type: Option<CpuType>,
+    stop_on_ret: bool,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state();
@@ -621,7 +622,7 @@ pub fn decode_execute(
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state, no_ip, cycle_type);
+                let text = execute(&mut inst, &mut cpu_state, no_ip, cycle_type, stop_on_ret);
                 output_text_lines.push(text);
                 // On to the next instruction...
             }

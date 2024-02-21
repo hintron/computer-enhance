@@ -31,6 +31,8 @@ struct ArgsType {
     /// If specified, do cycle estimates during execution for the given CPU
     /// type.
     cycle_type: Option<CpuType>,
+    /// If specified, make any RET instruction stop the simulator.
+    stop_on_ret: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -59,6 +61,8 @@ decoding it.
 --overwrite : If specified, overwrite the output file instead of appending to it.
 -c|--model-cycles {8086|8088} : If specified, estimate cycles during execution
 for the given CPU (8086 or 8088).
+--stop-on-ret : If specified, exit the simulator when instruction RET is hit.
+Useful for running functions without running code that calls into them.
 ";
 
 fn print_help() {
@@ -107,6 +111,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("-c") || arg.starts_with("--model-cycles") {
         // Return true and get the value from the next arg iteration
         Ok(ArgType::Cycles)
+    } else if arg.starts_with("--stop-on-ret") {
+        parsed_args.stop_on_ret = true;
+        Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -211,6 +218,7 @@ fn main() -> Result<()> {
             args.verbose,
             args.no_ip,
             args.cycle_type,
+            args.stop_on_ret,
         );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;

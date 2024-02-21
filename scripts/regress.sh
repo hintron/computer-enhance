@@ -201,7 +201,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
         echo "ERROR: 8086 simulation of program failed for $file"
         rc=1
         break
@@ -209,7 +209,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     # Append 8088 simulation results to 8086 simulation results
     echo "Checking simulation (w/ 8088 cycles) of $file..."
     SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8088 --stop-on-ret > "$SIMULATE_LOG_8088"; then
         echo "ERROR: 8088 simulation of program failed for $file"
         rc=1
         break
