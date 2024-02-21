@@ -133,6 +133,7 @@ pub fn execute(
     state: &mut CpuStateType,
     no_ip: bool,
     cycle_model: Option<CpuType>,
+    stop_on_ret: bool,
 ) -> String {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
@@ -147,8 +148,8 @@ pub fn execute(
     let old_flags = state.flags_reg.clone();
 
     // The destination value
-    let new_val;
-    let mut dest_target;
+    let mut new_val = None;
+    let mut dest_target = Target::None;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
     let mut new_val_overflowed = false;
@@ -312,6 +313,16 @@ pub fn execute(
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
                 handle_jmp_variants(jump_op, inst, state);
+            }
+        }
+        OpCodeType::Ret => {
+            if stop_on_ret {
+                effect.push_str(&format!(
+                    "STOPONRET: vReturn encountered at address {}.",
+                    state.ip
+                ));
+            } else {
+                unimplemented!("The Ret instruction isn't yet implemented",);
             }
         }
         _ => {
