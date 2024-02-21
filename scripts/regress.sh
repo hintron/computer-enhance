@@ -197,7 +197,7 @@ done
 for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     # If the glob found nothing, it will be treated as a file, so skip it 
     if [ ! -e "$file" ]; then continue; fi
-    echo "Checking 8086 and 8088 simulation of $file..."
+    echo "Checking simulation (w/ 8086 cycles) of $file..."
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
@@ -207,6 +207,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
         break
     fi
     # Append 8088 simulation results to 8086 simulation results
+    echo "Checking simulation (w/ 8088 cycles) of $file..."
     SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
     if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
         echo "ERROR: 8088 simulation of program failed for $file"
