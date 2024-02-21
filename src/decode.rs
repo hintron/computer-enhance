@@ -528,8 +528,10 @@ pub struct InstType {
     /// from IP inc 8 or IP inc hi + lo
     pub jmp_value: Option<i16>,
     /// If true, then use the data bytes as part of a memory reference, like
-    /// \[DATA_BYTES].
+    /// \[DATA_BYTES]. Use add_data_to to determine if it's the src or dest.
     pub mem_access: bool,
+    // If mod rm encodes a mem operation, indicate whether it's for src or dest.
+    pub add_mod_rm_mem_to: Option<AddTo>,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected immediate byte types to parse after we parse the 1st byte
@@ -778,6 +780,11 @@ fn calculate_execution_values(inst: &mut InstType) {
         // Get the actual i16 value of the disp immediate bytes
         inst.disp_value = get_disp_value(inst.disp_lo.as_ref(), inst.disp_hi.as_ref());
     }
+
+    // NOTE: We can't calculate the effective address until we get into execute,
+    // since we need to access register values from the reg file, which is part
+    // of the CPU state.
+    // See calculate_mem_addr()
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (String, String) {
@@ -1646,8 +1653,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
     // Figure out operand types, for clock estimation
     match (mode, inst.d_field) {
         (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::RegReg),
-        (_, Some(true)) => inst.operands_type = Some(OperandsType::RegMem),
-        (_, _) => inst.operands_type = Some(OperandsType::MemReg),
+        (_, Some(true)) => {
+            inst.add_mod_rm_mem_to = Some(AddTo::Source);
+            inst.operands_type = Some(OperandsType::RegMem)
+        }
+        (_, _) => {
+            inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+            inst.operands_type = Some(OperandsType::MemReg)
+        }
     }
 
     if has_disp {
