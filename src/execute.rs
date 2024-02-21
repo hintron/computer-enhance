@@ -190,7 +190,8 @@ pub fn execute(
         | OpCodeType::Cmp
         | OpCodeType::Add
         | OpCodeType::And
-        | OpCodeType::Test) => {
+        | OpCodeType::Test
+        | OpCodeType::Xor) => {
             let dest_width;
             let dest_val;
 
@@ -272,6 +273,7 @@ pub fn execute(
                 (OpCodeType::And | OpCodeType::Test, RegWidth::Byte) => {
                     (dest_val & 0xFF00) & (source_val & 0xFF)
                 }
+                (OpCodeType::Xor, RegWidth::Byte) => (dest_val & 0xFF00) ^ (source_val & 0xFF),
                 (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
                 (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
@@ -280,6 +282,7 @@ pub fn execute(
                 (OpCodeType::And | OpCodeType::Test, RegWidth::Hi8) => {
                     (dest_val & 0x00FF) & (source_val << 8)
                 }
+                (OpCodeType::Xor, RegWidth::Hi8) => (dest_val & 0x00FF) ^ (source_val << 8),
                 (OpCodeType::Mov, RegWidth::Word) => source_val,
                 (OpCodeType::Add, RegWidth::Word) => {
                     let (result, overflowed, carry, aux_carry) =
@@ -298,6 +301,7 @@ pub fn execute(
                     result
                 }
                 (OpCodeType::And | OpCodeType::Test, RegWidth::Word) => dest_val & source_val,
+                (OpCodeType::Xor, RegWidth::Word) => dest_val ^ source_val,
                 _ => unreachable!(),
             });
 
