@@ -145,6 +145,8 @@ fn parse_args() -> Result<ArgsType> {
         } else if get_arg_value != ArgType::NoValue {
             // This argument is a value for the previous argument
             parse_arg_value(arg, &get_arg_value, &mut parsed_args)?;
+            // Reset to NoValue
+            get_arg_value = ArgType::NoValue;
         } else if arg.starts_with("-") {
             get_arg_value = parse_optional(arg, &mut parsed_args)?;
         } else {
