@@ -185,7 +185,12 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        op @ (OpCodeType::Mov | OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Add) => {
+        op @ (OpCodeType::Mov
+        | OpCodeType::Sub
+        | OpCodeType::Cmp
+        | OpCodeType::Add
+        | OpCodeType::And
+        | OpCodeType::Test) => {
             let dest_width;
             let dest_val;
 
@@ -264,10 +269,16 @@ pub fn execute(
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
                     (dest_val & 0xFF00) - (source_val & 0xFF)
                 }
+                (OpCodeType::And | OpCodeType::Test, RegWidth::Byte) => {
+                    (dest_val & 0xFF00) & (source_val & 0xFF)
+                }
                 (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
                 (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
                 (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
                     (dest_val & 0x00FF) - (source_val << 8)
+                }
+                (OpCodeType::And | OpCodeType::Test, RegWidth::Hi8) => {
+                    (dest_val & 0x00FF) & (source_val << 8)
                 }
                 (OpCodeType::Mov, RegWidth::Word) => source_val,
                 (OpCodeType::Add, RegWidth::Word) => {
@@ -286,13 +297,15 @@ pub fn execute(
                     new_val_aux_carry = aux_carry;
                     result
                 }
+                (OpCodeType::And | OpCodeType::Test, RegWidth::Word) => dest_val & source_val,
                 _ => unreachable!(),
             });
 
-            // CMP does not store the result, but the others do
-            if op == OpCodeType::Cmp {
-                dest_target = Target::None
-            };
+            // CMP and TEST do not store the result
+            match op {
+                OpCodeType::Cmp | OpCodeType::Test => dest_target = Target::None,
+                _ => {}
+            }
 
             // MOV does not modify flags, but the others do
             if op != OpCodeType::Mov {
