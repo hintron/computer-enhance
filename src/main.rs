@@ -150,11 +150,13 @@ fn parse_args() -> Result<ArgsType> {
         if parsed_args.first_arg.is_none() {
             parsed_args.first_arg = Some(arg);
         } else if get_arg_value != ArgType::NoValue {
+            println!("Parsing arg value {arg}");
             // This argument is a value for the previous argument
             parse_arg_value(arg, &get_arg_value, &mut parsed_args)?;
             // Reset to NoValue
             get_arg_value = ArgType::NoValue;
         } else if arg.starts_with("-") {
+            println!("Parsing optional arg {arg}");
             get_arg_value = parse_optional(arg, &mut parsed_args)?;
         } else {
             parse_positional(arg, &mut parsed_args)?;
