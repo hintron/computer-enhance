@@ -2,7 +2,8 @@
 
 This is an 8086 instruction decoder and simulator, implemented in the [Rust
 programming language][5] by following the [Computer Enhance][1] performance
-awareness course by Casey Muratori.
+awareness course by Casey Muratori (see the [class GitHub repo][9] for listings
+and for the reference simulator).
 
 This is mainly a personal project for my own benefit. However, I'm hoping to get
 this into a state where I can run the real-time operating system (RTOS) I
@@ -147,3 +148,4 @@ think our decode/execute code is ever really sampled.
 [6]: https://github.com/flamegraph-rs/flamegraph
 [7]: https://github.com/flamegraph-rs/flamegraph#enabling-perf-for-use-by-unprivileged-users
 [8]: https://users.rust-lang.org/t/flamegraph-shows-every-caller-is-unknown/52408/2
+[9]: https://github.com/cmuratori/computer_enhance
