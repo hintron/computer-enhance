@@ -136,8 +136,8 @@ fn calculate_8088_clocks(inst: &mut InstType) {
 ///
 /// Regarding transfers, remember that an `add` is different than a `mov`.
 /// For example, consider the difference bewteen these two instructions:
-///     mov [0x1000], word 1
-///     add [0x1000], word 1
+///     mov \[0x1000], word 1
+///     add \[0x1000], word 1
 ///
 /// `mov` simply moves 1 into the memory address 0x1000. However, `add`
 /// does `DEST = DEST + SOURCE`. So it must first read out `[0x1000]` into some
