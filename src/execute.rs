@@ -656,7 +656,7 @@ pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
 
 /// Add two 16-bit numbers together. If the sign bit of the lhs changes, set
 /// the overflow flag. Return the result, whether there was a signed arithmetic
-/// overflow, and whether there was an auxilliary carry.
+/// overflow, and whether there was an auxiliary carry.
 ///
 /// 8086 defines overflow as the sign bit of the left hand side (destination)
 /// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
@@ -693,7 +693,7 @@ fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
 }
 
 /// Subtract two 16 bit numbers (rhs from lhs) and return the result, whether
-/// there was a signed arithmetic overflow, and whether there was an auxilliary
+/// there was a signed arithmetic overflow, and whether there was an auxiliary
 /// carry.
 fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     let left_sign_bit = lhs & 0x8000;
