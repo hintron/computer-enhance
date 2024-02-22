@@ -10,3 +10,10 @@ add al, 127
 add bx, -1
 add bx, -1
 add bx, 2
+mov cl, 1
+mov ch, 1
+add dl, cl
+add dl, ch
+add dx, -2
+add cl, -1
+add ch, -1
