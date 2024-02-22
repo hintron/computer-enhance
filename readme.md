@@ -50,6 +50,7 @@ know how to skip over data.)
 * [Running the regressions][5]
 * [Benchmarking in Rust][6]
 * [Profiling in Rust][7]
+* [Using the class reference simulator][8]
 
 
 [1]: https://www.computerenhance.com/
@@ -59,3 +60,4 @@ know how to skip over data.)
 [5]: ./docs/regressions.md
 [6]: ./docs/benchmarking.md
 [7]: ./docs/profiling.md
+[8]: ./docs/reference-simulator.md
