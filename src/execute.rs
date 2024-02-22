@@ -9,7 +9,7 @@ use std::io::Write;
 use crate::cycles::{
     calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
 };
-use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
+use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, WidthType};
 
 // Third-party imports
 use minifb::{Window, WindowOptions};
@@ -237,9 +237,9 @@ pub fn execute(
                     };
                     // Figure out which bytes to get from the source
                     let source_val_sized = match source_reg.width {
-                        RegWidth::Byte => source_val & 0xFF,
-                        RegWidth::Hi8 => (source_val & 0xFF00) >> 8,
-                        RegWidth::Word => source_val,
+                        WidthType::Byte => source_val & 0xFF,
+                        WidthType::Hi8 => (source_val & 0xFF00) >> 8,
+                        WidthType::Word => source_val,
                     };
                     source_val_sized
                 }
@@ -257,18 +257,18 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match (op, dest_width) {
-                (OpCodeType::Mov, RegWidth::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
-                (OpCodeType::Add, RegWidth::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
-                (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Byte) => {
+                (OpCodeType::Mov, WidthType::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
+                (OpCodeType::Add, WidthType::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
+                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Byte) => {
                     (dest_val & 0xFF00) - (source_val & 0xFF)
                 }
-                (OpCodeType::Mov, RegWidth::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
-                (OpCodeType::Add, RegWidth::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
-                (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Hi8) => {
+                (OpCodeType::Mov, WidthType::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
+                (OpCodeType::Add, WidthType::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
+                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Hi8) => {
                     (dest_val & 0x00FF) - (source_val << 8)
                 }
-                (OpCodeType::Mov, RegWidth::Word) => source_val,
-                (OpCodeType::Add, RegWidth::Word) => {
+                (OpCodeType::Mov, WidthType::Word) => source_val,
+                (OpCodeType::Add, WidthType::Word) => {
                     let (result, overflowed, carry, aux_carry) =
                         add_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;
@@ -276,7 +276,7 @@ pub fn execute(
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                (OpCodeType::Sub | OpCodeType::Cmp, RegWidth::Word) => {
+                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Word) => {
                     let (result, overflowed, carry, aux_carry) =
                         sub_with_overflow(dest_val, source_val);
                     new_val_overflowed = overflowed;

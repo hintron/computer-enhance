@@ -4,7 +4,7 @@
 //! NOTE: "cycles" and "clocks" are used interchangeably.
 //!
 
-use crate::decode::{CpuType, InstType, ModRmDataType, OpCodeType, RegName, RegWidth};
+use crate::decode::{CpuType, InstType, ModRmDataType, OpCodeType, RegName, WidthType};
 
 /// This in combination with the instruction's op code type index into table
 /// 2-21 to get clocks data for each instruction.
@@ -101,12 +101,12 @@ fn calculate_8088_clocks(inst: &mut InstType) {
         assert!(inst.dest_width.is_none() || inst.source_width.is_none());
 
         match inst.dest_width {
-            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
+            Some(WidthType::Word) => inst.mem_access_word += inst.transfers,
             _ => {}
         }
 
         match inst.source_width {
-            Some(RegWidth::Word) => inst.mem_access_word += inst.transfers,
+            Some(WidthType::Word) => inst.mem_access_word += inst.transfers,
             _ => {}
         }
 
@@ -116,12 +116,12 @@ fn calculate_8088_clocks(inst: &mut InstType) {
         let is_memory_inst = is_memory_inst(inst);
         match (is_memory_inst, inst.dest_reg, inst.source_reg) {
             (true, Some(dest_reg), _) => {
-                if dest_reg.width == RegWidth::Word {
+                if dest_reg.width == WidthType::Word {
                     inst.mem_access_word += inst.transfers;
                 }
             }
             (true, _, Some(src_reg)) => {
-                if src_reg.width == RegWidth::Word {
+                if src_reg.width == WidthType::Word {
                     inst.mem_access_word += inst.transfers;
                 }
             }

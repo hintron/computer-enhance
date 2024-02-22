@@ -378,7 +378,7 @@ impl fmt::Display for RegName {
 
 /// The width of a register
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum RegWidth {
+pub enum WidthType {
     // 8 bits/low half of word
     Byte,
     // Upper 8 bits/high half of word
@@ -393,13 +393,13 @@ pub enum RegWidth {
     // Dqword,
 }
 
-impl RegWidth {
-    /// Return a string + space to convert this RegWidth to a source or dest
+impl WidthType {
+    /// Return a string + space to convert this WidthType to a source or dest
     /// prefix string
     fn to_width_prefix_str(&self) -> &'static str {
         match self {
-            RegWidth::Byte | RegWidth::Hi8 => "byte ",
-            RegWidth::Word => "word ",
+            WidthType::Byte | WidthType::Hi8 => "byte ",
+            WidthType::Word => "word ",
         }
     }
 }
@@ -408,32 +408,32 @@ impl RegWidth {
 #[derive(Copy, Clone, Debug)]
 pub struct RegType {
     pub name: RegName,
-    pub width: RegWidth,
+    pub width: WidthType,
 }
 
 impl fmt::Display for RegType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match (self.name, self.width) {
-            (RegName::Ax, RegWidth::Byte) => write!(f, "al"),
-            (RegName::Ax, RegWidth::Hi8) => write!(f, "ah"),
-            (RegName::Ax, RegWidth::Word) => write!(f, "ax"),
-            (RegName::Bx, RegWidth::Byte) => write!(f, "bl"),
-            (RegName::Bx, RegWidth::Hi8) => write!(f, "bh"),
-            (RegName::Bx, RegWidth::Word) => write!(f, "bx"),
-            (RegName::Cx, RegWidth::Byte) => write!(f, "cl"),
-            (RegName::Cx, RegWidth::Hi8) => write!(f, "ch"),
-            (RegName::Cx, RegWidth::Word) => write!(f, "cx"),
-            (RegName::Dx, RegWidth::Byte) => write!(f, "dl"),
-            (RegName::Dx, RegWidth::Hi8) => write!(f, "dh"),
-            (RegName::Dx, RegWidth::Word) => write!(f, "dx"),
-            (RegName::Sp, RegWidth::Word) => write!(f, "sp"),
-            (RegName::Bp, RegWidth::Word) => write!(f, "bp"),
-            (RegName::Si, RegWidth::Word) => write!(f, "si"),
-            (RegName::Di, RegWidth::Word) => write!(f, "di"),
-            (RegName::Es, RegWidth::Word) => write!(f, "es"),
-            (RegName::Cs, RegWidth::Word) => write!(f, "cs"),
-            (RegName::Ss, RegWidth::Word) => write!(f, "ss"),
-            (RegName::Ds, RegWidth::Word) => write!(f, "ds"),
+            (RegName::Ax, WidthType::Byte) => write!(f, "al"),
+            (RegName::Ax, WidthType::Hi8) => write!(f, "ah"),
+            (RegName::Ax, WidthType::Word) => write!(f, "ax"),
+            (RegName::Bx, WidthType::Byte) => write!(f, "bl"),
+            (RegName::Bx, WidthType::Hi8) => write!(f, "bh"),
+            (RegName::Bx, WidthType::Word) => write!(f, "bx"),
+            (RegName::Cx, WidthType::Byte) => write!(f, "cl"),
+            (RegName::Cx, WidthType::Hi8) => write!(f, "ch"),
+            (RegName::Cx, WidthType::Word) => write!(f, "cx"),
+            (RegName::Dx, WidthType::Byte) => write!(f, "dl"),
+            (RegName::Dx, WidthType::Hi8) => write!(f, "dh"),
+            (RegName::Dx, WidthType::Word) => write!(f, "dx"),
+            (RegName::Sp, WidthType::Word) => write!(f, "sp"),
+            (RegName::Bp, WidthType::Word) => write!(f, "bp"),
+            (RegName::Si, WidthType::Word) => write!(f, "si"),
+            (RegName::Di, WidthType::Word) => write!(f, "di"),
+            (RegName::Es, WidthType::Word) => write!(f, "es"),
+            (RegName::Cs, WidthType::Word) => write!(f, "cs"),
+            (RegName::Ss, WidthType::Word) => write!(f, "ss"),
+            (RegName::Ds, WidthType::Word) => write!(f, "ds"),
             (name, width) => unreachable!("Could not print RegType {{{:?} {:?}}}", name, width),
         }
     }
@@ -560,13 +560,13 @@ pub struct InstType {
     /// The source register, if the source is a register
     pub source_reg: Option<RegType>,
     /// Explicitly indicate the source width. Needed when coming from memory.
-    pub source_width: Option<RegWidth>,
+    pub source_width: Option<WidthType>,
     /// The value of the source operand, if it's an immediate
     pub source_value: Option<u16>,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
     /// Explicitly indicate the destination width. Needed when going to memory.
-    pub dest_width: Option<RegWidth>,
+    pub dest_width: Option<WidthType>,
     /// The final instruction representation
     pub text: Option<String>,
     /// The type of operands supplied to the instruction. Used to figure out
@@ -989,10 +989,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1010,10 +1010,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1082,10 +1082,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1103,10 +1103,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1124,10 +1124,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1173,7 +1173,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xA0..=0xA3 => {
             inst.op_type = Some(OpCodeType::Mov);
             let w_field = (byte & 0x1) == 1;
-            let accumulator = Some(RegType{name: RegName::Ax, width: RegWidth::Word});
+            let accumulator = Some(RegType{name: RegName::Ax, width: WidthType::Word});
             inst.mem_access = true;
             match ((byte & 0x2) >> 1) == 1 {
                 false => {
@@ -1296,7 +1296,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // xchg - Register with accumulator
         0x90..=0x97 => {
             inst.op_type = Some(OpCodeType::Xchg);
-            inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+            inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field);
             inst.source_reg = Some(reg_field);
@@ -1306,9 +1306,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.immediate_bytes.push(ImmBytesType::Data8);
             inst.add_data_to = Some(AddTo::Source);
@@ -1319,11 +1319,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::In);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
-            inst.source_reg = Some(RegType{name: RegName::Dx, width: RegWidth::Word});
+            inst.source_reg = Some(RegType{name: RegName::Dx, width: WidthType::Word});
             inst.w_field = Some(w_field);
         }
         // out - fixed port
@@ -1331,9 +1331,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.source_reg = Some(RegType { name: RegName::Ax, width: RegWidth::Word });
+                inst.source_reg = Some(RegType { name: RegName::Ax, width: WidthType::Word });
             } else {
-                inst.source_reg = Some(RegType { name: RegName::Ax, width:RegWidth::Byte });
+                inst.source_reg = Some(RegType { name: RegName::Ax, width:WidthType::Byte });
             }
             inst.immediate_bytes.push(ImmBytesType::Data8);
             inst.add_data_to = Some(AddTo::Dest);
@@ -1344,11 +1344,11 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Out);
             let w_field = (byte & 0x1) == 1;
             if w_field {
-                inst.source_reg = Some(RegType { name: RegName::Ax, width: RegWidth::Word });
+                inst.source_reg = Some(RegType { name: RegName::Ax, width: WidthType::Word });
             } else {
-                inst.source_reg = Some(RegType { name: RegName::Ax, width: RegWidth::Byte });
+                inst.source_reg = Some(RegType { name: RegName::Ax, width: WidthType::Byte });
             }
-            inst.dest_reg = Some(RegType { name: RegName::Dx, width: RegWidth::Word });
+            inst.dest_reg = Some(RegType { name: RegName::Dx, width: WidthType::Word });
             inst.w_field = Some(w_field);
         }
         // xlat
@@ -1415,10 +1415,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1436,10 +1436,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1471,10 +1471,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1518,10 +1518,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.add_data_to = Some(AddTo::Source);
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             if w_field {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Word});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Word});
                 inst.immediate_bytes.push(ImmBytesType::DataHi);
             } else {
-                inst.dest_reg = Some(RegType{name: RegName::Ax, width:RegWidth::Byte});
+                inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
         }
@@ -1712,8 +1712,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_width = Some(RegWidth::Byte),
-                (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
+                (_, Some(false)) => inst.source_width = Some(WidthType::Byte),
+                (_, Some(true)) => inst.source_width = Some(WidthType::Word),
                 _ => {}
             }
         }
@@ -1742,8 +1742,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                (_, Some(false)) => inst.source_width = Some(RegWidth::Byte),
-                (_, Some(true)) => inst.source_width = Some(RegWidth::Word),
+                (_, Some(false)) => inst.source_width = Some(WidthType::Byte),
+                (_, Some(true)) => inst.source_width = Some(WidthType::Word),
                 _ => {}
             }
             // Set cycle info
@@ -1758,8 +1758,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
-                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
+                (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
+                (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
             }
         }
@@ -1770,8 +1770,8 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp1Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
-                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
+                (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
+                (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
             }
             if is_test_inst {
@@ -1789,14 +1789,14 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_width = Some(RegWidth::Byte),
-                (_, Some(true)) => inst.dest_width = Some(RegWidth::Word),
+                (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
+                (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
             }
         }
         Some(ModRmByteType::ModPopRm) => match mode {
             ModType::RegisterMode => {}
-            _ => inst.dest_width = Some(RegWidth::Word),
+            _ => inst.dest_width = Some(WidthType::Word),
         },
         // Similar to ModRegRm
         Some(ModRmByteType::ModSrRm) => {
@@ -1962,67 +1962,67 @@ fn decode_reg_field(reg: u8, w: Option<bool>) -> RegType {
     match (reg, w) {
         (0b000, None | Some(false)) => RegType {
             name: RegName::Ax,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         },
         (0b001, None | Some(false)) => RegType {
             name: RegName::Cx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         },
         (0b010, None | Some(false)) => RegType {
             name: RegName::Dx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         },
         (0b011, None | Some(false)) => RegType {
             name: RegName::Bx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         },
         (0b100, None | Some(false)) => RegType {
             name: RegName::Ax,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         },
         (0b101, None | Some(false)) => RegType {
             name: RegName::Cx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         },
         (0b110, None | Some(false)) => RegType {
             name: RegName::Dx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         },
         (0b111, None | Some(false)) => RegType {
             name: RegName::Bx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         },
         (0b000, Some(true)) => RegType {
             name: RegName::Ax,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b001, Some(true)) => RegType {
             name: RegName::Cx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b010, Some(true)) => RegType {
             name: RegName::Dx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b011, Some(true)) => RegType {
             name: RegName::Bx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b100, Some(true)) => RegType {
             name: RegName::Sp,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b101, Some(true)) => RegType {
             name: RegName::Bp,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b110, Some(true)) => RegType {
             name: RegName::Si,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         (0b111, Some(true)) => RegType {
             name: RegName::Di,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         _ => unreachable!(),
     }
@@ -2035,19 +2035,19 @@ fn decode_sr_field(sr: u8) -> RegType {
     match sr {
         0b00 => RegType {
             name: RegName::Es,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         0b01 => RegType {
             name: RegName::Cs,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         0b10 => RegType {
             name: RegName::Ss,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         0b11 => RegType {
             name: RegName::Ds,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         },
         _ => unreachable!(),
     }
@@ -2062,122 +2062,122 @@ fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> ModRmDataType {
     match (rm, mode, w) {
         (0b000, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Ax,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         }),
         (0b001, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Cx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         }),
         (0b010, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Dx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         }),
         (0b011, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Bx,
-            width: RegWidth::Byte,
+            width: WidthType::Byte,
         }),
         (0b100, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Ax,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         }),
         (0b101, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Cx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         }),
         (0b110, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Dx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         }),
         (0b111, ModType::RegisterMode, None | Some(false)) => ModRmDataType::Reg(RegType {
             name: RegName::Bx,
-            width: RegWidth::Hi8,
+            width: WidthType::Hi8,
         }),
         (0b000, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Ax,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b001, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Cx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b010, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Dx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b011, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Bx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b100, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Sp,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b101, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Bp,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b110, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Si,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b111, ModType::RegisterMode, Some(true)) => ModRmDataType::Reg(RegType {
             name: RegName::Di,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (_, ModType::RegisterMode, _) => unreachable!("ERROR: Unknown RegisterMode condition"),
         (0b000, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(
             RegType {
                 name: RegName::Bx,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Si,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b001, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(
             RegType {
                 name: RegName::Bx,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Di,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b010, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(
             RegType {
                 name: RegName::Bp,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Si,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b011, ModType::MemoryMode0, _) => ModRmDataType::MemRegReg(
             RegType {
                 name: RegName::Bp,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Di,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b100, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType {
             name: RegName::Si,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (0b101, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType {
             name: RegName::Di,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         // No registers - just a 16-bit immediate address from data lo, data hi
         (0b110, ModType::MemoryMode0, _) => ModRmDataType::MemDirectAddr,
         (0b111, ModType::MemoryMode0, _) => ModRmDataType::MemReg(RegType {
             name: RegName::Bx,
-            width: RegWidth::Word,
+            width: WidthType::Word,
         }),
         (_, ModType::MemoryMode0, _) => unreachable!("ERROR: Unknown MemoryMode0 condition"),
         // For MM8/MM16, all we need to do later after this function is add in
@@ -2185,65 +2185,65 @@ fn decode_rm_field(rm: u8, mode: ModType, w: Option<bool>) -> ModRmDataType {
         (0b000, ModType::MemoryMode8 | ModType::MemoryMode16, _) => ModRmDataType::MemRegRegDisp(
             RegType {
                 name: RegName::Bx,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Si,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b001, ModType::MemoryMode8 | ModType::MemoryMode16, _) => ModRmDataType::MemRegRegDisp(
             RegType {
                 name: RegName::Bx,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Di,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b010, ModType::MemoryMode8 | ModType::MemoryMode16, _) => ModRmDataType::MemRegRegDisp(
             RegType {
                 name: RegName::Bp,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Si,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b011, ModType::MemoryMode8 | ModType::MemoryMode16, _) => ModRmDataType::MemRegRegDisp(
             RegType {
                 name: RegName::Bp,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
             RegType {
                 name: RegName::Di,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             },
         ),
         (0b100, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
             ModRmDataType::MemRegDisp(RegType {
                 name: RegName::Si,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             })
         }
         (0b101, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
             ModRmDataType::MemRegDisp(RegType {
                 name: RegName::Di,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             })
         }
         (0b110, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
             ModRmDataType::MemRegDisp(RegType {
                 name: RegName::Bp,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             })
         }
         (0b111, ModType::MemoryMode8 | ModType::MemoryMode16, _) => {
             ModRmDataType::MemRegDisp(RegType {
                 name: RegName::Bx,
-                width: RegWidth::Word,
+                width: WidthType::Word,
             })
         }
         (_, ModType::MemoryMode8, _) => unreachable!("ERROR: Unknown MemoryMode8 condition"),
