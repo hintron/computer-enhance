@@ -154,6 +154,10 @@ pub fn execute(
     let mut new_val_overflowed = false;
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
+    // This lets the flag setting code know whether it should work on the entire
+    // word of new_val, the top byte, or the bottom byte. Default to looking at
+    // the entire word.
+    let mut new_val_width = WidthType::Word;
     let current_ip = state.ip;
 
     // "While an instruction is executing, IP refers to the next instruction."
@@ -258,12 +262,28 @@ pub fn execute(
             // bytes of the dest register to replace
             new_val = Some(match (op, dest_width) {
                 (OpCodeType::Mov, WidthType::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
-                (OpCodeType::Add, WidthType::Byte) => (dest_val & 0xFF00) + (source_val & 0xFF),
+                (OpCodeType::Add, WidthType::Byte) => {
+                    let dest_byte = (dest_val & 0xFF) as u8;
+                    let (result, overflowed, carry, aux_carry) =
+                        add_with_overflow_u8(dest_byte, source_val as u8);
+                    new_val_overflowed = overflowed;
+                    new_val_carry = carry;
+                    new_val_aux_carry = aux_carry;
+                    (dest_val & 0xFF00) | (result as u16)
+                }
                 (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Byte) => {
                     (dest_val & 0xFF00) - (source_val & 0xFF)
                 }
                 (OpCodeType::Mov, WidthType::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
-                (OpCodeType::Add, WidthType::Hi8) => (dest_val & 0x00FF) + (source_val << 8),
+                (OpCodeType::Add, WidthType::Hi8) => {
+                    let dest_byte = ((dest_val & 0xFF00) >> 8) as u8;
+                    let (result, overflowed, carry, aux_carry) =
+                        add_with_overflow_u8(dest_byte, source_val as u8);
+                    new_val_overflowed = overflowed;
+                    new_val_carry = carry;
+                    new_val_aux_carry = aux_carry;
+                    (dest_val & 0x00FF) | ((result as u16) << 8)
+                }
                 (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Hi8) => {
                     (dest_val & 0x00FF) - (source_val << 8)
                 }
@@ -286,6 +306,8 @@ pub fn execute(
                 }
                 _ => unreachable!(),
             });
+
+            new_val_width = dest_width;
 
             // CMP does not store the result, but the others do
             if op == OpCodeType::Cmp {
@@ -350,9 +372,21 @@ pub fn execute(
         (true, Some(new_val)) => {
             // Set parity if even number of ones *in the bottom byte only*
             // https://open.substack.com/pub/computerenhance/p/simulating-add-jmp-and-cmp?r=leu8y&utm_campaign=comment-list-share-cta&utm_medium=web&comments=true&commentId=14205872
-            state.flags_reg.parity = ((new_val & 0xFF).count_ones() & 0x1) == 0x0;
-            state.flags_reg.zero = new_val == 0;
-            state.flags_reg.sign = (new_val & 0x8000) == 0x8000;
+            state.flags_reg.parity = match new_val_width {
+                WidthType::Hi8 => get_parity_u8(((new_val & 0xFF00) >> 8) as u8),
+                // If not set explicitly, fall back to getting parity of u16
+                _ => get_parity(new_val & 0xFF),
+            };
+            state.flags_reg.zero = match new_val_width {
+                WidthType::Byte => (new_val & 0xFF) == 0,
+                WidthType::Hi8 => (new_val & 0xFF00) == 0,
+                _ => new_val == 0,
+            };
+            state.flags_reg.sign = match new_val_width {
+                WidthType::Byte => (new_val & 0x80) == 0x80,
+                // This works for u16 and hi u8
+                _ => (new_val & 0x8000) == 0x8000,
+            };
             state.flags_reg.overflow = new_val_overflowed;
             state.flags_reg.carry = new_val_carry;
             state.flags_reg.auxiliary_carry = new_val_aux_carry;
@@ -389,6 +423,16 @@ pub fn execute(
     }
 
     return effect;
+}
+
+/// Determine if this byte should have the parity flag set
+fn get_parity_u8(val: u8) -> bool {
+    (val.count_ones() & 0x1) == 0x0
+}
+
+/// Determine if this word should have the parity flag set
+fn get_parity(val: u16) -> bool {
+    (val.count_ones() & 0x1) == 0x0
 }
 
 /// Get the memory address for this instruction (if any) and whether it's for
@@ -692,6 +736,30 @@ fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
     (result, overflow, carry, aux_carry)
 }
 
+/// Add two 8-bit numbers together. See add_with_overflow for more info.
+fn add_with_overflow_u8(lhs: u8, rhs: u8) -> (u8, bool, bool, bool) {
+    let left_sign_bit = lhs & 0x80;
+    let right_sign_bit = rhs & 0x80;
+
+    let (result, _) = lhs.overflowing_add(rhs);
+    let result_sign_bit = result & 0x80;
+
+    let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
+    let carry = (rhs as u16) + (lhs as u16) > 0xFF;
+    let aux_carry = calc_aux_carry_add_u8(lhs, rhs);
+    println!("{lhs} (0x{lhs:x}) + {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
+    if overflow {
+        println!("Addition overflowed!")
+    }
+    if carry {
+        println!("Addition carry!")
+    }
+    if aux_carry {
+        println!("Addition aux_carry!")
+    }
+    (result, overflow, carry, aux_carry)
+}
+
 /// Subtract two 16 bit numbers (rhs from lhs) and return the result, whether
 /// there was a signed arithmetic overflow, and whether there was an auxiliary
 /// carry.
@@ -719,6 +787,10 @@ fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
 }
 
 const fn calc_aux_carry_add(lhs: u16, rhs: u16) -> bool {
+    ((lhs & 0xF) + (rhs & 0xF)) > 0xF
+}
+
+const fn calc_aux_carry_add_u8(lhs: u8, rhs: u8) -> bool {
     ((lhs & 0xF) + (rhs & 0xF)) > 0xF
 }
 
