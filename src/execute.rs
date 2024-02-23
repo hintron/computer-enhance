@@ -288,8 +288,14 @@ pub fn execute(
                     (inst.data_value.unwrap(), source_width)
                 }
                 _ => {
-                    println!("inst debug: {:#?}", inst);
-                    unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
+                    // No source is found! Take care of hardcoded sources here
+                    match op {
+                        OpCodeType::Inc => (1, WidthType::Byte),
+                        _ => {
+                            println!("inst debug: {:#?}", inst);
+                            unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
+                        }
+                    }
                 }
             };
 
@@ -302,6 +308,13 @@ pub fn execute(
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
+                    new_val_aux_carry = aux_carry;
+                    result
+                }
+                op @ OpCodeType::Inc => {
+                    let (result, overflowed, _, aux_carry) =
+                        execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
+                    new_val_overflowed = overflowed;
                     new_val_aux_carry = aux_carry;
                     result
                 }
@@ -718,7 +731,7 @@ fn execute_op(
             // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
             // sign value wraps from negative to positive.
             let result = match op {
-                OpCodeType::Add => {
+                OpCodeType::Add | OpCodeType::Inc => {
                     let (result, _) = dst.overflowing_add(src);
                     result
                 }
@@ -750,7 +763,7 @@ fn execute_op(
             };
 
             let result = match op {
-                OpCodeType::Add => {
+                OpCodeType::Add | OpCodeType::Inc => {
                     let (result, _) = dst_u8.overflowing_add(src_u8);
                     result
                 }
@@ -813,7 +826,9 @@ fn execute_op_arith_flags(
         // If the two operands have the same sign bit, then overflow occurs if
         // the result does not have that same sign bit.
         // See "Overflow Rule for addition" in https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
-        OpCodeType::Add => (dst_sign_bit == src_sign_bit) && (dst_sign_bit != result_sign_bit),
+        OpCodeType::Add | OpCodeType::Inc => {
+            (dst_sign_bit == src_sign_bit) && (dst_sign_bit != result_sign_bit)
+        }
         // Since we're subtracting, left and right sign must be opposite for
         // overflow to occur.
         OpCodeType::Sub | OpCodeType::Cmp => {
@@ -822,12 +837,12 @@ fn execute_op_arith_flags(
         _ => unimplemented!(),
     };
     let carry = match op {
-        OpCodeType::Add => calc_carry_add(dst, src, dst_width, src_width),
+        OpCodeType::Add | OpCodeType::Inc => calc_carry_add(dst, src, dst_width, src_width),
         OpCodeType::Sub | OpCodeType::Cmp => calc_carry_sub(dst, src, dst_width, src_width),
         _ => unimplemented!(),
     };
     let aux_carry = match op {
-        OpCodeType::Add => calc_aux_carry_add(dst, src, dst_width, src_width),
+        OpCodeType::Add | OpCodeType::Inc => calc_aux_carry_add(dst, src, dst_width, src_width),
         OpCodeType::Sub | OpCodeType::Cmp => calc_aux_carry_sub(dst, src, dst_width, src_width),
         _ => unimplemented!(),
     };

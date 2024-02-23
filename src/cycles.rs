@@ -24,6 +24,9 @@ pub enum OperandsType {
     RegSeg,
     MemSeg,
     AccImm,
+    Reg8,
+    Reg16,
+    Mem,
 }
 
 /// Now that the instruction is all decoded, fill in clock information
@@ -280,6 +283,16 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         ) => {
             inst.clocks_base = 4;
             inst.clocks_jump = Some(12);
+        }
+        (Some(OpCodeType::Inc), Some(OperandsType::Reg8)) => {
+            inst.clocks_base = 3;
+        }
+        (Some(OpCodeType::Inc), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 2;
+        }
+        (Some(OpCodeType::Inc), Some(OperandsType::Mem)) => {
+            inst.clocks_base = 15;
+            inst.transfers = 2;
         }
         (Some(OpCodeType::Jcxz | OpCodeType::Loopz), _) => {
             inst.clocks_base = 6;

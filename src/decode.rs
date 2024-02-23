@@ -1023,11 +1023,16 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // inc - register
         0x40..=0x47 => {
             inst.op_type = Some(OpCodeType::Inc);
-            let w_field = Some(true);
-            let reg_field = decode_reg_field(byte & 0b111, w_field);
+            let w_field = true;
+            let reg_field = decode_reg_field(byte & 0b111, Some(w_field));
             inst.dest_reg = Some(reg_field);
             inst.reg_field = Some(reg_field);
-            inst.w_field = w_field;
+            if w_field {
+                inst.operands_type = Some(OperandsType::Reg16);
+            } else {
+                inst.operands_type = Some(OperandsType::Reg8);
+            }
+            inst.w_field = Some(w_field);
         }
         // aaa - ASCII adjust for add
         0x37 => {
@@ -1790,10 +1795,22 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.op_type = Some(decode_grp2_op((byte & 0b00111000) >> 3));
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
-                (ModType::RegisterMode, _) => {}
+                (ModType::RegisterMode, Some(w_field)) => {
+                    if w_field {
+                        inst.operands_type = Some(OperandsType::Reg16);
+                    } else {
+                        inst.operands_type = Some(OperandsType::Reg8);
+                    }
+                }
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
-                (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
+                (_, Some(false)) => {
+                    inst.dest_width = Some(WidthType::Byte);
+                    inst.operands_type = Some(OperandsType::Mem);
+                }
+                (_, Some(true)) => {
+                    inst.dest_width = Some(WidthType::Word);
+                    inst.operands_type = Some(OperandsType::Mem);
+                }
                 (_, None) => unreachable!(),
             }
         }
