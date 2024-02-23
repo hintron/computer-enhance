@@ -737,7 +737,7 @@ fn execute_op(
                 _ => unimplemented!(),
             };
             println!(
-                "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
+                "WORD {op:?}: dest={dst} (0x{dst:x}), src={src} (0x{src:x}), result={result} (0x{result:04x})"
             );
             result
         }
@@ -775,7 +775,7 @@ fn execute_op(
                 _ => unreachable!(),
             };
 
-            println!("BYTE {op:?}: {dst_u8} (0x{dst_u8:x}) {op} {src_u8} (0x{src_u8:x}) = {merged_result} (0x{merged_result:04x})");
+            println!("BYTE {op:?}: dest={dst_u8} (0x{dst_u8:x}), src={src_u8} (0x{src_u8:x}), result={merged_result} (0x{merged_result:04x})");
             // Merge the result back into the bottom byte of the destination
             merged_result
         }
