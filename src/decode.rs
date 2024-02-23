@@ -1891,7 +1891,7 @@ fn process_data_bytes(
     let data_value = get_data_value(data_lo, data_hi, data_8, sign_extend_data_lo);
     // The value is formatted differently depending on what data bytes were set
     match (data_lo, data_hi, data_8, sign_extend_data_lo) {
-        (Some(_), None, None, false) => format!("{}", data_value as i8),
+        (Some(_), None, None, false) => format!("{}", data_value as u8),
         (Some(_), None, None, true) => format!("{}", data_value as i16),
         (Some(_), Some(_), None, _) => {
             format!("{}", data_value)
