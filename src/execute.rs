@@ -295,7 +295,7 @@ pub fn execute(
             new_val = Some(match op {
                 OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
                 OpCodeType::Add => {
-                    let (result, overflowed, carry, aux_carry) = arith_with_overflow(
+                    let (result, overflowed, carry, aux_carry) = execute_op_arith_flags(
                         dest_val,
                         source_val,
                         dest_width,
@@ -308,7 +308,7 @@ pub fn execute(
                     result
                 }
                 OpCodeType::Sub | OpCodeType::Cmp => {
-                    let (result, overflowed, carry, aux_carry) = arith_with_overflow(
+                    let (result, overflowed, carry, aux_carry) = execute_op_arith_flags(
                         dest_val,
                         source_val,
                         dest_width,
@@ -823,7 +823,7 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
 /// This is true with 0x7FFF + 0x0001, but also true with 0xFFFF + 0x0001.
 /// The overflow flag will still be set even if the user is intending to
 /// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
-fn arith_with_overflow(
+fn execute_op_arith_flags(
     dst: u16,
     src: u16,
     dst_width: WidthType,
