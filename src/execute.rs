@@ -123,7 +123,7 @@ enum Target {
     None,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum ArithOp {
     Add,
     Sub,
@@ -730,34 +730,10 @@ fn execute_mov(
     }
 }
 
-/// Do an arithmetic operation between a src and dst.
-///
-/// If the operation is to be done between single bytes of the u16 word, then
-/// the byte location is specified with dst_width and src_width.
-///
-/// 8086 defines add overflow as the sign bit of the destination changing.
-/// This is true with 0x7FFF + 0x0001, but also true with 0xFFFF + 0x0001.
-/// The overflow flag will still be set even if the user is intending to
-/// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
-fn arith_with_overflow(
-    dst: u16,
-    src: u16,
-    dst_width: WidthType,
-    src_width: WidthType,
-    op: ArithOp,
-) -> (u16, bool, bool, bool) {
-    println!("Dest: 0x{dst:X}:{dst_width:?}; Source: 0x{src:X}:{src_width:?}");
-    let dst_sign_bit = match dst_width {
-        WidthType::Word | WidthType::Hi8 => (dst & 0x8000) != 0,
-        WidthType::Byte => (dst & 0x80) != 0,
-    };
-    let src_sign_bit = match src_width {
-        WidthType::Word | WidthType::Hi8 => (src & 0x8000) != 0,
-        WidthType::Byte => (src & 0x80) != 0,
-    };
-
+/// Execute an ArithOp and return the result.
+fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op: ArithOp) -> u16 {
     // The current assumption is that src and dst are sized the same
-    let (result, result_sign_bit) = match dst_width {
+    match dst_width {
         // Operate on two words
         WidthType::Word => {
             // We are discarding the overflow result because that is not the same as the
@@ -771,7 +747,7 @@ fn arith_with_overflow(
             println!(
                 "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
             );
-            (result, (result & 0x8000) != 0)
+            result
         }
         // Operate on two bytes
         WidthType::Byte | WidthType::Hi8 => {
@@ -800,8 +776,41 @@ fn arith_with_overflow(
 
             println!("BYTE {op:?}: {dst_u8} (0x{dst_u8:x}) {op} {src_u8} (0x{src_u8:x}) = {merged_result} (0x{merged_result:04x})");
             // Merge the result back into the bottom byte of the destination
-            (merged_result, (result & 0x80) != 0)
+            merged_result
         }
+    }
+}
+
+/// Do an arithmetic operation between a src and dst.
+///
+/// If the operation is to be done between single bytes of the u16 word, then
+/// the byte location is specified with dst_width and src_width.
+///
+/// 8086 defines add overflow as the sign bit of the destination changing.
+/// This is true with 0x7FFF + 0x0001, but also true with 0xFFFF + 0x0001.
+/// The overflow flag will still be set even if the user is intending to
+/// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
+fn arith_with_overflow(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+    op: ArithOp,
+) -> (u16, bool, bool, bool) {
+    println!("Dest: 0x{dst:X}:{dst_width:?}; Source: 0x{src:X}:{src_width:?}");
+    let dst_sign_bit = match dst_width {
+        WidthType::Word | WidthType::Hi8 => (dst & 0x8000) != 0,
+        WidthType::Byte => (dst & 0x80) != 0,
+    };
+    let src_sign_bit = match src_width {
+        WidthType::Word | WidthType::Hi8 => (src & 0x8000) != 0,
+        WidthType::Byte => (src & 0x80) != 0,
+    };
+
+    let result = execute_op(dst, src, dst_width, src_width, op);
+    let result_sign_bit = match dst_width {
+        WidthType::Word | WidthType::Hi8 => (result & 0x8000) != 0,
+        WidthType::Byte => (result & 0x80) != 0,
     };
 
     let overflow = match op {
