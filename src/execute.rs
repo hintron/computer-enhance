@@ -714,7 +714,7 @@ fn execute_mov(
         (WidthType::Byte, WidthType::Hi8) => (dest_val & 0xFF00) | ((source_val & 0xFF00) >> 8),
         (WidthType::Hi8, WidthType::Byte) => (dest_val & 0xFF) | ((source_val & 0xFF) << 8),
         (WidthType::Hi8, WidthType::Hi8) => (dest_val & 0xFF00) | (source_val & 0xFF),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
 

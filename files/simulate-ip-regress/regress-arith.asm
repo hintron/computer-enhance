@@ -23,14 +23,26 @@ add dl, ch
 add dx, -2
 
 ; test subs
-sub al, 1
-sub ah, 1
-mov bl, 1
-mov bh, 1
-sub al, bh
-sub ah, bl
-sub al, bh
-sub ah, bl
 sub ah, 127
-sub ax, bx
+sub ah, 1
+sub ah, 1
+sub ah, 127
+sub al, 127
+sub al, 1
+sub al, 1
+sub al, 127
+sub bx, -1
+sub bx, -1
+sub bx, 2
+mov cl, 1
+mov ch, 1
+sub cl, 255
+sub ch, 255
+sub cl, 127
+sub cl, 127
+sub ch, 127
+sub ch, 127
+sub dl, cl
+sub dl, ch
+sub dx, -2
 
