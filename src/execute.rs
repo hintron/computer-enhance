@@ -189,13 +189,35 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        op @ (OpCodeType::Mov
-        | OpCodeType::Sub
-        | OpCodeType::Cmp
-        | OpCodeType::Add
-        | OpCodeType::And
-        | OpCodeType::Test
-        | OpCodeType::Xor) => {
+        jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
+            new_val = None;
+            dest_target = Target::None;
+            jumped = handle_jmp_variants(jump_op, inst, state);
+        }
+        jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
+            // pg 2-45 - 2-46
+            // Decrement cx by 1 and jump if cx != 0
+            let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
+            new_val = Some(cx);
+            dest_target = Target::RegisterName(RegName::Cx);
+            println!("loop: cx is now {cx}");
+            // NOTE: We do NOT modify flags when modifying cs in loops
+            if cx != 0 {
+                jumped = handle_jmp_variants(jump_op, inst, state);
+            }
+        }
+        OpCodeType::Ret => {
+            if stop_on_ret {
+                effect.push_str(&format!(
+                    "STOPONRET: Return encountered at address {}.",
+                    state.ip
+                ));
+            } else {
+                unimplemented!("The Ret instruction isn't yet implemented",);
+            }
+        }
+        // Handle all other non-special purpose ops here
+        op @ _ => {
             let dest_width;
             let dest_val;
 
@@ -286,7 +308,13 @@ pub fn execute(
                 op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
                     execute_op(dest_val, source_val, dest_width, source_width, op)
                 }
-                _ => unreachable!(),
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!(
+                        "Execution of instruction `{}` is unimplemented",
+                        inst.text.as_ref().unwrap()
+                    );
+                }
             });
 
             new_val_width = dest_width;
@@ -301,40 +329,6 @@ pub fn execute(
             if op != OpCodeType::Mov {
                 modify_flags = true;
             }
-        }
-        jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
-            new_val = None;
-            dest_target = Target::None;
-            jumped = handle_jmp_variants(jump_op, inst, state);
-        }
-        jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
-            // pg 2-45 - 2-46
-            // Decrement cx by 1 and jump if cx != 0
-            let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
-            new_val = Some(cx);
-            dest_target = Target::RegisterName(RegName::Cx);
-            println!("loop: cx is now {cx}");
-            // NOTE: We do NOT modify flags when modifying cs in loops
-            if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, inst, state);
-            }
-        }
-        OpCodeType::Ret => {
-            if stop_on_ret {
-                effect.push_str(&format!(
-                    "STOPONRET: Return encountered at address {}.",
-                    state.ip
-                ));
-            } else {
-                unimplemented!("The Ret instruction isn't yet implemented",);
-            }
-        }
-        _ => {
-            println!("inst debug: {:#?}", inst);
-            unimplemented!(
-                "Execution of instruction `{}` is unimplemented",
-                inst.text.as_ref().unwrap()
-            );
         }
     }
 
