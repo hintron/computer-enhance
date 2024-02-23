@@ -209,7 +209,7 @@ pub fn execute(
         OpCodeType::Ret => {
             if stop_on_ret {
                 effect.push_str(&format!(
-                    "STOPONRET: vReturn encountered at address {}.",
+                    "STOPONRET: Return encountered at address {}.",
                     state.ip
                 ));
             } else {
