@@ -128,6 +128,7 @@ enum ArithOp {
     Add,
     Sub,
     And,
+    Xor,
 }
 
 impl fmt::Display for ArithOp {
@@ -136,6 +137,7 @@ impl fmt::Display for ArithOp {
             Self::Add => write!(f, "+")?,
             Self::Sub => write!(f, "-")?,
             Self::And => write!(f, "&")?,
+            Self::Xor => write!(f, "^")?,
         }
         Ok(())
     }
@@ -211,7 +213,8 @@ pub fn execute(
         | OpCodeType::Cmp
         | OpCodeType::Add
         | OpCodeType::And
-        | OpCodeType::Test) => {
+        | OpCodeType::Test
+        | OpCodeType::Xor) => {
             let dest_width;
             let dest_val;
 
@@ -319,6 +322,9 @@ pub fn execute(
                 }
                 OpCodeType::And | OpCodeType::Test => {
                     execute_op(dest_val, source_val, dest_width, source_width, ArithOp::And)
+                }
+                OpCodeType::Xor => {
+                    execute_op(dest_val, source_val, dest_width, source_width, ArithOp::Xor)
                 }
                 _ => unreachable!(),
             });
@@ -761,6 +767,7 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
                     result
                 }
                 ArithOp::And => dst & src,
+                ArithOp::Xor => dst ^ src,
             };
             println!(
                 "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
@@ -791,6 +798,7 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
                     result
                 }
                 ArithOp::And => dst_u8 & src_u8,
+                ArithOp::Xor => dst_u8 ^ src_u8,
             };
 
             let merged_result = match dst_width {
