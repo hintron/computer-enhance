@@ -123,6 +123,21 @@ enum Target {
     None,
 }
 
+#[derive(Debug)]
+enum ArithOp {
+    Add,
+    Sub,
+}
+
+impl fmt::Display for ArithOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Add => write!(f, "+")?,
+            Self::Sub => write!(f, "-")?,
+        }
+        Ok(())
+    }
+}
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred.
 ///
@@ -231,7 +246,7 @@ pub fn execute(
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let source_val = match (inst.source_reg, add_mem_to, inst.add_data_to) {
+            let (source_val, source_width) = match (inst.source_reg, add_mem_to, inst.add_data_to) {
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _) => {
                     // Get the value of the source register
@@ -239,18 +254,23 @@ pub fn execute(
                         Some(x) => *x,
                         None => 0,
                     };
-                    // Figure out which bytes to get from the source
-                    let source_val_sized = match source_reg.width {
-                        WidthType::Byte => source_val & 0xFF,
-                        WidthType::Hi8 => (source_val & 0xFF00) >> 8,
-                        WidthType::Word => source_val,
-                    };
-                    source_val_sized
+                    (source_val, source_reg.width)
                 }
-                (_, Some(AddTo::Source), _) => load_u16_from_mem(&state.memory, mem_addr.unwrap()),
+                (_, Some(AddTo::Source), _) => {
+                    let source_val = load_u16_from_mem(&state.memory, mem_addr.unwrap());
+                    let source_width = match dest_width {
+                        WidthType::Word => WidthType::Word,
+                        WidthType::Hi8 | WidthType::Byte => WidthType::Byte,
+                    };
+                    (source_val, source_width)
+                }
                 (_, _, Some(AddTo::Source)) => {
                     // Otherwise, use data as just an immediate value
-                    inst.data_value.unwrap()
+                    let source_width = match dest_width {
+                        WidthType::Word => WidthType::Word,
+                        WidthType::Hi8 | WidthType::Byte => WidthType::Byte,
+                    };
+                    (inst.data_value.unwrap(), source_width)
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -260,45 +280,29 @@ pub fn execute(
 
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
-            new_val = Some(match (op, dest_width) {
-                (OpCodeType::Mov, WidthType::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
-                (OpCodeType::Add, WidthType::Byte) => {
-                    let dest_byte = (dest_val & 0xFF) as u8;
-                    let (result, overflowed, carry, aux_carry) =
-                        add_with_overflow_u8(dest_byte, source_val as u8);
-                    new_val_overflowed = overflowed;
-                    new_val_carry = carry;
-                    new_val_aux_carry = aux_carry;
-                    (dest_val & 0xFF00) | (result as u16)
-                }
-                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Byte) => {
-                    (dest_val & 0xFF00) - (source_val & 0xFF)
-                }
-                (OpCodeType::Mov, WidthType::Hi8) => (dest_val & 0x00FF) | (source_val << 8),
-                (OpCodeType::Add, WidthType::Hi8) => {
-                    let dest_byte = ((dest_val & 0xFF00) >> 8) as u8;
-                    let (result, overflowed, carry, aux_carry) =
-                        add_with_overflow_u8(dest_byte, source_val as u8);
-                    new_val_overflowed = overflowed;
-                    new_val_carry = carry;
-                    new_val_aux_carry = aux_carry;
-                    (dest_val & 0x00FF) | ((result as u16) << 8)
-                }
-                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Hi8) => {
-                    (dest_val & 0x00FF) - (source_val << 8)
-                }
-                (OpCodeType::Mov, WidthType::Word) => source_val,
-                (OpCodeType::Add, WidthType::Word) => {
-                    let (result, overflowed, carry, aux_carry) =
-                        add_with_overflow(dest_val, source_val);
+            new_val = Some(match op {
+                OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
+                OpCodeType::Add => {
+                    let (result, overflowed, carry, aux_carry) = arith_with_overflow(
+                        dest_val,
+                        source_val,
+                        dest_width,
+                        source_width,
+                        ArithOp::Add,
+                    );
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                (OpCodeType::Sub | OpCodeType::Cmp, WidthType::Word) => {
-                    let (result, overflowed, carry, aux_carry) =
-                        sub_with_overflow(dest_val, source_val);
+                OpCodeType::Sub | OpCodeType::Cmp => {
+                    let (result, overflowed, carry, aux_carry) = arith_with_overflow(
+                        dest_val,
+                        source_val,
+                        dest_width,
+                        source_width,
+                        ArithOp::Sub,
+                    );
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
@@ -698,102 +702,186 @@ pub fn print_final_state(state: &CpuStateType, no_ip: bool) -> Vec<String> {
     lines
 }
 
-/// Add two 16-bit numbers together. If the sign bit of the lhs changes, set
-/// the overflow flag. Return the result, whether there was a signed arithmetic
-/// overflow, and whether there was an auxiliary carry.
+fn execute_mov(
+    dest_val: u16,
+    source_val: u16,
+    dest_width: WidthType,
+    source_width: WidthType,
+) -> u16 {
+    match (dest_width, source_width) {
+        (WidthType::Word, WidthType::Word) => source_val,
+        (WidthType::Byte, WidthType::Byte) => (dest_val & 0xFF00) | (source_val & 0xFF),
+        (WidthType::Byte, WidthType::Hi8) => (dest_val & 0xFF00) | ((source_val & 0xFF00) >> 8),
+        (WidthType::Hi8, WidthType::Byte) => (dest_val & 0xFF) | ((source_val & 0xFF) << 8),
+        (WidthType::Hi8, WidthType::Hi8) => (dest_val & 0xFF00) | (source_val & 0xFF),
+        _ => unimplemented!(),
+    }
+}
+
+/// Do an arithmetic operation between a src and dst.
 ///
-/// 8086 defines overflow as the sign bit of the left hand side (destination)
-/// changing. This is true with 0x7FFF + 0x0001, but also true with 0xFFFF +
-/// 0x0001. The overflow flag will still be set even if the user is intending to
+/// If the operation is to be done between single bytes of the u16 word, then
+/// the byte location is specified with dst_width and src_width.
+///
+/// 8086 defines add overflow as the sign bit of the destination changing.
+/// This is true with 0x7FFF + 0x0001, but also true with 0xFFFF + 0x0001.
+/// The overflow flag will still be set even if the user is intending to
 /// do unsigned arithmetic. The bits are the same. See [FlagsRegType::overflow].
-fn add_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
-    let left_sign_bit = lhs & 0x8000;
-    let right_sign_bit = rhs & 0x8000;
-    // We are discarding the overflow result because that is not the same as the
-    // 8086 overflow flag. Rust's overflow result seems to only care about
-    // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
-    // sign value wraps from negative to positive.
-    let (result, _) = lhs.overflowing_add(rhs);
-    let result_sign_bit = result & 0x8000;
+fn arith_with_overflow(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+    op: ArithOp,
+) -> (u16, bool, bool, bool) {
+    println!("Dest: 0x{dst:X}:{dst_width:?}; Source: 0x{src:X}:{src_width:?}");
+    let dst_sign_bit = match dst_width {
+        WidthType::Word | WidthType::Hi8 => (dst & 0x8000) != 0,
+        WidthType::Byte => (dst & 0x80) != 0,
+    };
+    let src_sign_bit = match src_width {
+        WidthType::Word | WidthType::Hi8 => (src & 0x8000) != 0,
+        WidthType::Byte => (src & 0x80) != 0,
+    };
 
-    // Overflow cannot occur when the sign bits differ between operands
-    // If the two operands have the same sign bit, then overflow occurs if
-    // the result does not have that same sign bit.
-    // See "Overflow Rule for addition" in https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
-    let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
-    let carry = (rhs as u32) + (lhs as u32) > 0xFFFF;
-    let aux_carry = calc_aux_carry_add(lhs, rhs);
-    println!("{lhs} (0x{lhs:x}) + {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
+    // The current assumption is that src and dst are sized the same
+    let (result, result_sign_bit) = match dst_width {
+        // Operate on two words
+        WidthType::Word => {
+            // We are discarding the overflow result because that is not the same as the
+            // 8086 overflow flag. Rust's overflow result seems to only care about
+            // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
+            // sign value wraps from negative to positive.
+            let (result, _) = match op {
+                ArithOp::Add => dst.overflowing_add(src),
+                ArithOp::Sub => dst.overflowing_sub(src),
+            };
+            println!(
+                "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
+            );
+            (result, (result & 0x8000) != 0)
+        }
+        // Operate on two bytes
+        WidthType::Byte | WidthType::Hi8 => {
+            // Get the bytes from src and dst that we want to operate on
+            let dst_u8 = match dst_width {
+                WidthType::Byte => (dst & 0xFF) as u8,
+                WidthType::Hi8 => ((dst & 0xFF00) >> 8) as u8,
+                _ => unreachable!(),
+            };
+            let src_u8 = match src_width {
+                WidthType::Byte => (src & 0xFF) as u8,
+                WidthType::Hi8 => ((src & 0xFF00) >> 8) as u8,
+                _ => unreachable!(),
+            };
+
+            let (result, _) = match op {
+                ArithOp::Add => dst_u8.overflowing_add(src_u8),
+                ArithOp::Sub => dst_u8.overflowing_sub(src_u8),
+            };
+
+            let merged_result = match dst_width {
+                WidthType::Byte => result as u16 | (dst & 0xFF00),
+                WidthType::Hi8 => (result as u16) << 8 | (dst & 0xFF),
+                _ => unreachable!(),
+            };
+
+            println!("BYTE {op:?}: {dst_u8} (0x{dst_u8:x}) {op} {src_u8} (0x{src_u8:x}) = {merged_result} (0x{merged_result:04x})");
+            // Merge the result back into the bottom byte of the destination
+            (merged_result, (result & 0x80) != 0)
+        }
+    };
+
+    let overflow = match op {
+        // Add overflow cannot occur when the sign bits differ between operands.
+        // If the two operands have the same sign bit, then overflow occurs if
+        // the result does not have that same sign bit.
+        // See "Overflow Rule for addition" in https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
+        ArithOp::Add => (dst_sign_bit == src_sign_bit) && (dst_sign_bit != result_sign_bit),
+        // Since we're subtracting, left and right sign must be opposite for
+        // overflow to occur.
+        ArithOp::Sub => (dst_sign_bit != src_sign_bit) && (dst_sign_bit != result_sign_bit),
+    };
+    let carry = match op {
+        ArithOp::Add => calc_carry_add(dst, src, dst_width, src_width),
+        ArithOp::Sub => calc_carry_sub(dst, src, dst_width, src_width),
+    };
+    let aux_carry = match op {
+        ArithOp::Add => calc_aux_carry_add(dst, src, dst_width, src_width),
+        ArithOp::Sub => calc_aux_carry_sub(dst, src, dst_width, src_width),
+    };
     if overflow {
-        println!("Addition overflowed!")
+        println!("overflow!")
     }
     if carry {
-        println!("Addition carry!")
+        println!("carry!")
     }
     if aux_carry {
-        println!("Addition aux_carry!")
+        println!("aux_carry!")
     }
     (result, overflow, carry, aux_carry)
 }
 
-/// Add two 8-bit numbers together. See add_with_overflow for more info.
-fn add_with_overflow_u8(lhs: u8, rhs: u8) -> (u8, bool, bool, bool) {
-    let left_sign_bit = lhs & 0x80;
-    let right_sign_bit = rhs & 0x80;
-
-    let (result, _) = lhs.overflowing_add(rhs);
-    let result_sign_bit = result & 0x80;
-
-    let overflow = (left_sign_bit == right_sign_bit) && (left_sign_bit != result_sign_bit);
-    let carry = (rhs as u16) + (lhs as u16) > 0xFF;
-    let aux_carry = calc_aux_carry_add_u8(lhs, rhs);
-    println!("{lhs} (0x{lhs:x}) + {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
-    if overflow {
-        println!("Addition overflowed!")
+/// If an addition results in a carry out of the high-order bit of the result,
+/// then CF is set.
+const fn calc_carry_add(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType) -> bool {
+    match (dst_width, src_width) {
+        (WidthType::Word, _) => (dst as u32) + (src as u32) > 0xFFFF,
+        (WidthType::Byte, WidthType::Byte) => (dst & 0xFF) + (src & 0xFF) > 0xFF,
+        (WidthType::Byte, WidthType::Hi8) => (dst & 0xFF) + (src >> 8) > 0xFF,
+        (WidthType::Hi8, WidthType::Byte) => (dst >> 8) + (src & 0xFF) > 0xFF,
+        (WidthType::Hi8, WidthType::Hi8) => (dst >> 8) + (src >> 8) > 0xFF,
+        _ => unreachable!(),
     }
-    if carry {
-        println!("Addition carry!")
-    }
-    if aux_carry {
-        println!("Addition aux_carry!")
-    }
-    (result, overflow, carry, aux_carry)
 }
 
-/// Subtract two 16 bit numbers (rhs from lhs) and return the result, whether
-/// there was a signed arithmetic overflow, and whether there was an auxiliary
-/// carry.
-fn sub_with_overflow(lhs: u16, rhs: u16) -> (u16, bool, bool, bool) {
-    let left_sign_bit = lhs & 0x8000;
-    let right_sign_bit = rhs & 0x8000;
-    let (result, _) = lhs.overflowing_sub(rhs);
-    let result_sign_bit = result & 0x8000;
-    // Since we're subtracting, left and right sign must be opposite for
-    // overflow to occur.
-    let overflow = (left_sign_bit != right_sign_bit) && (left_sign_bit != result_sign_bit);
-    let carry = rhs > lhs;
-    let aux_carry = calc_aux_carry_sub(lhs, rhs);
-    println!("{lhs} (0x{lhs:x}) - {rhs} (0x{rhs:x}) = {result} (0x{result:x})");
-    if overflow {
-        println!("Subtract overflowed!")
+/// If an addition results in a carry out of the low-order half-byte of the
+/// result, then AF is set.
+const fn calc_aux_carry_add(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+) -> bool {
+    match (dst_width, src_width) {
+        (WidthType::Word | WidthType::Byte, WidthType::Word | WidthType::Byte) => {
+            (dst & 0xF) + (src & 0xF) > 0xF
+        }
+        (WidthType::Byte, WidthType::Hi8) => (dst & 0xF) + ((src & 0x0F00) >> 8) > 0xF,
+        (WidthType::Hi8, WidthType::Byte) => ((dst & 0x0F00) >> 8) + (src & 0xF) > 0xF,
+        (WidthType::Hi8, WidthType::Hi8) => (dst & 0x0F00) + (src & 0x0F00) > 0x0F00,
+        _ => unreachable!(),
     }
-    if carry {
-        println!("Subtract carry!")
-    }
-    if aux_carry {
-        println!("Subtract aux_carry!")
-    }
-    (result, overflow, carry, aux_carry)
 }
 
-const fn calc_aux_carry_add(lhs: u16, rhs: u16) -> bool {
-    ((lhs & 0xF) + (rhs & 0xF)) > 0xF
+/// If a subtraction results in a borrow into the high-order bit of the result,
+/// then CF is set.
+const fn calc_carry_sub(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType) -> bool {
+    match (dst_width, src_width) {
+        (WidthType::Word, _) => src > dst,
+        (WidthType::Byte, WidthType::Byte) => src & 0xFF > dst & 0xFF,
+        (WidthType::Byte, WidthType::Hi8) => ((src & 0xFF00) >> 8) > dst & 0xFF,
+        (WidthType::Hi8, WidthType::Byte) => src & 0xFF > ((dst & 0xFF00) >> 8),
+        (WidthType::Hi8, WidthType::Hi8) => src & 0xFF00 > dst & 0xFF00,
+        _ => unreachable!(),
+    }
 }
 
-const fn calc_aux_carry_add_u8(lhs: u8, rhs: u8) -> bool {
-    ((lhs & 0xF) + (rhs & 0xF)) > 0xF
-}
-
-const fn calc_aux_carry_sub(lhs: u16, rhs: u16) -> bool {
-    (rhs & 0xF) > (lhs & 0xF)
+/// If a subtraction results in a borrow into the low-order half-byte of the
+/// result, then AF is set.
+const fn calc_aux_carry_sub(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+) -> bool {
+    match (dst_width, src_width) {
+        (WidthType::Word | WidthType::Byte, WidthType::Word | WidthType::Byte) => {
+            (src & 0xF) > (dst & 0xF)
+        }
+        (WidthType::Byte, WidthType::Hi8) => ((src & 0x0F00) >> 8) > (dst & 0xF),
+        (WidthType::Hi8, WidthType::Byte) => (src & 0xF) > ((dst & 0x0F00) >> 8),
+        (WidthType::Hi8, WidthType::Hi8) => (src & 0x0F00) > (dst & 0x0F00),
+        _ => unreachable!(),
+    }
 }
