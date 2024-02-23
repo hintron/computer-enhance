@@ -123,25 +123,6 @@ enum Target {
     None,
 }
 
-#[derive(Debug, Copy, Clone)]
-enum ArithOp {
-    Add,
-    Sub,
-    And,
-    Xor,
-}
-
-impl fmt::Display for ArithOp {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Add => write!(f, "+")?,
-            Self::Sub => write!(f, "-")?,
-            Self::And => write!(f, "&")?,
-            Self::Xor => write!(f, "^")?,
-        }
-        Ok(())
-    }
-}
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred.
 ///
@@ -294,37 +275,16 @@ pub fn execute(
             // bytes of the dest register to replace
             new_val = Some(match op {
                 OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
-                OpCodeType::Add => {
-                    let (result, overflowed, carry, aux_carry) = execute_op_arith_flags(
-                        dest_val,
-                        source_val,
-                        dest_width,
-                        source_width,
-                        ArithOp::Add,
-                    );
+                op @ (OpCodeType::Add | OpCodeType::Sub | OpCodeType::Cmp) => {
+                    let (result, overflowed, carry, aux_carry) =
+                        execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
                     new_val_overflowed = overflowed;
                     new_val_carry = carry;
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                OpCodeType::Sub | OpCodeType::Cmp => {
-                    let (result, overflowed, carry, aux_carry) = execute_op_arith_flags(
-                        dest_val,
-                        source_val,
-                        dest_width,
-                        source_width,
-                        ArithOp::Sub,
-                    );
-                    new_val_overflowed = overflowed;
-                    new_val_carry = carry;
-                    new_val_aux_carry = aux_carry;
-                    result
-                }
-                OpCodeType::And | OpCodeType::Test => {
-                    execute_op(dest_val, source_val, dest_width, source_width, ArithOp::And)
-                }
-                OpCodeType::Xor => {
-                    execute_op(dest_val, source_val, dest_width, source_width, ArithOp::Xor)
+                op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
+                    execute_op(dest_val, source_val, dest_width, source_width, op)
                 }
                 _ => unreachable!(),
             });
@@ -747,8 +707,14 @@ fn execute_mov(
     }
 }
 
-/// Execute an ArithOp and return the result.
-fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op: ArithOp) -> u16 {
+/// Execute an OpCodeType and return the result.
+fn execute_op(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+    op: OpCodeType,
+) -> u16 {
     // The current assumption is that src and dst are sized the same
     match dst_width {
         // Operate on two words
@@ -758,16 +724,17 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
             // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
             // sign value wraps from negative to positive.
             let result = match op {
-                ArithOp::Add => {
+                OpCodeType::Add => {
                     let (result, _) = dst.overflowing_add(src);
                     result
                 }
-                ArithOp::Sub => {
+                OpCodeType::Sub | OpCodeType::Cmp => {
                     let (result, _) = dst.overflowing_sub(src);
                     result
                 }
-                ArithOp::And => dst & src,
-                ArithOp::Xor => dst ^ src,
+                OpCodeType::And | OpCodeType::Test => dst & src,
+                OpCodeType::Xor => dst ^ src,
+                _ => unimplemented!(),
             };
             println!(
                 "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
@@ -789,16 +756,17 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
             };
 
             let result = match op {
-                ArithOp::Add => {
+                OpCodeType::Add => {
                     let (result, _) = dst_u8.overflowing_add(src_u8);
                     result
                 }
-                ArithOp::Sub => {
+                OpCodeType::Sub | OpCodeType::Cmp => {
                     let (result, _) = dst_u8.overflowing_sub(src_u8);
                     result
                 }
-                ArithOp::And => dst_u8 & src_u8,
-                ArithOp::Xor => dst_u8 ^ src_u8,
+                OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
+                OpCodeType::Xor => dst_u8 ^ src_u8,
+                _ => unimplemented!(),
             };
 
             let merged_result = match dst_width {
@@ -828,7 +796,7 @@ fn execute_op_arith_flags(
     src: u16,
     dst_width: WidthType,
     src_width: WidthType,
-    op: ArithOp,
+    op: OpCodeType,
 ) -> (u16, bool, bool, bool) {
     println!("Dest: 0x{dst:X}:{dst_width:?}; Source: 0x{src:X}:{src_width:?}");
     let dst_sign_bit = match dst_width {
@@ -851,20 +819,22 @@ fn execute_op_arith_flags(
         // If the two operands have the same sign bit, then overflow occurs if
         // the result does not have that same sign bit.
         // See "Overflow Rule for addition" in https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
-        ArithOp::Add => (dst_sign_bit == src_sign_bit) && (dst_sign_bit != result_sign_bit),
+        OpCodeType::Add => (dst_sign_bit == src_sign_bit) && (dst_sign_bit != result_sign_bit),
         // Since we're subtracting, left and right sign must be opposite for
         // overflow to occur.
-        ArithOp::Sub => (dst_sign_bit != src_sign_bit) && (dst_sign_bit != result_sign_bit),
+        OpCodeType::Sub | OpCodeType::Cmp => {
+            (dst_sign_bit != src_sign_bit) && (dst_sign_bit != result_sign_bit)
+        }
         _ => unimplemented!(),
     };
     let carry = match op {
-        ArithOp::Add => calc_carry_add(dst, src, dst_width, src_width),
-        ArithOp::Sub => calc_carry_sub(dst, src, dst_width, src_width),
+        OpCodeType::Add => calc_carry_add(dst, src, dst_width, src_width),
+        OpCodeType::Sub | OpCodeType::Cmp => calc_carry_sub(dst, src, dst_width, src_width),
         _ => unimplemented!(),
     };
     let aux_carry = match op {
-        ArithOp::Add => calc_aux_carry_add(dst, src, dst_width, src_width),
-        ArithOp::Sub => calc_aux_carry_sub(dst, src, dst_width, src_width),
+        OpCodeType::Add => calc_aux_carry_add(dst, src, dst_width, src_width),
+        OpCodeType::Sub | OpCodeType::Cmp => calc_aux_carry_sub(dst, src, dst_width, src_width),
         _ => unimplemented!(),
     };
     if overflow {
