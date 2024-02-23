@@ -740,9 +740,15 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
             // 8086 overflow flag. Rust's overflow result seems to only care about
             // unsigned wrapping from 0x0000 to 0xFFFF or vice versa, and not if the
             // sign value wraps from negative to positive.
-            let (result, _) = match op {
-                ArithOp::Add => dst.overflowing_add(src),
-                ArithOp::Sub => dst.overflowing_sub(src),
+            let result = match op {
+                ArithOp::Add => {
+                    let (result, _) = dst.overflowing_add(src);
+                    result
+                }
+                ArithOp::Sub => {
+                    let (result, _) = dst.overflowing_sub(src);
+                    result
+                }
             };
             println!(
                 "WORD {op:?}: {dst} (0x{dst:x}) {op} {src} (0x{src:x}) = {result} (0x{result:04x})"
@@ -763,9 +769,15 @@ fn execute_op(dst: u16, src: u16, dst_width: WidthType, src_width: WidthType, op
                 _ => unreachable!(),
             };
 
-            let (result, _) = match op {
-                ArithOp::Add => dst_u8.overflowing_add(src_u8),
-                ArithOp::Sub => dst_u8.overflowing_sub(src_u8),
+            let result = match op {
+                ArithOp::Add => {
+                    let (result, _) = dst_u8.overflowing_add(src_u8);
+                    result
+                }
+                ArithOp::Sub => {
+                    let (result, _) = dst_u8.overflowing_sub(src_u8);
+                    result
+                }
             };
 
             let merged_result = match dst_width {
