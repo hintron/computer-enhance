@@ -12,8 +12,25 @@ add bx, -1
 add bx, 2
 mov cl, 1
 mov ch, 1
+add cl, 255
+add ch, 255
+add cl, 127
+add cl, 127
+add ch, 127
+add ch, 127
 add dl, cl
 add dl, ch
 add dx, -2
-add cl, -1
-add ch, -1
+
+; test subs
+sub al, 1
+sub ah, 1
+mov bl, 1
+mov bh, 1
+sub al, bh
+sub ah, bl
+sub al, bh
+sub ah, bl
+sub ah, 127
+sub ax, bx
+
