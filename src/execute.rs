@@ -161,6 +161,7 @@ pub fn execute(
     let mut new_val_width = WidthType::Word;
     let current_ip = state.ip;
     let mut jumped = false;
+    let mut skip_cycle_print = false;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -212,6 +213,7 @@ pub fn execute(
                     "STOPONRET: Return encountered at address {}.",
                     state.ip
                 ));
+                skip_cycle_print = true;
             } else {
                 unimplemented!("The Ret instruction isn't yet implemented",);
             }
@@ -349,8 +351,9 @@ pub fn execute(
     effect.push_str(" ;");
 
     // Print cycle estimation, if requested
-    match cycle_model {
-        Some(cpu_type) => {
+    match (cycle_model, skip_cycle_print) {
+        (_, true) => {}
+        (Some(cpu_type), _) => {
             if inst.clocks_base == 0 {
                 println!("inst debug: {:#?}", inst);
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
@@ -365,7 +368,7 @@ pub fn execute(
 
             effect.push_str(" |");
         }
-        None => {} // Do nothing if not modeling cycles
+        _ => {} // Do nothing if not modeling cycles
     };
 
     match (modify_flags, new_val) {
