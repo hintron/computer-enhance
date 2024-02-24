@@ -218,7 +218,10 @@ while [ "$CHECK_RTOS" == "true" ]; do
     fi
     RTOS_DIR="$RTOS_REPO/labs/lab8"
     RTOS_BIN="$RTOS_DIR/artoss.bin"
-    RTOS_BIN_TRUNC="$DECODE_BUILD_DIR/artoss.bin.truncated"
+    RTOS_BUILD_DIR="$FILE_DIR/build-rtos-regress"
+    mkdir -p "$RTOS_BUILD_DIR"
+    RTOS_BIN_TRUNC="$RTOS_BUILD_DIR/artoss.bin.truncated"
+
     cd "$RTOS_DIR" || exit
     make clean
     if ! make; then
@@ -228,24 +231,32 @@ while [ "$CHECK_RTOS" == "true" ]; do
     fi
     cd "$FILE_DIR" || exit
 
+    if [ ! -f "$RTOS_BIN" ]; then
+        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN'"
+        rc=1
+        break
+    fi
+
     # https://unix.stackexchange.com/questions/13907/delete-the-first-n-bytes-of-files
     echo "Stripping off the first 100 data bytes $RTOS_BIN..."
     tail +257c "$RTOS_BIN" > "$RTOS_BIN_TRUNC"
 
-    echo "Checking decode of $RTOS_BIN_TRUNC..."
+    echo "Simulating RTOS binary '$RTOS_BIN_TRUNC'..."
     BASE=$(basename "$RTOS_BIN_TRUNC")
-    if ! $BIN --verbose "$RTOS_BIN_TRUNC" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
+    SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
+    SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
+    if ! $BIN "$RTOS_BIN_TRUNC" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
         echo "ERROR: Decode program failed for $RTOS_BIN_TRUNC"
         rc=1
         break
     fi
-    if ! nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"; then
+    if ! nasm "$RTOS_BUILD_DIR/$BASE-tmp.asm" -o "$RTOS_BUILD_DIR/$BASE-tmp"; then
         echo "ERROR: Assembly of decoded output failed for $file"
         rc=1
         break
     fi
-    RTOS_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF="$DECODE_BUILD_DIR/$BASE-rtos.diff"
+    RTOS_GOLDEN_OUTPUT="$RTOS_BUILD_DIR/$BASE-tmp.o"
+    DIFF="$RTOS_BUILD_DIR/$BASE-rtos.diff"
     if ! diff "$RTOS_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
         echo "ERROR: Decoded RTOS output didn't match golden output."
         echo "See $DIFF"
