@@ -319,11 +319,11 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.transfers = 2;
         }
         // Mov
-        (Some(OpCodeType::Mov), Some(OperandsType::AccMem)) => {
+        (Some(OpCodeType::Mov), Some(OperandsType::MemAcc)) => {
             inst.clocks_base = 10;
             inst.transfers = 1;
         }
-        (Some(OpCodeType::Mov), Some(OperandsType::MemAcc)) => {
+        (Some(OpCodeType::Mov), Some(OperandsType::AccMem)) => {
             inst.clocks_base = 10;
             inst.transfers = 1;
         }
