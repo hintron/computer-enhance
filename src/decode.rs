@@ -616,9 +616,10 @@ pub fn decode_execute(
     no_ip: bool,
     cycle_type: Option<CpuType>,
     stop_on_ret: bool,
+    init_ip: Option<u16>,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
-    let mut cpu_state = init_state();
+    let mut cpu_state = init_state(init_ip);
 
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip

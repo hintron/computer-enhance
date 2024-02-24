@@ -100,10 +100,15 @@ impl fmt::Display for FlagsRegType {
     }
 }
 
-pub fn init_state() -> CpuStateType {
+pub fn init_state(init_ip: Option<u16>) -> CpuStateType {
+    let ip = match init_ip {
+        Some(x) => x,
+        None => 0,
+    };
     CpuStateType {
         // Initialize the memory array to 1 MB
         memory: vec![0; MEMORY_SIZE],
+        ip: ip,
         ..Default::default()
     }
 }

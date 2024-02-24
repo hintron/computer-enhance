@@ -217,14 +217,14 @@ while [ "$CHECK_RTOS" == "true" ]; do
         break
     fi
     RTOS_DIR="$RTOS_REPO/labs/lab8"
-    RTOS_BIN="$RTOS_DIR/artoss.bin"
+    RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
     RTOS_BUILD_DIR="$FILE_DIR/build-rtos-regress"
     # Clear out stale builds
     if [ -d "$RTOS_BUILD_DIR" ]; then
         rm -rf  "$RTOS_BUILD_DIR"
     fi
     mkdir -p "$RTOS_BUILD_DIR"
-    RTOS_BIN_TRUNC="$RTOS_BUILD_DIR/artoss.bin.truncated"
+    RTOS_BIN="$RTOS_BUILD_DIR/artoss.bin"
 
     cd "$RTOS_DIR" || exit
     make clean
@@ -235,22 +235,20 @@ while [ "$CHECK_RTOS" == "true" ]; do
     fi
     cd "$FILE_DIR" || exit
 
-    if [ ! -f "$RTOS_BIN" ]; then
-        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN'"
+    if [ ! -f "$RTOS_BIN_ORIG" ]; then
+        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN_ORIG'"
         rc=1
         break
     fi
 
-    # https://unix.stackexchange.com/questions/13907/delete-the-first-n-bytes-of-files
-    echo "Stripping off the first 100 data bytes $RTOS_BIN..."
-    tail +257c "$RTOS_BIN" > "$RTOS_BIN_TRUNC"
+    cp "$RTOS_BIN_ORIG" "$RTOS_BIN"
 
-    echo "Simulating RTOS binary '$RTOS_BIN_TRUNC'..."
-    BASE=$(basename "$RTOS_BIN_TRUNC")
+    echo "Simulating RTOS binary '$RTOS_BIN'..."
+    BASE=$(basename "$RTOS_BIN")
     SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
-    if ! $BIN "$RTOS_BIN_TRUNC" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
-        echo "ERROR: Decode program failed for $RTOS_BIN_TRUNC"
+    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret --initial-ip "0x100" > "$SIMULATE_LOG_8086"; then
+        echo "ERROR: Decode program failed for $RTOS_BIN"
         rc=1
         break
     fi

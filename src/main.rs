@@ -34,6 +34,8 @@ struct ArgsType {
     cycle_type: Option<CpuType>,
     /// If specified, make any RET instruction stop the simulator.
     stop_on_ret: bool,
+    /// The value to initially set the IP register to
+    init_ip: Option<u16>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -42,6 +44,8 @@ enum ArgType {
     Cycles,
     /// This arg is a flag, and does not have a value after it.
     NoValue,
+    /// Get a value for the initial IP.
+    InitIp,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -73,6 +77,9 @@ Options:
 --stop-on-ret : If specified, exit the simulator when instruction RET is hit.
                 Useful for running functions without running code that calls
                 into them.
+
+-i|--initial-ip <value> : If specified, set the instruction pointer to begin with
+                          this value.
 ";
 
 fn print_help() {
@@ -92,6 +99,20 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
             } else {
                 bail!("Unsupported value for -c|--model-cycles: {arg}")
             }
+        }
+        ArgType::InitIp => {
+            let init_ip = if arg.starts_with("0x") || arg.starts_with("0X") {
+                println!("Parsing {arg} as hex, skipping initial 0x");
+                u16::from_str_radix(&arg[2..], 16)?
+            } else if arg.ends_with("h") || arg.ends_with("H") {
+                println!("Parsing {arg} as hex, skipping last h");
+                u16::from_str_radix(&arg[..arg.len() - 1], 16)?
+            } else {
+                println!("Parsing {arg} as decimal");
+                arg.parse()?
+            };
+            println!("Initializing IP to {init_ip} ({init_ip:x})");
+            parsed_args.init_ip = Some(init_ip);
         }
     };
     Ok(())
@@ -124,6 +145,8 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--stop-on-ret") {
         parsed_args.stop_on_ret = true;
         Ok(ArgType::NoValue)
+    } else if arg.starts_with("-i") || arg.starts_with("--initial-ip") {
+        Ok(ArgType::InitIp)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -229,6 +252,7 @@ fn main() -> Result<()> {
             args.no_ip,
             args.cycle_type,
             args.stop_on_ret,
+            args.init_ip,
         );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
