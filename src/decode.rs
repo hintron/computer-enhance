@@ -570,6 +570,8 @@ pub struct InstType {
     pub source_width: Option<WidthType>,
     /// The value of the source operand, if it's a hardcoded value
     pub source_hardcoded: Option<u16>,
+    /// If true, do NOT print it out when printing the instruction
+    pub source_hardcoded_implicit: bool,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
     /// Explicitly indicate the destination width. Needed when going to memory.
@@ -884,11 +886,15 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         _ => {}
     }
 
-    match (inst.source_reg, inst.source_hardcoded) {
+    match (
+        inst.source_reg,
+        inst.source_hardcoded,
+        inst.source_hardcoded_implicit,
+    ) {
         // Move source_reg into source_text if source_text hasn't been set yet
-        (Some(source_reg), _) => source_text.push_str(&format!("{source_reg}")),
+        (Some(source_reg), _, _) => source_text.push_str(&format!("{source_reg}")),
         // Move hardcoded source value into source_text
-        (_, Some(source_val)) => source_text.push_str(&format!("{source_val}")),
+        (_, Some(source_val), false) => source_text.push_str(&format!("{source_val}")),
         _ => {}
     }
 
@@ -1042,6 +1048,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.operands_type = Some(OperandsType::Reg8);
             }
             inst.w_field = Some(w_field);
+            inst.source_hardcoded = Some(1);
+            inst.source_hardcoded_implicit = true;
         }
         // aaa - ASCII adjust for add
         0x37 => {

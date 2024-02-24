@@ -304,14 +304,9 @@ pub fn execute(
                     (source_hardcoded_val, transfer_width)
                 }
                 _ => {
-                    // No source is found! Take care of hardcoded sources here
-                    match op {
-                        OpCodeType::Inc => (1, WidthType::Byte),
-                        _ => {
-                            println!("inst debug: {:#?}", inst);
-                            unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
-                        }
-                    }
+                    // No source is found!
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
                 }
             };
 
