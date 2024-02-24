@@ -18,6 +18,8 @@ SIMULATE_IP_BUILD_DIR="$FILE_DIR/build-simulate-ip-regress"
 SIMULATE_IP_SRC_DIR="$FILE_DIR/simulate-ip-regress"
 SIMULATE_CYCLES_BUILD_DIR="$FILE_DIR/build-simulate-ip-cycles-regress"
 SIMULATE_CYCLES_SRC_DIR="$FILE_DIR/simulate-ip-cycles-regress"
+SIMULATE_8086_BUILD_DIR="$FILE_DIR/build-simulate-8086-regress"
+SIMULATE_8086_SRC_DIR="$FILE_DIR/simulate-8086-regress"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
 CHECK_RTOS="false"
@@ -227,6 +229,32 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     rm "$DIFF"
 done
 
+# Check the decode and simulation of everything in simulate-ip-cycles-regress,
+# including the IP register AND cycle estimates, but ONLY FOR 8086. 
+for file in "$SIMULATE_8086_BUILD_DIR"/*; do
+    # If the glob found nothing, it will be treated as a file, so skip it 
+    if [ ! -e "$file" ]; then continue; fi
+    echo "Checking simulation w/ 8086 cycles of $file..."
+    BASE=$(basename "$file")
+    SIMULATE_OUTPUT="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.txt"
+    SIMULATE_LOG_8086="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.log"
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
+        echo "ERROR: 8086 simulation of program failed for $file"
+        rc=1
+        break
+    fi
+    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_8086_SRC_DIR/$BASE.txt"
+    DIFF="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.diff"
+    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+        echo "ERROR: 8086 Simulation output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (+): $SIMULATE_OUTPUT"
+        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+        rc=1
+        break
+    fi
+    rm "$DIFF"
+done
 
 if [ "$rc" == "0" ]; then
     echo "All regressions passed"

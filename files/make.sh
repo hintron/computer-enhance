@@ -9,12 +9,15 @@ BUILD_DIR_SIMULATE_IP="$SCRIPT_DIR/build-simulate-ip-regress"
 SRC_DIR_SIMULATE_IP="$SCRIPT_DIR/simulate-ip-regress"
 BUILD_DIR_SIMULATE_CYCLES="$SCRIPT_DIR/build-simulate-ip-cycles-regress"
 SRC_DIR_SIMULATE_CYCLES="$SCRIPT_DIR/simulate-ip-cycles-regress"
+BUILD_DIR_SIMULATE_8086="$SCRIPT_DIR/build-simulate-8086-regress"
+SRC_DIR_SIMULATE_8086="$SCRIPT_DIR/simulate-8086-regress"
 
 cd "$SCRIPT_DIR" || exit
 mkdir -p "$BUILD_DIR_DECODE"
 mkdir -p "$BUILD_DIR_SIMULATE"
 mkdir -p "$BUILD_DIR_SIMULATE_IP"
 mkdir -p "$BUILD_DIR_SIMULATE_CYCLES"
+mkdir -p "$BUILD_DIR_SIMULATE_8086"
 
 # Build each decode asm file with nasm
 for file in "$SRC_DIR_DECODE"/*.asm; do
@@ -58,6 +61,17 @@ for file in "$SRC_DIR_SIMULATE_CYCLES"/*.asm; do
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP and cycle estimates) $new_name"
         if ! nasm "$file" -o "$BUILD_DIR_SIMULATE_CYCLES/$new_name"; then
+            echo "ERROR: nasm failed!"
+            exit 1
+        fi
+    fi
+done
+
+for file in "$SRC_DIR_SIMULATE_8086"/*.asm; do
+    if [ -f "$file" ]; then
+        new_name=$(basename "${file%.*}")
+        echo "Assembling (simulate w/ IP and 8086 cycle estimates) $new_name"
+        if ! nasm "$file" -o "$BUILD_DIR_SIMULATE_8086/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
