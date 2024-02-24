@@ -1660,19 +1660,6 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         _ => false,
     };
 
-    // Figure out operand types, for clock estimation
-    match (mode, inst.d_field) {
-        (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::RegReg),
-        (_, Some(true)) => {
-            inst.add_mod_rm_mem_to = Some(AddTo::Source);
-            inst.operands_type = Some(OperandsType::RegMem)
-        }
-        (_, _) => {
-            inst.add_mod_rm_mem_to = Some(AddTo::Dest);
-            inst.operands_type = Some(OperandsType::MemReg)
-        }
-    }
-
     if has_disp {
         // Indicate what displacement should be added to: src or dest
         match inst.d_field {
@@ -1706,6 +1693,19 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.reg_field = Some(reg_field);
             // We need no byte/word prefix for ModRegRm, since there is always
             // a register source/dest to indicate size
+
+            // Set operand types and memory address direction
+            match (mode, inst.d_field) {
+                (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::RegReg),
+                (_, Some(true)) => {
+                    inst.add_mod_rm_mem_to = Some(AddTo::Source);
+                    inst.operands_type = Some(OperandsType::RegMem)
+                }
+                (_, _) => {
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemReg)
+                }
+            }
         }
         Some(ModRmByteType::ModMovRm) => {
             inst.immediate_bytes.push(ImmBytesType::DataLo);
@@ -1723,6 +1723,15 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(false)) => inst.source_width = Some(WidthType::Byte),
                 (_, Some(true)) => inst.source_width = Some(WidthType::Word),
                 _ => {}
+            }
+
+            // Set operand types and memory address direction
+            match mode {
+                ModType::RegisterMode => inst.operands_type = Some(OperandsType::RegImm),
+                _ => {
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemImm);
+                }
             }
         }
         Some(ModRmByteType::ModImmedRm) => {
@@ -1754,10 +1763,13 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(true)) => inst.source_width = Some(WidthType::Word),
                 _ => {}
             }
-            // Set cycle info
+            // Set operand types and memory address direction
             match mode {
                 ModType::RegisterMode => inst.operands_type = Some(OperandsType::RegImm),
-                _ => inst.operands_type = Some(OperandsType::MemImm),
+                _ => {
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemImm);
+                }
             }
         }
         Some(ModRmByteType::ModShiftRm) => {
