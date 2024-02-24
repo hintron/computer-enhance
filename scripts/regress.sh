@@ -219,6 +219,10 @@ while [ "$CHECK_RTOS" == "true" ]; do
     RTOS_DIR="$RTOS_REPO/labs/lab8"
     RTOS_BIN="$RTOS_DIR/artoss.bin"
     RTOS_BUILD_DIR="$FILE_DIR/build-rtos-regress"
+    # Clear out stale builds
+    if [ -d "$RTOS_BUILD_DIR" ]; then
+        rm -rf  "$RTOS_BUILD_DIR"
+    fi
     mkdir -p "$RTOS_BUILD_DIR"
     RTOS_BIN_TRUNC="$RTOS_BUILD_DIR/artoss.bin.truncated"
 
