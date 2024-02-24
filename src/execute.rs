@@ -778,7 +778,7 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst & src,
                 OpCodeType::Xor => dst ^ src,
-                OpCodeType::Shr => dst >> src,
+                OpCodeType::Shl => dst << src,
                 _ => unimplemented!(),
             };
             println!(
@@ -811,7 +811,7 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
                 OpCodeType::Xor => dst_u8 ^ src_u8,
-                OpCodeType::Shr => dst_u8 >> src_u8,
+                OpCodeType::Shl => dst_u8 << src_u8,
                 _ => unimplemented!(),
             };
 
