@@ -1794,7 +1794,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
-                // ModGrp2Rm instructions are 1-operand, so add prefix to dest
+                // Set destination width for shifts in memory
                 (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
                 (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
