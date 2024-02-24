@@ -8,7 +8,8 @@ use minifb::{Window, WindowOptions};
 
 /// Write the CPU memory array to a file.
 pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
-    let mut file = File::create(output_file).expect("Failed to create file {output_file}");
+    let mut file =
+        File::create(output_file).expect(&format!("Failed to create file {output_file}"));
     let all_zeros = memory.iter().all(|&x| x == 0);
     if all_zeros {
         file.write_all("Memory was empty".as_bytes())
