@@ -361,7 +361,7 @@ pub fn execute(
                 println!("inst debug: {:#?}", inst);
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
             }
-            let inst_total = get_total_clocks(inst, cpu_type);
+            let inst_total = get_total_clocks(inst, cpu_type, jumped);
             state.total_cycles += inst_total;
             effect.push_str(&format!(" Clocks: +{inst_total} = {}", state.total_cycles));
             match get_total_clocks_str(inst, cpu_type, jumped) {
