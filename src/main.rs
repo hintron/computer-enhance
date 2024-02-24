@@ -119,7 +119,7 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         parsed_args.overwrite = true;
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-c") || arg.starts_with("--model-cycles") {
-        // Return true and get the value from the next arg iteration
+        // Get the value from the next arg iteration
         Ok(ArgType::Cycles)
     } else if arg.starts_with("--stop-on-ret") {
         parsed_args.stop_on_ret = true;
