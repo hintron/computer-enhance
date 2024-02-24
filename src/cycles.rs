@@ -474,8 +474,11 @@ pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType, jumped: bool) ->
 
 /// Add up clocks_base, ea clocks, and transfer penalty clocks and return it
 /// as the total clocks for this instruction.
-pub fn get_total_clocks(inst: &InstType, cpu_type: CpuType) -> u64 {
+pub fn get_total_clocks(inst: &InstType, cpu_type: CpuType, jumped: bool) -> u64 {
     let mut total = inst.clocks_base;
+    if jumped {
+        total += inst.clocks_jump.unwrap()
+    };
     match inst.clocks_ea {
         Some(x) => total += x,
         _ => {}
