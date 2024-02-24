@@ -77,7 +77,11 @@ pub fn print_inst_clock_debug(inst: &InstType) {
 ///
 /// NOTE: This must be called in execute, because mem_addr could be derived from
 /// an effective address, which needs register values from the CPU state.
-pub fn calculate_8086_unaligned_access(mem_addr: Option<u16>, transfers: u64) -> u64 {
+pub fn calculate_8086_unaligned_access(
+    mem_addr: Option<u16>,
+    transfer_width: WidthType,
+    transfers: u64,
+) -> u64 {
     // If an instruction has a mem addr, it should also have transfers. If not,
     // then the transfers value was probably not set properly.
     assert!(mem_addr.is_some() == (transfers > 0));
@@ -86,7 +90,7 @@ pub fn calculate_8086_unaligned_access(mem_addr: Option<u16>, transfers: u64) ->
     }
     match mem_addr {
         Some(addr) => {
-            if addr & 0x1 == 1 {
+            if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
                 transfers
             } else {
                 0

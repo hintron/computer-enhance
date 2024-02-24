@@ -169,13 +169,35 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    // Figure out destination width, which will dictate how wide the data
+    // transfer is for this instruction
+    let dest_width = match (
+        inst.dest_reg,
+        inst.dest_width,
+        inst.source_reg,
+        inst.source_width,
+    ) {
+        (Some(dest_reg), _, _, _) => Some(dest_reg.width),
+        (_, Some(dest_width), _, _) => Some(dest_width),
+        (_, _, Some(source_reg), _) => Some(source_reg.width),
+        (_, _, _, Some(source_width)) => Some(source_width),
+        _ => None,
+    };
+
+    // Is it a byte that is going from src to dst, or a word?
+    let transfer_width = match dest_width {
+        Some(WidthType::Word) | None => WidthType::Word,
+        Some(WidthType::Hi8 | WidthType::Byte) => WidthType::Byte,
+    };
+
     // Get the final memory address, if applicable, whether it's an effective
     // address or straight address literal.
     let (mem_addr, add_mem_to) = get_inst_mem_addr(inst, state);
 
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
-    inst.mem_access_word_unaligned = calculate_8086_unaligned_access(mem_addr, inst.transfers);
+    inst.mem_access_word_unaligned =
+        calculate_8086_unaligned_access(mem_addr, transfer_width, inst.transfers);
 
     // Print this instruction's clock debug info now that all clock data is set
     print_inst_clock_debug(inst);
@@ -220,7 +242,10 @@ pub fn execute(
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
-            let dest_width;
+            let dest_width = match dest_width {
+                Some(x) => x,
+                None => unimplemented!("No dest reg, dest width, source reg, or source width"),
+            };
             let dest_val;
 
             // Get the op's destination reg and its current value
@@ -246,22 +271,6 @@ pub fn execute(
                 }
             };
 
-            // Figure out destination width
-            dest_width = match (
-                inst.dest_reg,
-                inst.dest_width,
-                inst.source_reg,
-                inst.source_width,
-            ) {
-                (Some(dest_reg), _, _, _) => dest_reg.width,
-                (_, Some(dest_width), _, _) => dest_width,
-                (_, _, Some(source_reg), _) => source_reg.width,
-                (_, _, _, Some(source_width)) => source_width,
-                _ => {
-                    unimplemented!("No dest reg, dest width, source reg, or source width")
-                }
-            };
-
             // Get the op's source val either from a source reg or an immediate
             let (source_val, source_width) = match (inst.source_reg, add_mem_to, inst.add_data_to) {
                 // Handle source reg to dest reg
@@ -275,18 +284,12 @@ pub fn execute(
                 }
                 (_, Some(AddTo::Source), _) => {
                     let source_val = load_u16_from_mem(&state.memory, mem_addr.unwrap());
-                    let source_width = match dest_width {
-                        WidthType::Word => WidthType::Word,
-                        WidthType::Hi8 | WidthType::Byte => WidthType::Byte,
-                    };
+                    let source_width = transfer_width;
                     (source_val, source_width)
                 }
                 (_, _, Some(AddTo::Source)) => {
                     // Otherwise, use data as just an immediate value
-                    let source_width = match dest_width {
-                        WidthType::Word => WidthType::Word,
-                        WidthType::Hi8 | WidthType::Byte => WidthType::Byte,
-                    };
+                    let source_width = transfer_width;
                     (inst.data_value.unwrap(), source_width)
                 }
                 _ => {
