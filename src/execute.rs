@@ -337,7 +337,7 @@ pub fn execute(
                 op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
                     execute_op(dest_val, source_val, dest_width, source_width, op)
                 }
-                op @ OpCodeType::Shl => {
+                op @ (OpCodeType::Shl | OpCodeType::Shr) => {
                     let (result, bit_shift_cnt) =
                         execute_shift(dest_val, source_val, dest_width, source_width, op);
                     shift_count = Some(bit_shift_cnt);
@@ -779,6 +779,7 @@ fn execute_op(
                 OpCodeType::And | OpCodeType::Test => dst & src,
                 OpCodeType::Xor => dst ^ src,
                 OpCodeType::Shl => dst << src,
+                OpCodeType::Shr => dst >> src,
                 _ => unimplemented!(),
             };
             println!(
@@ -812,6 +813,7 @@ fn execute_op(
                 OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
                 OpCodeType::Xor => dst_u8 ^ src_u8,
                 OpCodeType::Shl => dst_u8 << src_u8,
+                OpCodeType::Shr => dst_u8 >> src_u8,
                 _ => unimplemented!(),
             };
 
