@@ -357,6 +357,7 @@ pub fn execute(
     // Print cycle estimation, if requested
     match cycle_model {
         Some(cpu_type) => {
+            println!("Printing cycles");
             if inst.clocks_base == 0 {
                 println!("inst debug: {:#?}", inst);
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
@@ -538,6 +539,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
     let ip_inc_8 = (jmp_value as i8) as i16;
     println!("ip_inc_8: {}", ip_inc_8);
     println!("state.ip before: {}", state.ip);
+    println!("state.flags_reg.zero: {}", state.flags_reg.zero);
 
     // See table 2-15 on pg. 2-46 of the 8086 documentation
     let jump = match jump_op {
@@ -565,6 +567,8 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         state.ip = result as u16;
     }
     println!("state.ip after: {}", state.ip);
+    println!("jump: {}", jump);
+
     jump
 }
 
