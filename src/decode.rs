@@ -624,8 +624,12 @@ pub fn decode_execute(
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let text = execute(&mut inst, &mut cpu_state, no_ip, cycle_type, stop_on_ret);
+                let (text, halt) =
+                    execute(&mut inst, &mut cpu_state, no_ip, cycle_type, stop_on_ret);
                 output_text_lines.push(text);
+                if halt {
+                    break;
+                }
                 // On to the next instruction...
             }
             // Done with the instruction stream

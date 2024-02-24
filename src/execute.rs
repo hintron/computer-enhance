@@ -124,7 +124,8 @@ enum Target {
 }
 
 /// Execute the given instruction and modify the passed in CPU state. Return a
-/// string summarizing the change in state that occurred.
+/// string summarizing the change in state that occurred, and return a bool that
+/// halts CPU execution if it's true.
 ///
 /// no_ip: If true, do NOT add IP changes or the final state of IP to the output
 /// string.
@@ -134,22 +135,31 @@ pub fn execute(
     no_ip: bool,
     cycle_model: Option<CpuType>,
     stop_on_ret: bool,
-) -> String {
+) -> (String, bool) {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
         Some(op_type) => op_type,
         None => {
             println!("Bad instruction object: {:?}", inst,);
-            return effect;
+            return (effect, true);
         }
     };
+
+    // Handle stop on ret right away
+    if op_type == OpCodeType::Ret && stop_on_ret {
+        effect.push_str(&format!(
+            "STOPONRET: Return encountered at address {}.",
+            state.ip
+        ));
+        return (effect, true);
+    }
 
     // Save copy of old flags
     let old_flags = state.flags_reg.clone();
 
     // The destination value
-    let mut new_val = None;
-    let mut dest_target = Target::None;
+    let new_val;
+    let mut dest_target;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
     let mut new_val_overflowed = false;
@@ -161,7 +171,6 @@ pub fn execute(
     let mut new_val_width = WidthType::Word;
     let current_ip = state.ip;
     let mut jumped = false;
-    let mut skip_cycle_print = false;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -230,15 +239,7 @@ pub fn execute(
             }
         }
         OpCodeType::Ret => {
-            if stop_on_ret {
-                effect.push_str(&format!(
-                    "STOPONRET: Return encountered at address {}.",
-                    state.ip
-                ));
-                skip_cycle_print = true;
-            } else {
-                unimplemented!("The Ret instruction isn't yet implemented",);
-            }
+            unimplemented!("The Ret instruction isn't yet implemented",);
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
@@ -354,9 +355,8 @@ pub fn execute(
     effect.push_str(" ;");
 
     // Print cycle estimation, if requested
-    match (cycle_model, skip_cycle_print) {
-        (_, true) => {}
-        (Some(cpu_type), _) => {
+    match cycle_model {
+        Some(cpu_type) => {
             if inst.clocks_base == 0 {
                 println!("inst debug: {:#?}", inst);
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
@@ -428,7 +428,7 @@ pub fn execute(
         effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
 
-    return effect;
+    return (effect, false);
 }
 
 /// Determine if this byte should have the parity flag set
