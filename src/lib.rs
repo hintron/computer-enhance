@@ -8,6 +8,7 @@
 // Define the modules in this library
 pub mod cycles;
 pub mod decode;
+pub mod display;
 pub mod execute;
 #[cfg(test)]
 mod tests;

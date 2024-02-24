@@ -7,7 +7,8 @@ use std::io::Write;
 // Internal imports
 use computer_enhance::cycles::print_cycle_header;
 use computer_enhance::decode::{decode, decode_execute, CpuType};
-use computer_enhance::execute::{display_memory, memory_to_file, print_final_state};
+use computer_enhance::display::{display_memory, memory_to_file};
+use computer_enhance::execute::print_final_state;
 use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
