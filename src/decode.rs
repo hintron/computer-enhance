@@ -561,8 +561,8 @@ pub struct InstType {
     pub source_reg: Option<RegType>,
     /// Explicitly indicate the source width. Needed when coming from memory.
     pub source_width: Option<WidthType>,
-    /// The value of the source operand, if it's an immediate
-    pub source_value: Option<u16>,
+    /// The value of the source operand, if it's a hardcoded value
+    pub source_hardcoded: Option<u16>,
     /// The destination register, if the destination is a register
     pub dest_reg: Option<RegType>,
     /// Explicitly indicate the destination width. Needed when going to memory.
@@ -578,6 +578,9 @@ pub struct InstType {
     pub clocks_ea: Option<u64>,
     /// The additional clock penalty this instruction has if it jumps
     pub clocks_jump: Option<u64>,
+    /// For shift instructions, this is the additional clock penalty for each
+    /// bit shift executed.
+    pub clocks_per_bit: Option<u16>,
     /// The number of memory accesses that this instruction performs.
     /// E.g. `mov [ADDR], 1` only accesses memory once, while `add [ADDR], 1`
     /// accesses memory twice - once to load dest in before adding 1 to it, and
@@ -819,13 +822,6 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
     let mut source_text = String::new();
     let mut dest_text = String::new();
 
-    match inst.v_field {
-        Some(false) => source_text.push_str("1"),
-        Some(true) => source_text.push_str("cl"),
-        // Do nothing if v field isn't set - not a shift/rotate op
-        None => {}
-    };
-
     let mod_rm_addr = get_mod_rm_addr_str(inst.mod_rm_data, inst.disp_value);
     match (mod_rm_addr, inst.d_field) {
         (None, _) => {}
@@ -881,9 +877,11 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         _ => {}
     }
 
-    // Move source_reg into source_text if source_text hasn't been set yet
-    match inst.source_reg {
-        Some(source_reg) => source_text.push_str(&format!("{source_reg}")),
+    match (inst.source_reg, inst.source_hardcoded) {
+        // Move source_reg into source_text if source_text hasn't been set yet
+        (Some(source_reg), _) => source_text.push_str(&format!("{source_reg}")),
+        // Move hardcoded source value into source_text
+        (_, Some(source_val)) => source_text.push_str(&format!("{source_val}")),
         _ => {}
     }
 
@@ -1785,6 +1783,35 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(false)) => inst.dest_width = Some(WidthType::Byte),
                 (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
+            }
+            // Set operand types and memory address direction
+            match (mode, inst.v_field) {
+                (ModType::RegisterMode, Some(true)) => {
+                    inst.source_reg = Some(RegType {
+                        name: RegName::Cx,
+                        width: WidthType::Byte,
+                    });
+                    inst.operands_type = Some(OperandsType::RegReg)
+                }
+                (ModType::RegisterMode, _) => {
+                    // Create a hardcoded immediate value of 1
+                    inst.source_hardcoded = Some(1);
+                    inst.operands_type = Some(OperandsType::RegImm)
+                }
+                (_, Some(true)) => {
+                    inst.source_reg = Some(RegType {
+                        name: RegName::Cx,
+                        width: WidthType::Byte,
+                    });
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemReg);
+                }
+                (_, _) => {
+                    // Create a hardcoded immediate value of 1
+                    inst.source_hardcoded = Some(1);
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                    inst.operands_type = Some(OperandsType::MemImm);
+                }
             }
         }
         Some(ModRmByteType::ModGrp1Rm) => {
