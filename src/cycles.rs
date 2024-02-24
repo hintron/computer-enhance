@@ -166,7 +166,7 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         (_, Some(OperandsType::SegMem)) => todo!(),
         (_, Some(OperandsType::RegSeg)) => todo!(),
         (_, Some(OperandsType::MemSeg)) => todo!(),
-        // Arithmetic instructions that all share the same cycle timing
+        // Arithmetic and logical instructions with same cycle timing
         (
             Some(
                 OpCodeType::Adc
@@ -345,6 +345,71 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 10;
             inst.transfers = 1;
         }
+        // Shift instructions - rol, ror, rcl, rcr, shl/sal, shr, sar
+        (
+            Some(
+                OpCodeType::Rol
+                | OpCodeType::Ror
+                | OpCodeType::Rcl
+                | OpCodeType::Rcr
+                | OpCodeType::Shl
+                | OpCodeType::Shr
+                | OpCodeType::Sar,
+            ),
+            Some(OperandsType::RegImm),
+        ) => {
+            inst.clocks_base = 2;
+            // Only one shift, and that is accounted for in the base already
+            inst.clocks_per_bit = Some(0)
+        }
+        (
+            Some(
+                OpCodeType::Rol
+                | OpCodeType::Ror
+                | OpCodeType::Rcl
+                | OpCodeType::Rcr
+                | OpCodeType::Shl
+                | OpCodeType::Shr
+                | OpCodeType::Sar,
+            ),
+            Some(OperandsType::RegReg),
+        ) => {
+            inst.clocks_base = 8;
+            inst.clocks_per_bit = Some(4);
+        }
+        (
+            Some(
+                OpCodeType::Rol
+                | OpCodeType::Ror
+                | OpCodeType::Rcl
+                | OpCodeType::Rcr
+                | OpCodeType::Shl
+                | OpCodeType::Shr
+                | OpCodeType::Sar,
+            ),
+            Some(OperandsType::MemImm),
+        ) => {
+            inst.clocks_base = 15;
+            // Only one shift, and that is accounted for in the base already
+            inst.clocks_per_bit = Some(0);
+            inst.transfers = 2;
+        }
+        (
+            Some(
+                OpCodeType::Rol
+                | OpCodeType::Ror
+                | OpCodeType::Rcl
+                | OpCodeType::Rcr
+                | OpCodeType::Shl
+                | OpCodeType::Shr
+                | OpCodeType::Sar,
+            ),
+            Some(OperandsType::MemReg),
+        ) => {
+            inst.clocks_base = 20;
+            inst.clocks_per_bit = Some(4);
+            inst.transfers = 2;
+        }
         // Test
         (Some(OpCodeType::Test), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         (Some(OpCodeType::Test), Some(OperandsType::RegMem)) => {
@@ -443,7 +508,12 @@ pub fn get_effective_addr_clocks(
 
 /// Return a string showing the clocks in parts. If the
 /// instruction only has base clocks or no clocks set, return None.
-pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType, jumped: bool) -> Option<String> {
+pub fn get_total_clocks_str(
+    inst: &InstType,
+    cpu_type: CpuType,
+    jumped: bool,
+    shift_count: Option<u16>,
+) -> Option<String> {
     let print_clocks = inst.clocks_ea.is_some()
         || (inst.mem_access_word_unaligned > 0 && cpu_type == CpuType::Intel8086)
         || (inst.mem_access_word > 0 && cpu_type == CpuType::Intel8088);
@@ -463,6 +533,15 @@ pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType, jumped: bool) ->
         base += inst.clocks_jump.unwrap()
     };
 
+    // Account for variable number of bits shifted
+    match (shift_count, inst.clocks_per_bit) {
+        (Some(count), Some(cpb)) => base += (count as u64) * (cpb as u64),
+        (Some(count), None) => {
+            unimplemented!("Shift count {count} specified, but no clocks per bit!")
+        }
+        _ => {}
+    }
+
     let clocks_str = match (base, inst.clocks_ea, clocks_transfer) {
         (inst, Some(ea), 0) => format!("{inst} + {ea}ea"),
         (inst, Some(ea), t_penalty) => format!("{inst} + {ea}ea + {t_penalty}p"),
@@ -474,7 +553,12 @@ pub fn get_total_clocks_str(inst: &InstType, cpu_type: CpuType, jumped: bool) ->
 
 /// Add up clocks_base, ea clocks, and transfer penalty clocks and return it
 /// as the total clocks for this instruction.
-pub fn get_total_clocks(inst: &InstType, cpu_type: CpuType, jumped: bool) -> u64 {
+pub fn get_total_clocks(
+    inst: &InstType,
+    cpu_type: CpuType,
+    jumped: bool,
+    shift_count: Option<u16>,
+) -> u64 {
     let mut total = inst.clocks_base;
     if jumped {
         total += inst.clocks_jump.unwrap()
@@ -489,6 +573,16 @@ pub fn get_total_clocks(inst: &InstType, cpu_type: CpuType, jumped: bool) -> u64
     } else {
         total += inst.mem_access_word * 4;
     };
+
+    // Account for variable number of bits shifted
+    match (shift_count, inst.clocks_per_bit) {
+        (Some(count), Some(cpb)) => total += (count as u64) * (cpb as u64),
+        (Some(count), None) => {
+            unimplemented!("Shift count {count} specified, but no clocks per bit!")
+        }
+        _ => {}
+    }
+
     total
 }
 

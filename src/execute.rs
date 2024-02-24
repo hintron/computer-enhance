@@ -171,6 +171,7 @@ pub fn execute(
     let mut new_val_width = WidthType::Word;
     let current_ip = state.ip;
     let mut jumped = false;
+    let mut shift_count = None;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -273,9 +274,14 @@ pub fn execute(
             };
 
             // Get the op's source val either from a source reg or an immediate
-            let (source_val, source_width) = match (inst.source_reg, add_mem_to, inst.add_data_to) {
+            let (source_val, source_width) = match (
+                inst.source_reg,
+                add_mem_to,
+                inst.add_data_to,
+                inst.source_hardcoded,
+            ) {
                 // Handle source reg to dest reg
-                (Some(source_reg), _, _) => {
+                (Some(source_reg), _, _, _) => {
                     // Get the value of the source register
                     let source_val = match state.reg_file.get(&source_reg.name) {
                         Some(x) => *x,
@@ -283,15 +289,19 @@ pub fn execute(
                     };
                     (source_val, source_reg.width)
                 }
-                (_, Some(AddTo::Source), _) => {
+                (_, Some(AddTo::Source), _, _) => {
                     let source_val = load_u16_from_mem(&state.memory, mem_addr.unwrap());
                     let source_width = transfer_width;
                     (source_val, source_width)
                 }
-                (_, _, Some(AddTo::Source)) => {
-                    // Otherwise, use data as just an immediate value
+                (_, _, Some(AddTo::Source), _) => {
+                    // Use data as an immediate source value
                     let source_width = transfer_width;
                     (inst.data_value.unwrap(), source_width)
+                }
+                (_, _, _, Some(source_hardcoded_val)) => {
+                    // Use the hardcoded source value
+                    (source_hardcoded_val, transfer_width)
                 }
                 _ => {
                     // No source is found! Take care of hardcoded sources here
@@ -327,6 +337,12 @@ pub fn execute(
                 op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
                     execute_op(dest_val, source_val, dest_width, source_width, op)
                 }
+                op @ OpCodeType::Shl => {
+                    let (result, bit_shift_cnt) =
+                        execute_shift(dest_val, source_val, dest_width, source_width, op);
+                    shift_count = Some(bit_shift_cnt);
+                    result
+                }
                 _ => {
                     println!("inst debug: {:#?}", inst);
                     unimplemented!(
@@ -361,10 +377,10 @@ pub fn execute(
                 println!("inst debug: {:#?}", inst);
                 unimplemented!("Inst is missing cycles!: {}", inst.text.as_ref().unwrap());
             }
-            let inst_total = get_total_clocks(inst, cpu_type, jumped);
+            let inst_total = get_total_clocks(inst, cpu_type, jumped, shift_count);
             state.total_cycles += inst_total;
             effect.push_str(&format!(" Clocks: +{inst_total} = {}", state.total_cycles));
-            match get_total_clocks_str(inst, cpu_type, jumped) {
+            match get_total_clocks_str(inst, cpu_type, jumped, shift_count) {
                 Some(str) => effect.push_str(&format!(" ({})", str)),
                 None => {}
             }
@@ -720,6 +736,21 @@ fn execute_mov(
     }
 }
 
+/// Execute a shift OpType. Return the number of bit shifts executed.
+/// The shift count will just be whatever the src value is, whether it's a
+/// hardcoded value of 1 or the CL register.
+fn execute_shift(
+    dst: u16,
+    src: u16,
+    dst_width: WidthType,
+    src_width: WidthType,
+    op: OpCodeType,
+) -> (u16, u16) {
+    let result = execute_op(dst, src, dst_width, src_width, op);
+    let shift_count = src & 0xFF;
+    (result, shift_count)
+}
+
 /// Execute an OpCodeType and return the result.
 fn execute_op(
     dst: u16,
@@ -747,6 +778,7 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst & src,
                 OpCodeType::Xor => dst ^ src,
+                OpCodeType::Shl => dst << src,
                 _ => unimplemented!(),
             };
             println!(
@@ -779,6 +811,7 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
                 OpCodeType::Xor => dst_u8 ^ src_u8,
+                OpCodeType::Shl => dst_u8 << src_u8,
                 _ => unimplemented!(),
             };
 
