@@ -213,17 +213,24 @@ pub enum OpCodeType {
     Popf,
     Push,
     Pushf,
+    /// rcl - rotate left through carry
     Rcl,
+    /// rcr - rotate right through carry
     Rcr,
     Ret,
     Retf,
+    /// rol - rotate left
     Rol,
+    /// ror - rotate right
     Ror,
     Sahf,
+    /// sar - shift right - arithmetic (sign extend)
     Sar,
     Sbb,
     Scas,
+    /// shl/sal - shift left (same for arithmetic and logical shifts)
     Shl,
+    /// shr - shift right - logical (zero fill, don't sign extend)
     Shr,
     Stc,
     Std,
