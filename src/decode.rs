@@ -1471,11 +1471,18 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // dec - register
         0x48..=0x4F => {
             inst.op_type = Some(OpCodeType::Dec);
-            let w_field = Some(true);
-            let reg_field = decode_reg_field(byte & 0b111, w_field);
+            let w_field = true;
+            let reg_field = decode_reg_field(byte & 0b111, Some(w_field));
             inst.dest_reg = Some(reg_field);
             inst.reg_field = Some(reg_field);
-            inst.w_field = w_field;
+            if w_field {
+                inst.operands_type = Some(OperandsType::Reg16);
+            } else {
+                inst.operands_type = Some(OperandsType::Reg8);
+            }
+            inst.w_field = Some(w_field);
+            inst.source_hardcoded = Some(1);
+            inst.source_hardcoded_implicit = true;
         }
         // test,not,neg,mul,imul,div,idiv - immediate data and register/memory
         0xF6..=0xF7 => {

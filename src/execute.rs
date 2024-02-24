@@ -322,7 +322,7 @@ pub fn execute(
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                op @ OpCodeType::Inc => {
+                op @ (OpCodeType::Inc | OpCodeType::Dec) => {
                     let (result, overflowed, _, aux_carry) =
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
                     new_val_overflowed = overflowed;
@@ -767,7 +767,7 @@ fn execute_op(
                     let (result, _) = dst.overflowing_add(src);
                     result
                 }
-                OpCodeType::Sub | OpCodeType::Cmp => {
+                OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Dec => {
                     let (result, _) = dst.overflowing_sub(src);
                     result
                 }
@@ -867,19 +867,23 @@ fn execute_op_arith_flags(
         }
         // Since we're subtracting, left and right sign must be opposite for
         // overflow to occur.
-        OpCodeType::Sub | OpCodeType::Cmp => {
+        OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Dec => {
             (dst_sign_bit != src_sign_bit) && (dst_sign_bit != result_sign_bit)
         }
         _ => unimplemented!(),
     };
     let carry = match op {
         OpCodeType::Add | OpCodeType::Inc => calc_carry_add(dst, src, dst_width, src_width),
-        OpCodeType::Sub | OpCodeType::Cmp => calc_carry_sub(dst, src, dst_width, src_width),
+        OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Dec => {
+            calc_carry_sub(dst, src, dst_width, src_width)
+        }
         _ => unimplemented!(),
     };
     let aux_carry = match op {
         OpCodeType::Add | OpCodeType::Inc => calc_aux_carry_add(dst, src, dst_width, src_width),
-        OpCodeType::Sub | OpCodeType::Cmp => calc_aux_carry_sub(dst, src, dst_width, src_width),
+        OpCodeType::Sub | OpCodeType::Cmp | OpCodeType::Dec => {
+            calc_aux_carry_sub(dst, src, dst_width, src_width)
+        }
         _ => unimplemented!(),
     };
     if overflow {
