@@ -53,17 +53,26 @@ Required Parameters:
 <output> : The output file to print decoded assembly to.
 
 Options:
+
 -e|--exec : If specified, simulate the input instruction stream in addition to
-decoding it.
+            decoding it.
+
 -h|--help : Print this help message.
+
 -p|--print : Print out the instructions as decoded/executed.
+
 -v|--verbose : Increase verbosity of print to include debug information.
+
 --no-ip : If specified, do NOT print out IP register info.
+
 --overwrite : If specified, overwrite the output file instead of appending to it.
+
 -c|--model-cycles {8086|8088} : If specified, estimate cycles during execution
-for the given CPU (8086 or 8088).
+                                for the given CPU (8086 or 8088).
+
 --stop-on-ret : If specified, exit the simulator when instruction RET is hit.
-Useful for running functions without running code that calls into them.
+                Useful for running functions without running code that calls
+                into them.
 ";
 
 fn print_help() {
