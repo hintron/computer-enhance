@@ -13,6 +13,7 @@ fn check_decode(inst_stream: Vec<u8>, expected_insts: Vec<&str>) {
     let decode_settings = DecodeSettings {
         print: true,
         verbose: true,
+        stop_on_int3: false,
     };
     let insts = decode(inst_stream, &decode_settings);
     let mut inst_num = 1;

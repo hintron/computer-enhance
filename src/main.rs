@@ -38,6 +38,8 @@ struct ArgsType {
     init_ip: Option<u16>,
     /// If true, graphically display final memory contents in a window
     display_window: bool,
+    /// If true, exit the decoder when an int3 is encountered.
+    stop_on_int3: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -84,7 +86,10 @@ Options:
 this value.
 
 --display-window : If specified, graphically display final memory contents in a
-                   window.
+window.
+
+--stop-on-int3 : If specified, exit the decoder when an int3 is encountered.
+
 ";
 
 fn print_help() {
@@ -154,6 +159,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::InitIp)
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
+        Ok(ArgType::NoValue)
+    } else if arg.starts_with("--stop-on-int3") {
+        parsed_args.stop_on_int3 = true;
         Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
@@ -248,6 +256,7 @@ fn main() -> Result<()> {
     let decode_settings = DecodeSettings {
         print: args.print,
         verbose: args.verbose,
+        stop_on_int3: args.stop_on_int3,
     };
     let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");
 
