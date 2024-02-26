@@ -246,7 +246,9 @@ pub fn execute(
         op @ _ => {
             let dest_width = match dest_width {
                 Some(x) => x,
-                None => unimplemented!("No dest reg, dest width, source reg, or source width"),
+                None => unimplemented!(
+                    "op '{op}': No dest reg, dest width, source reg, or source width"
+                ),
             };
             let dest_val;
 
