@@ -509,6 +509,7 @@ impl fmt::Display for CpuType {
 #[derive(Default)]
 pub struct DecodeSettings {
     pub verbose: bool,
+    pub stop_on_int3: bool,
 }
 
 /// Execution-specific settings
@@ -680,7 +681,7 @@ pub fn decode_execute(
             None => break,
         };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(inst_byte_window, decode_settings.verbose) {
+        match decode_single(inst_byte_window, decode_settings) {
             Some(mut inst) => {
                 println!(
                     "inst: 0x{:04x}: {}",
@@ -725,7 +726,7 @@ pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<Ins
             None => break,
         };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(inst_byte_window, decode_settings.verbose) {
+        match decode_single(inst_byte_window, decode_settings) {
             Some(inst) => {
                 println!("inst: 0x{:04x}: {}", ip, inst.text.as_ref().unwrap());
                 ip = ip + inst.processed_bytes.len();
@@ -758,14 +759,14 @@ pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<Ins
 ///     4) The final output text is assembled from the values in the `InstType`
 ///        struct.
 ///     5) The output text is printed to stdout.
-fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
+fn decode_single(inst_byte_window: &[u8], settings: &DecodeSettings) -> Option<InstType> {
     let mut inst = InstType {
         ..Default::default()
     };
 
     let mut iter = inst_byte_window.iter().peekable();
     let mut byte = iter.next().unwrap();
-    if debug {
+    if settings.verbose {
         debug_byte(byte);
     }
     inst.processed_bytes.push(*byte);
@@ -775,7 +776,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
     while decode_prefix {
         // The first byte was a prefix. Are there more?
         byte = iter.next().unwrap();
-        if debug {
+        if settings.verbose {
             debug_byte(byte);
         }
         inst.processed_bytes.push(*byte);
@@ -783,7 +784,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
     }
 
     // Decode first non-prefix byte
-    if decode_first_byte(*byte, &mut inst) == false {
+    if decode_first_byte(*byte, &mut inst, settings.stop_on_int3) == false {
         return None;
     }
 
@@ -795,7 +796,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         };
         // Get the next (mod r/m) byte in the stream
         let byte = iter.next().unwrap();
-        if debug {
+        if settings.verbose {
             debug_byte(byte);
         }
         inst.processed_bytes.push(*byte);
@@ -810,7 +811,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
         };
 
         let byte = iter.next().unwrap();
-        if debug {
+        if settings.verbose {
             debug_byte(byte);
         }
         inst.processed_bytes.push(*byte);
@@ -1062,7 +1063,7 @@ fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
 ///
 /// Returns true if there are more bytes left in the instruction, and false if
 /// not.
-fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
+fn decode_first_byte(byte: u8, inst: &mut InstType, stop_on_int3: bool) -> bool {
     // Decode the first byte of the instruction.
     // For 8086 decoding help, see pg. 4-18 through 4-36.
     match byte {
@@ -1693,6 +1694,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // int - Type 3
         0xCC => {
             inst.op_type = Some(OpCodeType::Int3);
+            if stop_on_int3{
+                println!("exit on int3: stopping decode!");
+                return false
+            }
         }
         // into - Interrupt on overflow
         0xCE => {
