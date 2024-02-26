@@ -784,7 +784,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 
     // Decode first non-prefix byte
     if decode_first_byte(*byte, &mut inst) == false {
-        println!("Unknown instruction");
         return None;
     }
 
@@ -1778,7 +1777,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             println!("Unsupported shift instruction. Is immediate other than 1?");
             return false;
         }
-        _ => {
+        op @ _ => {
+            println!("Unknown op code byte: {op:x}");
             return false;
         }
     }
