@@ -12,6 +12,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../..")
 FILE_DIR="$PROJECT_DIR/emulator/files"
 DECODE_BUILD_DIR="$FILE_DIR/build-decode-regress"
+SNAKE_BUILD_DIR="$FILE_DIR/build-snake-regress"
 SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
 SIMULATE_SRC_DIR="$FILE_DIR/simulate-regress"
 SIMULATE_IP_BUILD_DIR="$FILE_DIR/build-simulate-ip-regress"
@@ -26,6 +27,10 @@ BIN="$PROJECT_DIR/target/debug/computer-enhance"
 CHECK_RTOS="true"
 if [ "$1" == "nortos" ]; then
     CHECK_RTOS="false"
+fi
+CHECK_SNAKE="false"
+if [ "$1" == "snake" ]; then
+    CHECK_SNAKE="true"
 fi
 
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
@@ -266,6 +271,24 @@ while [ "$CHECK_RTOS" == "true" ]; do
     echo "Finished RTOS simulation!"
     break
 done
+
+
+# Execute the Snake game
+# Use while loop to easily break out
+while [ "$CHECK_SNAKE" == "true" ]; do
+    SNAKE_BIN="$SNAKE_BUILD_DIR/snake"
+    BASE=$(basename "$SNAKE_BIN")
+    SIMULATE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-simulate.txt"
+    echo "Simulating Snake binary '$SNAKE_BIN'..."
+    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --exec --stop-on-int3 --exit-after 30000 > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
+        echo "ERROR: Simulation failed for $SNAKE_BIN"
+        rc=1
+        break
+    fi
+    echo "Finished Snake simulation!"
+    break
+done
+
 
 
 if [ "$rc" == "0" ]; then
