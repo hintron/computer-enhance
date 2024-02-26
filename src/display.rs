@@ -27,11 +27,12 @@ pub fn display_memory(memory: &mut Vec<u8>) {
     // Image dimensions
     const WIDTH: usize = 64;
     const HEIGHT: usize = 64;
+    const SCALE: usize = 10;
 
     let window_result = Window::new(
         "Memory Display - Computer Enhance Simulator",
-        WIDTH,
-        HEIGHT,
+        WIDTH * SCALE,
+        HEIGHT * SCALE,
         WindowOptions::default(),
     );
     let mut window = match window_result {
@@ -64,7 +65,7 @@ pub fn display_memory(memory: &mut Vec<u8>) {
         if !update {
             // Update the window with the image data
             window
-                .update_with_buffer(&memory_u32[..], WIDTH, HEIGHT)
+                .update_with_buffer(&memory_u32[..], WIDTH * SCALE, HEIGHT * SCALE)
                 .unwrap();
             update = false;
         }
