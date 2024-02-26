@@ -12,6 +12,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
 FILE_DIR="$PROJECT_DIR/files"
 DECODE_BUILD_DIR="$FILE_DIR/build-decode-regress"
+SNAKE_BUILD_DIR="$FILE_DIR/build-snake-regress"
 SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
 SIMULATE_SRC_DIR="$FILE_DIR/simulate-regress"
 SIMULATE_IP_BUILD_DIR="$FILE_DIR/build-simulate-ip-regress"
@@ -65,6 +66,34 @@ for file in "$DECODE_BUILD_DIR"/*; do
         echo "See $DIFF"
         echo "ours   (+): $file"
         echo "golden (-): $DECODE_GOLDEN_OUTPUT"
+        rc=1
+        break
+    fi
+    rm "$DIFF"
+done
+
+
+# Check the decode of the Snake game
+for file in "$SNAKE_BUILD_DIR"/*; do
+    echo "Checking decode of $file..."
+    BASE=$(basename "$file")
+    if ! $BIN --verbose --stop-on-int3 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
+        echo "ERROR: Decode program failed for $file"
+        rc=1
+        break
+    fi
+    OUR_DECODE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-tmp.o"
+    if ! nasm "$SNAKE_BUILD_DIR/$BASE-tmp.asm" -o "$OUR_DECODE_OUTPUT"; then
+        echo "ERROR: Assembly of decoded output failed for $file"
+        rc=1
+        break
+    fi
+    DIFF="$SNAKE_BUILD_DIR/$BASE-code.diff"
+    if ! diff "$OUR_DECODE_OUTPUT" "$file" -u > "$DIFF"; then
+        echo "ERROR: Decoded output didn't match golden output."
+        echo "See $DIFF"
+        echo "ours   (-): $OUR_DECODE_OUTPUT"
+        echo "golden (+): $file"
         rc=1
         break
     fi
