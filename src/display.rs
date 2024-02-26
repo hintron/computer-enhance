@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Write;
 
 // Third-party imports
-use minifb::{Window, WindowOptions};
+use minifb::{KeyRepeat, Window, WindowOptions};
 
 /// Write the CPU memory array to a file.
 pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
@@ -51,6 +51,7 @@ pub fn display_memory(memory: &mut Vec<u8>) {
         std::slice::from_raw_parts_mut(memory.as_mut_ptr() as *mut u32, memory.len() / 4)
     };
 
+    println!("Count = 0");
     let mut count: u64 = 0;
     let mut count2: u64 = 0;
     let mut update = true;
@@ -59,8 +60,23 @@ pub fn display_memory(memory: &mut Vec<u8>) {
         let (tmp, overflowed) = count.overflowing_add(1);
         count = tmp;
         if overflowed {
-            println!("Poll {count2}");
+            println!("count2: {count2}");
             count2 += 1;
+        }
+        if (count % 1000000000) == 0 {
+            println!("count: {count}");
+            window.get_keys().iter().for_each(|key| match key {
+                _ => println!("holding {key:?}"),
+            });
+            window
+                .get_keys_pressed(KeyRepeat::No)
+                .iter()
+                .for_each(|key| match key {
+                    _ => println!("pressed {key:?}"),
+                });
+            window.get_keys_released().iter().for_each(|key| match key {
+                _ => println!("released {key:?}"),
+            });
         }
         if !update {
             // Update the window with the image data
