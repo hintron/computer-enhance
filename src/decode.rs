@@ -383,7 +383,8 @@ impl fmt::Display for RegName {
     }
 }
 
-/// The width of a register
+/// The width of something. Could be the size of an operand (whether it's a
+/// register, immediate, or memory location) or the width of a data transfer.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum WidthType {
     // 8 bits/low half of word
