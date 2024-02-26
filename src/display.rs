@@ -50,9 +50,17 @@ pub fn display_memory(memory: &mut Vec<u8>) {
         std::slice::from_raw_parts_mut(memory.as_mut_ptr() as *mut u32, memory.len() / 4)
     };
 
+    let mut count: u64 = 0;
+    let mut count2: u64 = 0;
     let mut update = true;
     // Main loop: draw the image until the window is closed
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
+        let (tmp, overflowed) = count.overflowing_add(1);
+        count = tmp;
+        if overflowed {
+            println!("Poll {count2}");
+            count2 += 1;
+        }
         if !update {
             // Update the window with the image data
             window
