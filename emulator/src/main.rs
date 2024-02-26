@@ -43,6 +43,8 @@ struct ArgsType {
     display_file: Option<String>,
     /// If specified, exit simulation after this many cycles have elapsed
     exit_after: Option<u64>,
+    /// If true, exit the decoder when an int3 is encountered.
+    stop_on_int3: bool,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -105,6 +107,8 @@ this value.
 --exit-after <value> : Quit the program after <value> instructions. Useful for
                        limiting the execution of never-ending programs (like an
                        RTOS) for regressions.
+
+--stop-on-int3 : If specified, exit the decoder when an int3 is encountered.
 ";
 
 fn print_help() {
@@ -197,6 +201,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::DisplayFile)
     } else if arg.starts_with("--exit-after") {
         Ok(ArgType::ExitAfter)
+    } else if arg.starts_with("--stop-on-int3") {
+        parsed_args.stop_on_int3 = true;
+        Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -289,6 +296,7 @@ fn main() -> Result<()> {
 
     let decode_settings = DecodeSettings {
         verbose: args.verbose,
+        stop_on_int3: args.stop_on_int3,
     };
 
     if args.execute {
