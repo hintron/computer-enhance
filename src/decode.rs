@@ -741,7 +741,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 
     // Decode first non-prefix byte
     if decode_first_byte(*byte, &mut inst) == false {
-        println!("Unknown instruction");
         return None;
     }
 
@@ -1657,7 +1656,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
-        _ => {
+        op @ _ => {
+            println!("Unknown op code byte: {op:x}");
             return false;
         }
     }
