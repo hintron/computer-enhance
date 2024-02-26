@@ -490,6 +490,20 @@ impl fmt::Display for CpuType {
     }
 }
 
+/// Decode-specific settings
+pub struct DecodeSettings {
+    pub print: bool,
+    pub verbose: bool,
+}
+
+/// Execution-specific settings
+pub struct ExecuteSettings {
+    pub init_ip: Option<u16>,
+    pub no_ip: bool,
+    pub cycle_model: Option<CpuType>,
+    pub stop_on_ret: bool,
+}
+
 /// A struct holding all the decoded data of a given instruction
 /// All public fields will be used in the execute module or printed out to the
 /// user.
@@ -611,15 +625,11 @@ pub struct InstType {
 /// Returns a vector of instructions executed, as well as the final CPU state.
 pub fn decode_execute(
     program_bytes: Vec<u8>,
-    print: bool,
-    verbose: bool,
-    no_ip: bool,
-    cycle_type: Option<CpuType>,
-    stop_on_ret: bool,
-    init_ip: Option<u16>,
+    decode_settings: &DecodeSettings,
+    exec_settings: &ExecuteSettings,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
-    let mut cpu_state = init_state(init_ip);
+    let mut cpu_state = init_state(exec_settings.init_ip);
 
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip
@@ -631,14 +641,13 @@ pub fn decode_execute(
             None => break,
         };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(inst_byte_window, verbose) {
+        match decode_single(inst_byte_window, decode_settings.verbose) {
             Some(mut inst) => {
-                if print {
+                if decode_settings.print {
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 // Execute the instruction
-                let (text, halt) =
-                    execute(&mut inst, &mut cpu_state, no_ip, cycle_type, stop_on_ret);
+                let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings);
                 output_text_lines.push(text);
                 if halt {
                     break;
@@ -657,7 +666,7 @@ pub fn decode_execute(
 /// instruction stream and does not take branches or do any simulation
 /// whatsoever. It prints processed bytes, prints the decoded instruction, and
 /// returns a vector of instructions.
-pub fn decode(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<InstType> {
+pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<InstType> {
     let mut insts = vec![];
     // Simply track the IP in this variable instead of in CpuState, since we
     // aren't actually executing the code. The IP is just how we iterate through
@@ -669,9 +678,9 @@ pub fn decode(inst_stream: Vec<u8>, print: bool, verbose: bool) -> Vec<InstType>
             None => break,
         };
         // Decode one (possibly multi-byte) instruction at a time
-        match decode_single(inst_byte_window, verbose) {
+        match decode_single(inst_byte_window, decode_settings.verbose) {
             Some(inst) => {
-                if print {
+                if decode_settings.print {
                     println!("{}", inst.text.as_ref().unwrap());
                 }
                 ip = ip + inst.processed_bytes.len();

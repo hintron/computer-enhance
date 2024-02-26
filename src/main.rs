@@ -6,7 +6,7 @@ use std::io::Write;
 
 // Internal imports
 use computer_enhance::cycles::print_cycle_header;
-use computer_enhance::decode::{decode, decode_execute, CpuType};
+use computer_enhance::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
 use computer_enhance::display::{display_memory, memory_to_file};
 use computer_enhance::execute::print_final_state;
 use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
@@ -237,6 +237,10 @@ fn main() -> Result<()> {
         args.output_file.as_ref().unwrap()
     );
 
+    let decode_settings = DecodeSettings {
+        print: args.print,
+        verbose: args.verbose,
+    };
     let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");
 
     if args.execute {
@@ -245,15 +249,14 @@ fn main() -> Result<()> {
             writeln!(output_file, "{}", line)?;
         }
 
-        let (text_lines, mut cpu_state) = decode_execute(
-            program_bytes,
-            args.print,
-            args.verbose,
-            args.no_ip,
-            args.cycle_type,
-            args.stop_on_ret,
-            args.init_ip,
-        );
+        let execute_settings = ExecuteSettings {
+            no_ip: args.no_ip,
+            cycle_model: args.cycle_type,
+            stop_on_ret: args.stop_on_ret,
+            init_ip: args.init_ip,
+        };
+        let (text_lines, mut cpu_state) =
+            decode_execute(program_bytes, &decode_settings, &execute_settings);
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
         }
@@ -266,7 +269,7 @@ fn main() -> Result<()> {
         memory_to_file(&mut cpu_state.memory, mem_image_output);
         display_memory(&mut cpu_state.memory);
     } else {
-        let insts = decode(program_bytes, args.print, args.verbose);
+        let insts = decode(program_bytes, &decode_settings);
         // Print out instructions to the output file
         writeln!(output_file, "bits 16")?;
         for inst in insts {

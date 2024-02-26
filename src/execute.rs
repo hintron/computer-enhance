@@ -7,7 +7,9 @@ use std::fmt;
 use crate::cycles::{
     calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
 };
-use crate::decode::{AddTo, CpuType, InstType, ModRmDataType, OpCodeType, RegName, WidthType};
+use crate::decode::{
+    AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
+};
 
 const MEMORY_SIZE: usize = 1024 * 1024;
 
@@ -132,9 +134,7 @@ enum Target {
 pub fn execute(
     inst: &mut InstType,
     state: &mut CpuStateType,
-    no_ip: bool,
-    cycle_model: Option<CpuType>,
-    stop_on_ret: bool,
+    settings: &ExecuteSettings,
 ) -> (String, bool) {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
@@ -146,7 +146,7 @@ pub fn execute(
     };
 
     // Handle stop on ret right away
-    if op_type == OpCodeType::Ret && stop_on_ret {
+    if op_type == OpCodeType::Ret && settings.stop_on_ret {
         effect.push_str(&format!(
             "STOPONRET: Return encountered at address {}.",
             state.ip
@@ -366,7 +366,7 @@ pub fn execute(
     effect.push_str(" ;");
 
     // Print cycle estimation, if requested
-    match cycle_model {
+    match settings.cycle_model {
         Some(cpu_type) => {
             if inst.clocks_base == 0 {
                 println!("inst debug: {:#?}", inst);
@@ -429,7 +429,7 @@ pub fn execute(
         _ => {}
     }
 
-    if !no_ip {
+    if !settings.no_ip {
         // Tack on the IP change to the instruction effect string
         effect.push_str(&format!(" ip:0x{:x}->0x{:x}", current_ip, state.ip));
     }

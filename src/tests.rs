@@ -1,5 +1,5 @@
 // Internal imports
-use crate::decode::decode;
+use crate::decode::{decode, DecodeSettings};
 
 #[test]
 fn test_mov_reg_reg() {
@@ -10,7 +10,11 @@ fn test_mov_reg_reg() {
 }
 
 fn check_decode(inst_stream: Vec<u8>, expected_insts: Vec<&str>) {
-    let insts = decode(inst_stream, true, true);
+    let decode_settings = DecodeSettings {
+        print: true,
+        verbose: true,
+    };
+    let insts = decode(inst_stream, &decode_settings);
     let mut inst_num = 1;
     for (inst, expected_inst) in std::iter::zip(insts, expected_insts) {
         // Unwrap as ref to borrow inst.text, so we can print inst later
