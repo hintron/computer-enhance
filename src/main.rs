@@ -36,6 +36,8 @@ struct ArgsType {
     stop_on_ret: bool,
     /// The value to initially set the IP register to
     init_ip: Option<u16>,
+    /// If true, graphically display final memory contents in a window
+    display_window: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -79,7 +81,10 @@ Options:
                 into them.
 
 -i|--initial-ip <value> : If specified, set the instruction pointer to begin with
-                          this value.
+this value.
+
+--display-window : If specified, graphically display final memory contents in a
+                   window.
 ";
 
 fn print_help() {
@@ -147,6 +152,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-i") || arg.starts_with("--initial-ip") {
         Ok(ArgType::InitIp)
+    } else if arg.starts_with("--display-window") {
+        parsed_args.display_window = true;
+        Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -267,7 +275,11 @@ fn main() -> Result<()> {
         }
 
         memory_to_file(&mut cpu_state.memory, mem_image_output);
-        display_memory(&mut cpu_state.memory);
+        if args.display_window {
+            println!("Graphically displaying memory...");
+            display_memory(&mut cpu_state.memory);
+            println!("Done graphically displaying memory");
+        }
     } else {
         let insts = decode(program_bytes, &decode_settings);
         // Print out instructions to the output file
