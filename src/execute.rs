@@ -548,8 +548,6 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         }
     };
 
-    let ip_inc_8 = (jmp_value as i8) as i16;
-    println!("ip_inc_8: {}", ip_inc_8);
     println!("state.ip before: {}", state.ip);
 
     // See table 2-15 on pg. 2-46 of the 8086 documentation
@@ -571,7 +569,7 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
     };
     // If jump, add the IP increment value to IP and return true
     if jump {
-        let (result, overflowed) = (state.ip as i16).overflowing_add(ip_inc_8);
+        let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
         if overflowed {
             println!("Warning: IP register overflowed!: IP: {}", result);
         }
