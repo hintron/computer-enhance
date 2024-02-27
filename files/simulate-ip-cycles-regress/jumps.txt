@@ -1,0 +1,54 @@
+**************
+**** 8086 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+jmp di ; Clocks: +11 = 11 | ip:0x0->0x2
+mov ax, 16 ; Clocks: +4 = 15 | ax:0x0->0x10 ip:0x2->0x5
+mov bx, 21 ; Clocks: +4 = 19 | bx:0x0->0x15 ip:0x5->0x8
+mov cx, 26 ; Clocks: +4 = 23 | cx:0x0->0x1a ip:0x8->0xb
+mov dx, 31 ; Clocks: +4 = 27 | dx:0x0->0x1f ip:0xb->0xe
+jmp $+17 ; Clocks: +15 = 42 | ip:0xe->0x1f
+jmp $-10 ; Clocks: +15 = 57 | ip:0x1f->0x15
+jmp $-5 ; Clocks: +15 = 72 | ip:0x15->0x10
+jmp $+20 ; Clocks: +15 = 87 | ip:0x10->0x24
+mov si, 1 ; Clocks: +4 = 91 | si:0x0->0x1 ip:0x24->0x27
+
+Final registers:
+      ax: 0x0010 (16)
+      bx: 0x0015 (21)
+      cx: 0x001a (26)
+      dx: 0x001f (31)
+      si: 0x0001 (1)
+      ip: 0x0027 (39)
+
+**************
+**** 8088 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+jmp di ; Clocks: +11 = 11 | ip:0x0->0x2
+mov ax, 16 ; Clocks: +4 = 15 | ax:0x0->0x10 ip:0x2->0x5
+mov bx, 21 ; Clocks: +4 = 19 | bx:0x0->0x15 ip:0x5->0x8
+mov cx, 26 ; Clocks: +4 = 23 | cx:0x0->0x1a ip:0x8->0xb
+mov dx, 31 ; Clocks: +4 = 27 | dx:0x0->0x1f ip:0xb->0xe
+jmp $+17 ; Clocks: +15 = 42 | ip:0xe->0x1f
+jmp $-10 ; Clocks: +15 = 57 | ip:0x1f->0x15
+jmp $-5 ; Clocks: +15 = 72 | ip:0x15->0x10
+jmp $+20 ; Clocks: +15 = 87 | ip:0x10->0x24
+mov si, 1 ; Clocks: +4 = 91 | si:0x0->0x1 ip:0x24->0x27
+
+Final registers:
+      ax: 0x0010 (16)
+      bx: 0x0015 (21)
+      cx: 0x001a (26)
+      dx: 0x001f (31)
+      si: 0x0001 (1)
+      ip: 0x0027 (39)
+

@@ -1240,11 +1240,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             // Hard code w to 1, since no w field in instruction
             inst.w_field = Some(true);
         }
-        // inc/dec/call/jmp/push - Register/memory
+        // inc/dec/call/push - Register/memory
+        // jmp - indirect within segment and indirect intersegment
         0xFE..=0xFF => {
             inst.mod_rm_byte = Some(ModRmByteType::ModGrp2Rm);
-            // NOTE: The first byte hardcodes w to 1 for pushes and pops, since
-            // the operand is always 16 bits.
+            // NOTE: The first byte hardcodes w to 1 for pushes, pops, and jmps,
+            // since the operand is always 16 bits.
             inst.w_field = Some((byte & 0x1) == 1);
         }
         // jmp - Direct within segment
@@ -1868,26 +1869,34 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
         }
         Some(ModRmByteType::ModGrp2Rm) => {
-            inst.op_type = Some(decode_grp2_op((byte & 0b00111000) >> 3));
-            match (mode, inst.w_field) {
+            let (op_type, is_intersegment) = decode_grp2_op((byte & 0b00111000) >> 3);
+            inst.op_type = Some(op_type);
+            match (op_type, mode, inst.w_field) {
                 // We know the size if Register Mode
-                (ModType::RegisterMode, Some(w_field)) => {
+                (_, ModType::RegisterMode, Some(w_field)) => {
                     if w_field {
                         inst.operands_type = Some(OperandsType::Reg16);
                     } else {
                         inst.operands_type = Some(OperandsType::Reg8);
                     }
                 }
+                (OpCodeType::Jmp, _, _) => {
+                    if is_intersegment {
+                        inst.operands_type = Some(OperandsType::MemPtr32);
+                    } else {
+                        inst.operands_type = Some(OperandsType::MemPtr16);
+                    }
+                }
                 // ModGrp2Rm instructions are 1-operand, so add prefix to dest
-                (_, Some(false)) => {
+                (_, _, Some(false)) => {
                     inst.dest_width = Some(WidthType::Byte);
                     inst.operands_type = Some(OperandsType::Mem);
                 }
-                (_, Some(true)) => {
+                (_, _, Some(true)) => {
                     inst.dest_width = Some(WidthType::Word);
                     inst.operands_type = Some(OperandsType::Mem);
                 }
-                (_, None) => unreachable!(),
+                _ => unimplemented!(),
             }
         }
         Some(ModRmByteType::ModPopRm) => match mode {
@@ -2402,15 +2411,18 @@ fn decode_grp1_op(bits: u8) -> (OpCodeType, bool) {
 
 /// Get the op code of an instruction starting with 0xFF. `bits` is the value
 /// of the middle 3 'op' bits in the second mod-op-r/m byte.
-fn decode_grp2_op(bits: u8) -> OpCodeType {
+/// Also, in the case of the two jmp instructions, return true if it's an
+/// indirect intersegment, and false if it's indirect within segment
+/// (intrasegment).
+fn decode_grp2_op(bits: u8) -> (OpCodeType, bool) {
     match bits {
-        0b000 => OpCodeType::Inc,
-        0b001 => OpCodeType::Dec,
-        0b010 => OpCodeType::Call,
-        0b011 => OpCodeType::Call,
-        0b100 => OpCodeType::Jmp,
-        0b101 => OpCodeType::Jmp,
-        0b110 => OpCodeType::Push,
+        0b000 => (OpCodeType::Inc, false),
+        0b001 => (OpCodeType::Dec, false),
+        0b010 => (OpCodeType::Call, false),
+        0b011 => (OpCodeType::Call, false),
+        0b100 => (OpCodeType::Jmp, false),
+        0b101 => (OpCodeType::Jmp, true),
+        0b110 => (OpCodeType::Push, false),
         0b111 => panic!("Unused field 0b111 in decode_grp2_op()"),
         _ => panic!("Bad bits specified in decode_grp2_op()"),
     }

@@ -222,10 +222,14 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
+        jump_op @ (OpCodeType::Jmp
+        | OpCodeType::Jne
+        | OpCodeType::Je
+        | OpCodeType::Jb
+        | OpCodeType::Jp) => {
             new_val = None;
             dest_target = Target::None;
-            jumped = handle_jmp_variants(jump_op, inst, state);
+            jumped = handle_jmp_variants(jump_op, inst, state, mem_addr);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -236,7 +240,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, inst, state);
+                jumped = handle_jmp_variants(jump_op, inst, state, mem_addr);
             }
         }
         OpCodeType::Ret => {
@@ -536,13 +540,33 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
 
 /// Handle the logic for the given jump op code. Modify the IP register in the
 /// CPU state. If the jump op jumped, then return true. Otherwise, return false.
-fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStateType) -> bool {
-    let jmp_value = match inst.jmp_value {
-        Some(jmp_value) => jmp_value,
+fn handle_jmp_variants(
+    jump_op: OpCodeType,
+    inst: &InstType,
+    state: &mut CpuStateType,
+    mem_addr: Option<u16>,
+) -> bool {
+    let jmp_value = match (inst.jmp_value, mem_addr, inst.dest_reg) {
+        (Some(jmp_value), _, _) => {
+            println!("Immediate jump value");
+            jmp_value
+        }
+        (_, Some(addr), _) => {
+            // indirect jmps store their jmp value in memory at an address
+            let val = load_u16_from_mem(&state.memory, addr) as i16;
+            println!("Indirect jump value from memory: [{addr:x}] = {val}");
+            val
+        }
+        (_, _, Some(reg)) => {
+            // Get jump value from a reg
+            let val = state.reg_file.get(&reg.name).unwrap_or(&0);
+            println!("Indirect jump value from reg {reg}: {val}");
+            *val as i16
+        }
         _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!(
-                "Jump variant {jump_op} is missing a jmp_value: {}",
+                "Jump variant {jump_op} is missing a jmp_value or indirect addr: {}",
                 inst.text.as_ref().unwrap()
             );
         }
@@ -562,20 +586,25 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         OpCodeType::Loopz => state.flags_reg.zero,
         OpCodeType::Loop => true, // Only cx != 0
         OpCodeType::Jp => state.flags_reg.parity,
+        OpCodeType::Jmp => true,
         x @ _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
         }
     };
-    // If jump, add the IP increment value to IP and return true
-    if jump {
-        let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
-        if overflowed {
-            println!("Warning: IP register overflowed!: IP: {}", result);
+    let overflowed = match jump {
+        true => {
+            // Add the IP increment value to IP
+            let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
+            state.ip = result as u16;
+            overflowed
         }
-        state.ip = result as u16;
-    }
+        _ => false,
+    };
     println!("state.ip after: {}", state.ip);
+    if overflowed {
+        println!("Warning: IP register overflowed!: IP: {}", state.ip);
+    }
     jump
 }
 

@@ -25,8 +25,11 @@ pub enum OperandsType {
     MemSeg,
     AccImm,
     Reg8,
+    /// reg16/regptr16
     Reg16,
     Mem,
+    MemPtr16,
+    MemPtr32,
 }
 
 /// Now that the instruction is all decoded, fill in clock information
@@ -302,6 +305,19 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 6;
             inst.clocks_jump = Some(12);
         }
+        (Some(OpCodeType::Jmp), Some(OperandsType::MemPtr16)) => {
+            inst.clocks_base = 18;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Jmp), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 11;
+        }
+        (Some(OpCodeType::Jmp), Some(OperandsType::MemPtr32)) => {
+            inst.clocks_base = 24;
+            inst.transfers = 2;
+        }
+        // All other jumps are 15 cycles
+        (Some(OpCodeType::Jmp), _) => inst.clocks_base = 15,
         (Some(OpCodeType::Loop), _) => {
             inst.clocks_base = 5;
             inst.clocks_jump = Some(12);
@@ -529,8 +545,12 @@ pub fn get_total_clocks_str(
     };
 
     let mut base = inst.clocks_base;
-    if jumped {
-        base += inst.clocks_jump.unwrap()
+    match (jumped, inst.clocks_jump) {
+        (true, Some(clocks_jump)) => {
+            base += clocks_jump;
+        }
+        // jmp will always jump, but the clocks_jump value is None
+        _ => {}
     };
 
     // Account for variable number of bits shifted
@@ -560,8 +580,12 @@ pub fn get_total_clocks(
     shift_count: Option<u16>,
 ) -> u64 {
     let mut total = inst.clocks_base;
-    if jumped {
-        total += inst.clocks_jump.unwrap()
+    match (jumped, inst.clocks_jump) {
+        (true, Some(clocks_jump)) => {
+            total += clocks_jump;
+        }
+        // jmp will always jump, but the clocks_jump value is None
+        _ => {}
     };
     match inst.clocks_ea {
         Some(x) => total += x,
