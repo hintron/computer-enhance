@@ -222,7 +222,11 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        jump_op @ (OpCodeType::Jne | OpCodeType::Je | OpCodeType::Jb | OpCodeType::Jp) => {
+        jump_op @ (OpCodeType::Jmp
+        | OpCodeType::Jne
+        | OpCodeType::Je
+        | OpCodeType::Jb
+        | OpCodeType::Jp) => {
             new_val = None;
             dest_target = Target::None;
             jumped = handle_jmp_variants(jump_op, inst, state);
@@ -537,12 +541,14 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
 /// Handle the logic for the given jump op code. Modify the IP register in the
 /// CPU state. If the jump op jumped, then return true. Otherwise, return false.
 fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStateType) -> bool {
-    let jmp_value = match inst.jmp_value {
-        Some(jmp_value) => jmp_value,
+    let (jmp_value, indirect) = match (inst.jmp_value, inst.disp_value) {
+        (Some(jmp_value), _) => (jmp_value, false),
+        // indirect jmps store their jmp value in memory at an address
+        (_, Some(disp_value)) => (disp_value, true),
         _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!(
-                "Jump variant {jump_op} is missing a jmp_value: {}",
+                "Jump variant {jump_op} is missing a jmp_value or indirect displacement: {}",
                 inst.text.as_ref().unwrap()
             );
         }
@@ -562,20 +568,33 @@ fn handle_jmp_variants(jump_op: OpCodeType, inst: &InstType, state: &mut CpuStat
         OpCodeType::Loopz => state.flags_reg.zero,
         OpCodeType::Loop => true, // Only cx != 0
         OpCodeType::Jp => state.flags_reg.parity,
+        OpCodeType::Jmp => true,
         x @ _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
         }
     };
-    // If jump, add the IP increment value to IP and return true
-    if jump {
-        let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
-        if overflowed {
-            println!("Warning: IP register overflowed!: IP: {}", result);
+    let overflowed = match (jump, indirect) {
+        (true, true) => {
+            // Add the IP increment value to IP indirectly from memory
+            let real_jump_value = load_u16_from_mem(&state.memory, jmp_value as u16);
+            // TODO: When segments are implemented, read segment from memory too
+            let (result, overflowed) = (state.ip as i16).overflowing_add(real_jump_value as i16);
+            state.ip = result as u16;
+            overflowed
         }
-        state.ip = result as u16;
-    }
+        (true, _) => {
+            // Add the IP increment value to IP
+            let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
+            state.ip = result as u16;
+            overflowed
+        }
+        _ => false,
+    };
     println!("state.ip after: {}", state.ip);
+    if overflowed {
+        println!("Warning: IP register overflowed!: IP: {}", state.ip);
+    }
     jump
 }
 
