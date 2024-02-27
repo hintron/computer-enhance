@@ -256,8 +256,15 @@ pub fn execute(
             };
             let dest_val;
 
+            // Either get source reg or implicit source reg
+            let dest_reg = if inst.dest_reg_implicit.is_some() {
+                inst.dest_reg_implicit
+            } else {
+                inst.dest_reg
+            };
+
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, add_mem_to) {
+            match (dest_reg, add_mem_to) {
                 (Some(dest_reg), _) => {
                     // Note: This also currently covers ModRmDataType::Reg(_)
                     // Get the value of the dest register
@@ -279,9 +286,16 @@ pub fn execute(
                 }
             };
 
+            // Either get source reg or implicit source reg
+            let source_reg = if inst.source_reg_implicit.is_some() {
+                inst.source_reg_implicit
+            } else {
+                inst.source_reg
+            };
+
             // Get the op's source val either from a source reg or an immediate
             let (source_val, source_width) = match (
-                inst.source_reg,
+                source_reg,
                 add_mem_to,
                 inst.add_data_to,
                 inst.source_hardcoded,
@@ -343,6 +357,16 @@ pub fn execute(
                         execute_shift(dest_val, source_val, dest_width, source_width, op);
                     shift_count = Some(bit_shift_cnt);
                     result
+                }
+                OpCodeType::Push => {
+                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
+                    // Now increment SP by 2
+                    let sp_val = match state.reg_file.get(&RegName::Sp) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, sp_val - 2).unwrap_or(0);
+                    new_val
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
