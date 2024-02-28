@@ -19,6 +19,7 @@ pub enum OperandsType {
     MemReg,
     RegImm,
     MemImm,
+    Seg,
     SegReg,
     SegMem,
     RegSeg,
@@ -388,6 +389,44 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 10;
             inst.transfers = 1;
         }
+        // Stack instructions
+        (Some(OpCodeType::Pop), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 8;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Pop), Some(OperandsType::Seg)) => {
+            inst.clocks_base = 8;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Pop), Some(OperandsType::Mem)) => {
+            inst.clocks_base = 17;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Pop), _) => unimplemented!(),
+        (Some(OpCodeType::Popf), _) => {
+            inst.clocks_base = 8;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Push), Some(OperandsType::Reg16)) => {
+            println!("Push reg16");
+            inst.clocks_base = 11;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Push), Some(OperandsType::Seg)) => {
+            println!("Push seg");
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Push), Some(OperandsType::Mem)) => {
+            println!("Push mem");
+            inst.clocks_base = 16;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Pushf), _) => {
+            inst.clocks_base = 10;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Push), _) => unimplemented!(),
         // Shift instructions - rol, ror, rcl, rcr, shl/sal, shr, sar
         (
             Some(
