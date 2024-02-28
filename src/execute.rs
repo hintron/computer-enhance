@@ -179,18 +179,22 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    operand_pre_work(op_type, &mut state.reg_file);
+
     // Figure out destination width, which will dictate how wide the data
     // transfer is for this instruction
     let dest_width = match (
         inst.dest_reg,
+        inst.dest_reg_mem_access,
         inst.dest_width,
         inst.source_reg,
+        inst.source_reg_mem_access,
         inst.source_width,
     ) {
-        (Some(dest_reg), _, _, _) => Some(dest_reg.width),
-        (_, Some(dest_width), _, _) => Some(dest_width),
-        (_, _, Some(source_reg), _) => Some(source_reg.width),
-        (_, _, _, Some(source_width)) => Some(source_width),
+        (Some(dest_reg), false, _, _, _, _) => Some(dest_reg.width),
+        (_, _, Some(dest_width), _, _, _) => Some(dest_width),
+        (_, _, _, Some(source_reg), false, _) => Some(source_reg.width),
+        (_, _, _, _, _, Some(source_width)) => Some(source_width),
         _ => None,
     };
 
@@ -263,7 +267,11 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match op {
-                OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
+                OpCodeType::Mov | OpCodeType::Pop => {
+                    // NOTE: Pop already decremented SP in operand_pre_work(),
+                    // so all that is left is a move.
+                    execute_mov(dest_val, source_val, dest_width, source_width)
+                }
                 op @ (OpCodeType::Add | OpCodeType::Sub | OpCodeType::Cmp) => {
                     let (result, overflowed, carry, aux_carry) =
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
@@ -288,6 +296,20 @@ pub fn execute(
                     shift_count = Some(bit_shift_cnt);
                     result
                 }
+                OpCodeType::Push => {
+                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
+                    // Now decrement SP by 2
+                    let sp_val = match state.reg_file.get(&RegName::Sp) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    let (new_sp, overflowed) = sp_val.overflowing_sub(2);
+                    if overflowed {
+                        println!("Stack overflow! new_sp: {new_sp}")
+                    }
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+                    new_val
+                }
                 _ => {
                     println!("inst debug: {:#?}", inst);
                     unimplemented!(
@@ -305,9 +327,16 @@ pub fn execute(
                 _ => {}
             }
 
-            // MOV does not modify flags, but the others do
-            if op != OpCodeType::Mov {
-                modify_flags = true;
+            // Some insts should not modify flags
+            match op {
+                OpCodeType::Mov
+                | OpCodeType::Push
+                | OpCodeType::Pushf
+                | OpCodeType::Pop
+                | OpCodeType::Popf => {}
+                _ => {
+                    modify_flags = true;
+                }
             }
         }
     }
@@ -392,6 +421,29 @@ pub fn execute(
     return (effect, false);
 }
 
+/// Pre-work *before* getting operands, like incrementing SP for Pop
+fn operand_pre_work(op: OpCodeType, reg_file: &mut BTreeMap<RegName, u16>) {
+    match op {
+        // By incrementing SP before getting operands, we can turn Pop[f] into a
+        // simple mov.
+        OpCodeType::Pop | OpCodeType::Popf => {
+            // Increment SP by 2, so next load from SP gets correct value
+            let sp_val = match reg_file.get(&RegName::Sp) {
+                Some(x) => *x,
+                None => 0,
+            };
+            let (new_sp, overflowed) = sp_val.overflowing_add(2);
+            println!("Incrementing SP by 2: {sp_val} -> {new_sp}");
+            if overflowed {
+                println!("Stack underflow! new_sp: {new_sp}")
+            }
+            let _old_sp_val = reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+            println!("Old val: {_old_sp_val}");
+        }
+        _ => {}
+    }
+}
+
 /// Get the final source value for most instructions
 fn get_source_val(
     inst: &InstType,
@@ -406,6 +458,13 @@ fn get_source_val(
         inst.add_data_to,
         inst.source_hardcoded,
     ) {
+        (_, Some(address), _, _) => {
+            // MGH TODO: On a pop, we need to first increment SP, *then*
+            // get value that SP points at
+            let source_val = load_u16_from_mem(&state.memory, address);
+            let source_width = transfer_width;
+            (source_val, source_width)
+        }
         // Handle source reg to dest reg
         (Some(source_reg), _, _, _) => {
             // Get the value of the source register
@@ -414,11 +473,6 @@ fn get_source_val(
                 None => 0,
             };
             (source_val, source_reg.width)
-        }
-        (_, Some(address), _, _) => {
-            let source_val = load_u16_from_mem(&state.memory, address);
-            let source_width = transfer_width;
-            (source_val, source_width)
         }
         (_, _, Some(AddTo::Source), _) => {
             // Use data as an immediate source value
@@ -445,7 +499,8 @@ fn get_source_val(
 fn get_dest_val(inst: &InstType, state: &CpuStateType, mem_addr_dst: Option<u16>) -> (u16, Target) {
     // Get the op's destination reg and its current value
     match (inst.dest_reg, mem_addr_dst) {
-        (Some(dest_reg), _) => {
+        (Some(dest_reg), None) => {
+            println!("Dest is reg!");
             // Note: This also currently covers ModRmDataType::Reg(_)
             // Get the value of the dest register
             let dest_val = match state.reg_file.get(&dest_reg.name) {
@@ -456,6 +511,7 @@ fn get_dest_val(inst: &InstType, state: &CpuStateType, mem_addr_dst: Option<u16>
             (dest_val, dest_target)
         }
         (_, Some(address)) => {
+            println!("Dest is mem addr!");
             let dest_target = Target::MemAddress(address as usize);
             let dest_val = load_u16_from_mem(&state.memory, address);
             (dest_val, dest_target)
@@ -510,6 +566,21 @@ fn get_inst_mem_addrs(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Op
                 unreachable!("Dest mem addr was already set! Something is wrong...")
             }
             mem_addr_dst = ea
+        }
+        _ => {}
+    }
+
+    // src reg indirect mem access
+    match (inst.source_reg, inst.source_reg_mem_access) {
+        (Some(reg), true) => {
+            mem_addr_src = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
+        }
+        _ => {}
+    }
+    // dest reg indirect mem access
+    match (inst.dest_reg, inst.dest_reg_mem_access) {
+        (Some(reg), true) => {
+            mem_addr_dst = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
         }
         _ => {}
     }
