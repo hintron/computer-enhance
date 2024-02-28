@@ -73,7 +73,8 @@ pub fn print_inst_clock_debug(inst: &InstType) {
 /// instructions do not have any transfers, or addr is aligned/even, then return
 /// 0.
 ///
-/// `mem_addr` is the final memory address for the instruction, if it exists.
+/// `mem_addr_src` and `mem_addr_dst` are the final memory addresses for the
+/// destination operand and source operand, if they exist.
 /// `transfers` is the number of times this instruction either loads or stores
 /// at the memory address. E.g. `add [addr], 1` accesses memory two times, while
 /// `mov [addr], 1` only accesses memory once.
@@ -81,28 +82,49 @@ pub fn print_inst_clock_debug(inst: &InstType) {
 /// NOTE: This must be called in execute, because mem_addr could be derived from
 /// an effective address, which needs register values from the CPU state.
 pub fn calculate_8086_unaligned_access(
-    mem_addr: Option<u16>,
+    mem_addr_src: Option<u16>,
+    mem_addr_dst: Option<u16>,
     transfer_width: WidthType,
     transfers: u64,
 ) -> u64 {
     // If an instruction has a mem addr, it should also have transfers. If not,
     // then the transfers value was probably not set properly.
-    if (transfers > 0) && mem_addr.is_none() {
+    if (transfers > 0) && (mem_addr_src.is_none() && mem_addr_dst.is_none()) {
         unimplemented!("This instruction has no mem_addr set, yet it has mem transfers!")
     };
-    if (transfers == 0) && mem_addr.is_some() {
-        unimplemented!("This instruction has no mem transfers, yet mem_addr is set!")
+    if (transfers == 0) && (mem_addr_src.is_some() || mem_addr_dst.is_some()) {
+        unimplemented!("This instruction has no mem transfers, yet a mem_addr is set!")
     };
     if transfers == 0 {
         return 0;
     }
-    match mem_addr {
-        Some(addr) => {
+    match (mem_addr_src, mem_addr_dst) {
+        // If only one operand is a memory op
+        (Some(addr), None) | (None, Some(addr)) => {
             if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
                 transfers
             } else {
                 0
             }
+        }
+        // If both operands are a memory op
+        (Some(src_addr), Some(dst_addr)) => {
+            let mut result = 0;
+            if transfers % 2 != 0 {
+                unimplemented!(
+                    "Don't know how to deal with two mem operands with odd number of transfers!"
+                );
+            }
+            // Dish out transfer penalties for each mem addr
+            if transfer_width == WidthType::Word {
+                if src_addr & 0x1 == 1 {
+                    result += transfers / 2;
+                }
+                if dst_addr & 0x1 == 1 {
+                    result += transfers / 2;
+                }
+            }
+            result
         }
         _ => 0,
     }

@@ -200,14 +200,13 @@ pub fn execute(
         Some(WidthType::Hi8 | WidthType::Byte) => WidthType::Byte,
     };
 
-    // Get the final memory address, if applicable, whether it's an effective
-    // address or straight address literal.
-    let (mem_addr, add_mem_to) = get_inst_mem_addr(inst, state);
+    // Get the final memory addresses for source and dest, if applicable
+    let (mem_addr_src, mem_addr_dst) = get_inst_mem_addrs(inst, state);
 
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
     inst.mem_access_word_unaligned =
-        calculate_8086_unaligned_access(mem_addr, transfer_width, inst.transfers);
+        calculate_8086_unaligned_access(mem_addr_src, mem_addr_dst, transfer_width, inst.transfers);
 
     // Print this instruction's clock debug info now that all clock data is set
     print_inst_clock_debug(inst);
@@ -229,7 +228,7 @@ pub fn execute(
         | OpCodeType::Jp) => {
             new_val = None;
             dest_target = Target::None;
-            jumped = handle_jmp_variants(jump_op, inst, state, mem_addr);
+            jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -240,7 +239,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, inst, state, mem_addr);
+                jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
             }
         }
         OpCodeType::Ret => {
@@ -257,7 +256,7 @@ pub fn execute(
             let dest_val;
 
             // Get the op's destination reg and its current value
-            match (inst.dest_reg, add_mem_to) {
+            match (inst.dest_reg, mem_addr_dst) {
                 (Some(dest_reg), _) => {
                     // Note: This also currently covers ModRmDataType::Reg(_)
                     // Get the value of the dest register
@@ -267,8 +266,7 @@ pub fn execute(
                     };
                     dest_target = Target::RegisterName(dest_reg.name);
                 }
-                (_, Some(AddTo::Dest)) => {
-                    let address = mem_addr.unwrap();
+                (_, Some(address)) => {
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
@@ -282,7 +280,7 @@ pub fn execute(
             // Get the op's source val either from a source reg or an immediate
             let (source_val, source_width) = match (
                 inst.source_reg,
-                add_mem_to,
+                mem_addr_src,
                 inst.add_data_to,
                 inst.source_hardcoded,
             ) {
@@ -295,8 +293,8 @@ pub fn execute(
                     };
                     (source_val, source_reg.width)
                 }
-                (_, Some(AddTo::Source), _, _) => {
-                    let source_val = load_u16_from_mem(&state.memory, mem_addr.unwrap());
+                (_, Some(address), _, _) => {
+                    let source_val = load_u16_from_mem(&state.memory, address);
                     let source_width = transfer_width;
                     (source_val, source_width)
                 }
@@ -458,18 +456,39 @@ fn get_parity(val: u16) -> bool {
     (val.count_ones() & 0x1) == 0x0
 }
 
-/// Get the memory address for this instruction (if any) and whether it's for
-// the source or the dest operand
-fn get_inst_mem_addr(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Option<AddTo>) {
-    // Consolidate parts of the inst into a single memory address
-    match (inst.mem_access, inst.mod_rm_data) {
-        (true, _) => (Some(inst.data_value.unwrap()), inst.add_data_to),
-        (_, Some(mod_rm_data)) => {
-            let ea = get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file);
-            (ea, inst.add_mod_rm_mem_to)
-        }
-        _ => (None, None),
+/// Get the source and memory addresses for this instruction (if any)
+fn get_inst_mem_addrs(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Option<u16>) {
+    let (mut mem_addr_src, mut mem_addr_dst) = (None, None);
+
+    match (inst.mem_access, inst.add_data_to) {
+        (true, Some(AddTo::Source)) => mem_addr_src = inst.data_value,
+        (true, Some(AddTo::Dest)) => mem_addr_dst = inst.data_value,
+        _ => {}
     }
+
+    // Consolidate parts of the inst into a single memory address
+    let ea = match inst.mod_rm_data {
+        Some(mod_rm_data) => get_effective_addr(mod_rm_data, inst.disp_value, &state.reg_file),
+        _ => None,
+    };
+
+    match (ea, inst.add_mod_rm_mem_to) {
+        (Some(_), Some(AddTo::Source)) => {
+            if mem_addr_src.is_some() {
+                unreachable!("Src mem addr was already set! Something is wrong...")
+            }
+            mem_addr_src = ea
+        }
+        (Some(_), Some(AddTo::Dest)) => {
+            if mem_addr_dst.is_some() {
+                unreachable!("Dest mem addr was already set! Something is wrong...")
+            }
+            mem_addr_dst = ea
+        }
+        _ => {}
+    }
+
+    (mem_addr_src, mem_addr_dst)
 }
 
 /// Convert the mod_rm and displacement bytes into a memory address (the single
