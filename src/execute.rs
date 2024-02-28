@@ -342,6 +342,16 @@ pub fn execute(
                     shift_count = Some(bit_shift_cnt);
                     result
                 }
+                OpCodeType::Push => {
+                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
+                    // Now increment SP by 2
+                    let sp_val = match state.reg_file.get(&RegName::Sp) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, sp_val - 2).unwrap_or(0);
+                    new_val
+                }
                 _ => {
                     println!("inst debug: {:#?}", inst);
                     unimplemented!(
