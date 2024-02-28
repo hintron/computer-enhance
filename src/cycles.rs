@@ -87,7 +87,12 @@ pub fn calculate_8086_unaligned_access(
 ) -> u64 {
     // If an instruction has a mem addr, it should also have transfers. If not,
     // then the transfers value was probably not set properly.
-    assert!(mem_addr.is_some() == (transfers > 0));
+    if (transfers > 0) && mem_addr.is_none() {
+        unimplemented!("This instruction has no mem_addr set, yet it has mem transfers!")
+    };
+    if (transfers == 0) && mem_addr.is_some() {
+        unimplemented!("This instruction has no mem transfers, yet mem_addr is set!")
+    };
     if transfers == 0 {
         return 0;
     }
