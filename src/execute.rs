@@ -115,13 +115,13 @@ pub fn init_state(init_ip: Option<u16>) -> CpuStateType {
     }
 }
 
-/// An enum representing either an immediate, an address, or a register.
-/// Note: an immediate value can't be a dest, so always assume that the data
-/// bytes for a destination are always for an address.
-enum Target {
+/// An enum representing where to place the destination value in.
+enum DestTarget {
+    /// Store the result at the given memory address
     MemAddress(usize),
+    /// Store the result in the given register
     RegisterName(RegName),
-    /// No target - don't store the result at dest or load from this source.
+    /// No target - don't store the result.
     None,
 }
 
@@ -231,7 +231,7 @@ pub fn execute(
         | OpCodeType::Jb
         | OpCodeType::Jp) => {
             new_val = None;
-            dest_target = Target::None;
+            dest_target = DestTarget::None;
             jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
@@ -239,7 +239,7 @@ pub fn execute(
             // Decrement cx by 1 and jump if cx != 0
             let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
             new_val = Some(cx);
-            dest_target = Target::RegisterName(RegName::Cx);
+            dest_target = DestTarget::RegisterName(RegName::Cx);
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
@@ -323,7 +323,7 @@ pub fn execute(
 
             // CMP and TEST do not store the result
             match op {
-                OpCodeType::Cmp | OpCodeType::Test => dest_target = Target::None,
+                OpCodeType::Cmp | OpCodeType::Test => dest_target = DestTarget::None,
                 _ => {}
             }
 
@@ -393,18 +393,18 @@ pub fn execute(
 
     // Store the new value somewhere
     match (dest_target, new_val) {
-        (Target::RegisterName(reg_name), Some(new_val)) => {
+        (DestTarget::RegisterName(reg_name), Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(reg_name, new_val).unwrap_or(0);
             if old_val != new_val {
                 effect.push_str(&format!(" {}:0x{:x}->0x{:x}", reg_name, old_val, new_val));
             }
         }
-        (Target::MemAddress(addr), Some(new_val)) => {
+        (DestTarget::MemAddress(addr), Some(new_val)) => {
             store_u16_in_mem(&mut state.memory, addr, new_val);
             // Don't print out memory changes (yet)
         }
-        (Target::None, _) => {} // Nothing is stored back into destination
+        (DestTarget::None, _) => {} // Nothing is stored back into destination
         _ => {}
     }
 
@@ -496,7 +496,11 @@ fn get_source_val(
 }
 
 /// Get the final destination value for most instructions
-fn get_dest_val(inst: &InstType, state: &CpuStateType, mem_addr_dst: Option<u16>) -> (u16, Target) {
+fn get_dest_val(
+    inst: &InstType,
+    state: &CpuStateType,
+    mem_addr_dst: Option<u16>,
+) -> (u16, DestTarget) {
     // Get the op's destination reg and its current value
     match (inst.dest_reg, mem_addr_dst) {
         (Some(dest_reg), None) => {
@@ -507,12 +511,12 @@ fn get_dest_val(inst: &InstType, state: &CpuStateType, mem_addr_dst: Option<u16>
                 Some(x) => *x,
                 None => 0,
             };
-            let dest_target = Target::RegisterName(dest_reg.name);
+            let dest_target = DestTarget::RegisterName(dest_reg.name);
             (dest_val, dest_target)
         }
         (_, Some(address)) => {
             println!("Dest is mem addr!");
-            let dest_target = Target::MemAddress(address as usize);
+            let dest_target = DestTarget::MemAddress(address as usize);
             let dest_val = load_u16_from_mem(&state.memory, address);
             (dest_val, dest_target)
         }
