@@ -185,6 +185,7 @@ pub fn execute(
     let current_ip = state.ip;
     let mut jumped = false;
     let mut shift_count = None;
+    let mut old_sp = None;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -338,6 +339,26 @@ pub fn execute(
                     }
                     let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
                     new_val
+                }
+                OpCodeType::Call => {
+                    // pgs. 2-43 - 2-44
+                    // Decrement SP by 2
+                    let sp_val = match state.reg_file.get(&RegName::Sp) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    let (new_sp, overflowed) = sp_val.overflowing_sub(2);
+                    if overflowed {
+                        println!("Stack overflow! new_sp: {new_sp}")
+                    }
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+                    // Tack on the IP change to the instruction effect string
+                    effect.push_str(&format!(" sp:0x{:x}->0x{:x}", current_ip, state.ip));
+                    // Push current IP onto the stack
+                    // Change current IP to call target
+                    if sp_val != 0 {
+                        jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
+                    }
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
