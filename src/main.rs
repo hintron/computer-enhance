@@ -36,6 +36,8 @@ struct ArgsType {
     stop_on_ret: bool,
     /// The value to initially set the IP register to
     init_ip: Option<u16>,
+    /// The value to initially set the SP register to
+    init_sp: Option<u16>,
     /// If true, graphically display final memory contents in a window
     display_window: bool,
 }
@@ -48,6 +50,8 @@ enum ArgType {
     NoValue,
     /// Get a value for the initial IP.
     InitIp,
+    /// Get a value for the initial SP.
+    InitSp,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -83,6 +87,8 @@ Options:
 -i|--initial-ip <value> : If specified, set the instruction pointer to begin with
 this value.
 
+-i|--initial-sp <value> : If specified, initialize the stack pointer to this value.
+
 --display-window : If specified, graphically display final memory contents in a
                    window.
 ";
@@ -105,8 +111,8 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
                 bail!("Unsupported value for -c|--model-cycles: {arg}")
             }
         }
-        ArgType::InitIp => {
-            let init_ip = if arg.starts_with("0x") || arg.starts_with("0X") {
+        ArgType::InitIp | ArgType::InitSp => {
+            let val = if arg.starts_with("0x") || arg.starts_with("0X") {
                 println!("Parsing {arg} as hex, skipping initial 0x");
                 u16::from_str_radix(&arg[2..], 16)?
             } else if arg.ends_with("h") || arg.ends_with("H") {
@@ -116,8 +122,13 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
                 println!("Parsing {arg} as decimal");
                 arg.parse()?
             };
-            println!("Initializing IP to {init_ip} ({init_ip:x})");
-            parsed_args.init_ip = Some(init_ip);
+            if *arg_type == ArgType::InitIp {
+                println!("Initializing IP to {val} ({val:x})");
+                parsed_args.init_ip = Some(val);
+            } else {
+                println!("Initializing SP to {val} ({val:x})");
+                parsed_args.init_sp = Some(val);
+            }
         }
     };
     Ok(())
@@ -152,6 +163,8 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-i") || arg.starts_with("--initial-ip") {
         Ok(ArgType::InitIp)
+    } else if arg.starts_with("-s") || arg.starts_with("--initial-sp") {
+        Ok(ArgType::InitSp)
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
         Ok(ArgType::NoValue)
@@ -262,6 +275,7 @@ fn main() -> Result<()> {
             cycle_model: args.cycle_type,
             stop_on_ret: args.stop_on_ret,
             init_ip: args.init_ip,
+            init_sp: args.init_sp,
         };
         let (text_lines, mut cpu_state) =
             decode_execute(program_bytes, &decode_settings, &execute_settings);

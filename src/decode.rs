@@ -500,6 +500,7 @@ pub struct DecodeSettings {
 /// Execution-specific settings
 pub struct ExecuteSettings {
     pub init_ip: Option<u16>,
+    pub init_sp: Option<u16>,
     pub no_ip: bool,
     pub cycle_model: Option<CpuType>,
     pub stop_on_ret: bool,
@@ -640,7 +641,7 @@ pub fn decode_execute(
     exec_settings: &ExecuteSettings,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
-    let mut cpu_state = init_state(exec_settings.init_ip);
+    let mut cpu_state = init_state(exec_settings.init_ip, exec_settings.init_sp);
 
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip
