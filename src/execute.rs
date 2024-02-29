@@ -277,42 +277,8 @@ pub fn execute(
                 }
             };
 
-            // Get the op's source val either from a source reg or an immediate
-            let (source_val, source_width) = match (
-                inst.source_reg,
-                mem_addr_src,
-                inst.add_data_to,
-                inst.source_hardcoded,
-            ) {
-                // Handle source reg to dest reg
-                (Some(source_reg), _, _, _) => {
-                    // Get the value of the source register
-                    let source_val = match state.reg_file.get(&source_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    (source_val, source_reg.width)
-                }
-                (_, Some(address), _, _) => {
-                    let source_val = load_u16_from_mem(&state.memory, address);
-                    let source_width = transfer_width;
-                    (source_val, source_width)
-                }
-                (_, _, Some(AddTo::Source), _) => {
-                    // Use data as an immediate source value
-                    let source_width = transfer_width;
-                    (inst.data_value.unwrap(), source_width)
-                }
-                (_, _, _, Some(source_hardcoded_val)) => {
-                    // Use the hardcoded source value
-                    (source_hardcoded_val, transfer_width)
-                }
-                _ => {
-                    // No source is found!
-                    println!("inst debug: {:#?}", inst);
-                    unimplemented!("{op} has no source: `{}`", inst.text.as_ref().unwrap());
-                }
-            };
+            let (source_val, source_width) =
+                get_source_val(inst, state, mem_addr_src, transfer_width);
 
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
@@ -444,6 +410,55 @@ pub fn execute(
     }
 
     return (effect, false);
+}
+
+/// Get the final source value for most instructions
+fn get_source_val(
+    inst: &InstType,
+    state: &CpuStateType,
+    mem_addr_src: Option<u16>,
+    transfer_width: WidthType,
+) -> (u16, WidthType) {
+    // Get the op's source val either from a source reg or an immediate
+    match (
+        inst.source_reg,
+        mem_addr_src,
+        inst.add_data_to,
+        inst.source_hardcoded,
+    ) {
+        // Handle source reg to dest reg
+        (Some(source_reg), _, _, _) => {
+            // Get the value of the source register
+            let source_val = match state.reg_file.get(&source_reg.name) {
+                Some(x) => *x,
+                None => 0,
+            };
+            (source_val, source_reg.width)
+        }
+        (_, Some(address), _, _) => {
+            let source_val = load_u16_from_mem(&state.memory, address);
+            let source_width = transfer_width;
+            (source_val, source_width)
+        }
+        (_, _, Some(AddTo::Source), _) => {
+            // Use data as an immediate source value
+            let source_width = transfer_width;
+            (inst.data_value.unwrap(), source_width)
+        }
+        (_, _, _, Some(source_hardcoded_val)) => {
+            // Use the hardcoded source value
+            (source_hardcoded_val, transfer_width)
+        }
+        _ => {
+            // No source is found!
+            println!("inst debug: {:#?}", inst);
+            unimplemented!(
+                "{:?} has no source: `{}`",
+                inst.op_type,
+                inst.text.as_ref().unwrap()
+            );
+        }
+    }
 }
 
 /// Determine if this byte should have the parity flag set
