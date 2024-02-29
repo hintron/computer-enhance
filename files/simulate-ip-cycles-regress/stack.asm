@@ -14,3 +14,12 @@ mov cx, 7
 pop cx
 pop bx
 pop ax
+mov dx, -1
+add dx, 1
+pushf
+add dx, 1
+add dx, 255
+pushf
+add dx, 1
+popf
+popf
