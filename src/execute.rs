@@ -183,14 +183,16 @@ pub fn execute(
     // transfer is for this instruction
     let dest_width = match (
         inst.dest_reg,
+        inst.dest_reg_mem_access,
         inst.dest_width,
         inst.source_reg,
+        inst.source_reg_mem_access,
         inst.source_width,
     ) {
-        (Some(dest_reg), _, _, _) => Some(dest_reg.width),
-        (_, Some(dest_width), _, _) => Some(dest_width),
-        (_, _, Some(source_reg), _) => Some(source_reg.width),
-        (_, _, _, Some(source_width)) => Some(source_width),
+        (Some(dest_reg), false, _, _, _, _) => Some(dest_reg.width),
+        (_, _, Some(dest_width), _, _, _) => Some(dest_width),
+        (_, _, _, Some(source_reg), false, _) => Some(source_reg.width),
+        (_, _, _, _, _, Some(source_width)) => Some(source_width),
         _ => None,
     };
 
@@ -257,7 +259,8 @@ pub fn execute(
 
             // Get the op's destination reg and its current value
             match (inst.dest_reg, mem_addr_dst) {
-                (Some(dest_reg), _) => {
+                (Some(dest_reg), None) => {
+                    println!("Dest is reg!");
                     // Note: This also currently covers ModRmDataType::Reg(_)
                     // Get the value of the dest register
                     dest_val = match state.reg_file.get(&dest_reg.name) {
@@ -267,6 +270,7 @@ pub fn execute(
                     dest_target = Target::RegisterName(dest_reg.name);
                 }
                 (_, Some(address)) => {
+                    println!("Dest is mem addr!");
                     dest_target = Target::MemAddress(address as usize);
                     dest_val = load_u16_from_mem(&state.memory, address);
                 }
@@ -284,6 +288,13 @@ pub fn execute(
                 inst.add_data_to,
                 inst.source_hardcoded,
             ) {
+                (_, Some(address), _, _) => {
+                    // MGH TODO: On a pop, we need to first increment SP, *then*
+                    // get value that SP points at
+                    let source_val = load_u16_from_mem(&state.memory, address);
+                    let source_width = transfer_width;
+                    (source_val, source_width)
+                }
                 // Handle source reg to dest reg
                 (Some(source_reg), _, _, _) => {
                     // Get the value of the source register
@@ -292,11 +303,6 @@ pub fn execute(
                         None => 0,
                     };
                     (source_val, source_reg.width)
-                }
-                (_, Some(address), _, _) => {
-                    let source_val = load_u16_from_mem(&state.memory, address);
-                    let source_width = transfer_width;
-                    (source_val, source_width)
                 }
                 (_, _, Some(AddTo::Source), _) => {
                     // Use data as an immediate source value
@@ -344,12 +350,31 @@ pub fn execute(
                 }
                 OpCodeType::Push => {
                     let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
-                    // Now increment SP by 2
+                    // Now decrement SP by 2
                     let sp_val = match state.reg_file.get(&RegName::Sp) {
                         Some(x) => *x,
                         None => 0,
                     };
-                    let _old_sp_val = state.reg_file.insert(RegName::Sp, sp_val - 2).unwrap_or(0);
+                    let (new_sp, overflowed) = sp_val.overflowing_sub(2);
+                    if overflowed {
+                        println!("Stack overflow! new_sp: {new_sp}")
+                    }
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+                    new_val
+                }
+                OpCodeType::Pop => {
+                    // Increment SP by 2
+                    let sp_val = match state.reg_file.get(&RegName::Sp) {
+                        Some(x) => *x,
+                        None => 0,
+                    };
+                    let (new_sp, overflowed) = sp_val.overflowing_add(2);
+                    if overflowed {
+                        println!("Stack underflow! new_sp: {new_sp}")
+                    }
+                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+                    // Now move from stack to reg
+                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
                     new_val
                 }
                 _ => {
@@ -369,9 +394,16 @@ pub fn execute(
                 _ => {}
             }
 
-            // MOV does not modify flags, but the others do
-            if op != OpCodeType::Mov {
-                modify_flags = true;
+            // Some insts should not modify flags
+            match op {
+                OpCodeType::Mov
+                | OpCodeType::Push
+                | OpCodeType::Pushf
+                | OpCodeType::Pop
+                | OpCodeType::Popf => {}
+                _ => {
+                    modify_flags = true;
+                }
             }
         }
     }
@@ -494,6 +526,21 @@ fn get_inst_mem_addrs(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Op
                 unreachable!("Dest mem addr was already set! Something is wrong...")
             }
             mem_addr_dst = ea
+        }
+        _ => {}
+    }
+
+    // src reg indirect mem access
+    match (inst.source_reg, inst.source_reg_mem_access) {
+        (Some(reg), true) => {
+            mem_addr_src = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
+        }
+        _ => {}
+    }
+    // dest reg indirect mem access
+    match (inst.dest_reg, inst.dest_reg_mem_access) {
+        (Some(reg), true) => {
+            mem_addr_dst = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
         }
         _ => {}
     }

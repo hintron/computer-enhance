@@ -583,6 +583,9 @@ pub struct InstType {
     pub source_reg: Option<RegType>,
     /// If true, don't show up the source reg when printing the inst.
     pub source_reg_implicit: bool,
+    /// If true, then the value in source_reg is used as a memory address for
+    /// the actual source value.
+    pub source_reg_mem_access: bool,
     /// Explicitly indicate the source width. Needed when coming from memory.
     pub source_width: Option<WidthType>,
     /// The value of the source operand, if it's a hardcoded value
@@ -593,6 +596,9 @@ pub struct InstType {
     pub dest_reg: Option<RegType>,
     /// If true, don't show the dest_reg when printing the inst.
     pub dest_reg_implicit: bool,
+    /// If true, then the value in dest_reg is used as a memory address for
+    /// the actual dest value.
+    pub dest_reg_mem_access: bool,
     /// Explicitly indicate the destination width. Needed when going to memory.
     pub dest_width: Option<WidthType>,
     /// The final instruction representation
@@ -1304,6 +1310,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.dest_reg_implicit = true;
+            inst.dest_reg_mem_access = true;
             inst.operands_type = Some(OperandsType::Reg16);
         }
         // push - segment register - 0x06,0x0E,0x16,0x1E
@@ -1317,6 +1324,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.dest_reg_implicit = true;
+            inst.dest_reg_mem_access = true;
             inst.operands_type = Some(OperandsType::Seg);
         }
         // pop - Register/memory
@@ -1328,6 +1336,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.source_reg_implicit = true;
+            inst.source_reg_mem_access = true;
         }
         // pop - Register
         0x58..=0x5F => {
@@ -1341,6 +1350,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.source_reg_implicit = true;
+            inst.source_reg_mem_access = true;
+            inst.operands_type = Some(OperandsType::Reg16);
         }
         // pop - segment register - 0x07,~0x0F~,0x17,0x1F
         // pop CS (0x0f) is apparently not a thing in 8086
@@ -1354,6 +1365,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.source_reg_implicit = true;
+            inst.source_reg_mem_access = true;
+            inst.operands_type = Some(OperandsType::Reg16);
         }
         // xchg - Reg/memory with register
         0x86..=0x87 => {
@@ -1470,6 +1483,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.dest_reg_implicit = true;
+            inst.dest_reg_mem_access = true;
         }
         // popf - Pop flags
         0x9D => {
@@ -1479,6 +1493,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 width: WidthType::Word,
             });
             inst.source_reg_implicit = true;
+            inst.source_reg_mem_access = true;
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
@@ -1941,10 +1956,21 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 _ => unimplemented!(),
             }
         }
-        Some(ModRmByteType::ModPopRm) => match mode {
-            ModType::RegisterMode => {}
-            _ => inst.dest_width = Some(WidthType::Word),
-        },
+        Some(ModRmByteType::ModPopRm) => {
+            match mode {
+                ModType::RegisterMode => {}
+                _ => inst.dest_width = Some(WidthType::Word),
+            }
+            match mode {
+                // We know the size if Register Mode
+                ModType::RegisterMode => {
+                    inst.operands_type = Some(OperandsType::Reg16);
+                }
+                _ => {
+                    inst.operands_type = Some(OperandsType::Mem);
+                }
+            }
+        }
         // Similar to ModRegRm
         Some(ModRmByteType::ModSrRm) => {
             let sr_reg = decode_sr_field((byte & 0b00011000) >> 3);
