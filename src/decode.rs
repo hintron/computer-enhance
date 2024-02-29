@@ -944,7 +944,11 @@ fn build_inst_string(inst: &InstType) -> String {
     if inst.op_type_suffix.is_some() {
         inst_text.push_str(inst.op_type_suffix.unwrap());
     }
-    inst_text.push(' ');
+
+    if !dest_text.is_empty() || !source_text.is_empty() {
+        inst_text.push(' ');
+    }
+
     /////////////////////////////////////////////////////////
     // Destination
     /////////////////////////////////////////////////////////
