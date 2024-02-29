@@ -267,7 +267,11 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match op {
-                OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
+                OpCodeType::Mov | OpCodeType::Pop => {
+                    // NOTE: Pop already decremented SP in operand_pre_work(),
+                    // so all that is left is a move.
+                    execute_mov(dest_val, source_val, dest_width, source_width)
+                }
                 op @ (OpCodeType::Add | OpCodeType::Sub | OpCodeType::Cmp) => {
                     let (result, overflowed, carry, aux_carry) =
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
@@ -304,11 +308,6 @@ pub fn execute(
                         println!("Stack overflow! new_sp: {new_sp}")
                     }
                     let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
-                    new_val
-                }
-                OpCodeType::Pop => {
-                    // Now move from stack to reg
-                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
                     new_val
                 }
                 _ => {
