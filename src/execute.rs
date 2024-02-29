@@ -116,11 +116,14 @@ pub fn init_state(init_ip: Option<u16>) -> CpuStateType {
 }
 
 /// An enum representing where to place the destination value in.
+#[derive(Eq, PartialEq)]
 enum DestTarget {
     /// Store the result at the given memory address
     MemAddress(usize),
     /// Store the result in the given register
     RegisterName(RegName),
+    /// Store the result in the flags register
+    FlagsReg,
     /// No target - don't store the result.
     None,
 }
@@ -183,8 +186,8 @@ pub fn execute(
 
     match op_type {
         // By decrementing SP before processing src and dst operands, we can
-        // convert push into a simple mov
-        OpCodeType::Push => {
+        // convert push[f] into a simple mov
+        OpCodeType::Push | OpCodeType::Pushf => {
             (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
         }
         _ => {}
@@ -270,7 +273,7 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match op {
-                OpCodeType::Mov | OpCodeType::Push => {
+                OpCodeType::Mov | OpCodeType::Push | OpCodeType::Pushf => {
                     // NOTE: Push already decremented SP in decrement_sp(),
                     // so all that is left is a move.
                     execute_mov(dest_val, source_val, dest_width, source_width)
@@ -299,7 +302,7 @@ pub fn execute(
                     shift_count = Some(bit_shift_cnt);
                     result
                 }
-                OpCodeType::Pop => {
+                OpCodeType::Pop | OpCodeType::Popf => {
                     let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
                     (old_sp, new_sp) = increment_sp(&mut state.reg_file);
                     new_val
@@ -386,17 +389,20 @@ pub fn execute(
     }
 
     // Store the new value somewhere
-    match (dest_target, new_val) {
+    match (&dest_target, new_val) {
         (DestTarget::RegisterName(reg_name), Some(new_val)) => {
             // Store new val in the dest register
-            let old_val = state.reg_file.insert(reg_name, new_val).unwrap_or(0);
+            let old_val = state.reg_file.insert(*reg_name, new_val).unwrap_or(0);
             if old_val != new_val {
                 effect.push_str(&format!(" {}:0x{:x}->0x{:x}", reg_name, old_val, new_val));
             }
         }
         (DestTarget::MemAddress(addr), Some(new_val)) => {
-            store_u16_in_mem(&mut state.memory, addr, new_val);
+            store_u16_in_mem(&mut state.memory, *addr, new_val);
             // Don't print out memory changes (yet)
+        }
+        (DestTarget::FlagsReg, Some(new_val)) => {
+            state.flags_reg = u16_to_flags(new_val);
         }
         (DestTarget::None, _) => {} // Nothing is stored back into destination
         _ => {}
@@ -415,7 +421,7 @@ pub fn execute(
     }
 
     // Print change in flags register, if needed
-    if modify_flags && (old_flags != state.flags_reg) {
+    if (modify_flags || dest_target == DestTarget::FlagsReg) && (old_flags != state.flags_reg) {
         effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
 
@@ -492,13 +498,18 @@ fn get_source_val(
             (source_hardcoded_val, transfer_width)
         }
         _ => {
-            // No source is found!
-            println!("inst debug: {:#?}", inst);
-            unimplemented!(
-                "{:?} has no source: `{}`",
-                inst.op_type,
-                inst.text.as_ref().unwrap()
-            );
+            // Handle any other special sources
+            match inst.op_type {
+                Some(OpCodeType::Pushf) => (flags_to_u16(&state.flags_reg), WidthType::Word),
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!(
+                        "{:?} has no source: `{}`",
+                        inst.op_type,
+                        inst.text.as_ref().unwrap()
+                    );
+                }
+            }
         }
     }
 }
@@ -530,13 +541,47 @@ fn get_dest_val(
         }
         // Immediate values can't be a destination
         _ => {
-            println!("inst debug: {:#?}", inst);
-            unimplemented!(
-                "{:?} has no dest: `{}`",
-                inst.op_type,
-                inst.text.as_ref().unwrap()
-            )
+            // Handle any other special destinations
+            match inst.op_type {
+                Some(OpCodeType::Popf) => (flags_to_u16(&state.flags_reg), DestTarget::FlagsReg),
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!(
+                        "{:?} has no dest: `{}`",
+                        inst.op_type,
+                        inst.text.as_ref().unwrap()
+                    )
+                }
+            }
         }
+    }
+}
+
+/// Convert the flags reg into a single u16 value
+fn flags_to_u16(flags_reg: &FlagsRegType) -> u16 {
+    ((flags_reg.carry as u16) << 0)
+        | ((flags_reg.parity as u16) << 2)
+        | ((flags_reg.auxiliary_carry as u16) << 4)
+        | ((flags_reg.zero as u16) << 6)
+        | ((flags_reg.sign as u16) << 7)
+        | ((flags_reg.trap as u16) << 8)
+        | ((flags_reg.interrupt_enable as u16) << 9)
+        | ((flags_reg.direction as u16) << 10)
+        | ((flags_reg.overflow as u16) << 11)
+}
+
+/// Convert a u16 into a FlagsRegType
+fn u16_to_flags(flags_reg_val: u16) -> FlagsRegType {
+    FlagsRegType {
+        carry: (flags_reg_val & (0x1 << 0)) != 0,
+        parity: (flags_reg_val & (0x1 << 2)) != 0,
+        auxiliary_carry: (flags_reg_val & (0x1 << 4)) != 0,
+        zero: (flags_reg_val & (0x1 << 6)) != 0,
+        sign: (flags_reg_val & (0x1 << 7)) != 0,
+        trap: (flags_reg_val & (0x1 << 8)) != 0,
+        interrupt_enable: (flags_reg_val & (0x1 << 9)) != 0,
+        direction: (flags_reg_val & (0x1 << 10)) != 0,
+        overflow: (flags_reg_val & (0x1 << 11)) != 0,
     }
 }
 

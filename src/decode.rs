@@ -1482,6 +1482,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // pushf - Push flags
         0x9C => {
             inst.op_type = Some(OpCodeType::Pushf);
+            // Flags reg source is implicit
             inst.dest_reg = Some(RegType {
                 name: RegName::Sp,
                 width: WidthType::Word,
@@ -1498,6 +1499,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             });
             inst.source_reg_implicit = true;
             inst.source_reg_mem_access = true;
+            // Flags reg dest is implicit
         }
         // sub - Reg/memory and register to either
         0x28..=0x2B => {
