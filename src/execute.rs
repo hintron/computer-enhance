@@ -253,29 +253,9 @@ pub fn execute(
                     "op '{op}': No dest reg, dest width, source reg, or source width"
                 ),
             };
-            let dest_val;
 
-            // Get the op's destination reg and its current value
-            match (inst.dest_reg, mem_addr_dst) {
-                (Some(dest_reg), _) => {
-                    // Note: This also currently covers ModRmDataType::Reg(_)
-                    // Get the value of the dest register
-                    dest_val = match state.reg_file.get(&dest_reg.name) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    dest_target = Target::RegisterName(dest_reg.name);
-                }
-                (_, Some(address)) => {
-                    dest_target = Target::MemAddress(address as usize);
-                    dest_val = load_u16_from_mem(&state.memory, address);
-                }
-                // Immediate values can't be a destination
-                _ => {
-                    println!("inst debug: {:#?}", inst);
-                    unimplemented!("{op} has no dest: `{}`", inst.text.as_ref().unwrap())
-                }
-            };
+            let (dest_val, dest_val_target) = get_dest_val(inst, state, mem_addr_dst);
+            dest_target = dest_val_target;
 
             let (source_val, source_width) =
                 get_source_val(inst, state, mem_addr_src, transfer_width);
@@ -457,6 +437,37 @@ fn get_source_val(
                 inst.op_type,
                 inst.text.as_ref().unwrap()
             );
+        }
+    }
+}
+
+/// Get the final destination value for most instructions
+fn get_dest_val(inst: &InstType, state: &CpuStateType, mem_addr_dst: Option<u16>) -> (u16, Target) {
+    // Get the op's destination reg and its current value
+    match (inst.dest_reg, mem_addr_dst) {
+        (Some(dest_reg), _) => {
+            // Note: This also currently covers ModRmDataType::Reg(_)
+            // Get the value of the dest register
+            let dest_val = match state.reg_file.get(&dest_reg.name) {
+                Some(x) => *x,
+                None => 0,
+            };
+            let dest_target = Target::RegisterName(dest_reg.name);
+            (dest_val, dest_target)
+        }
+        (_, Some(address)) => {
+            let dest_target = Target::MemAddress(address as usize);
+            let dest_val = load_u16_from_mem(&state.memory, address);
+            (dest_val, dest_target)
+        }
+        // Immediate values can't be a destination
+        _ => {
+            println!("inst debug: {:#?}", inst);
+            unimplemented!(
+                "{:?} has no dest: `{}`",
+                inst.op_type,
+                inst.text.as_ref().unwrap()
+            )
         }
     }
 }
