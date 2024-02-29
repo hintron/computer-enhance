@@ -102,17 +102,27 @@ impl fmt::Display for FlagsRegType {
     }
 }
 
-pub fn init_state(init_ip: Option<u16>) -> CpuStateType {
+pub fn init_state(init_ip: Option<u16>, init_sp: Option<u16>) -> CpuStateType {
     let ip = match init_ip {
         Some(x) => x,
         None => 0,
     };
-    CpuStateType {
+    let mut state = CpuStateType {
         // Initialize the memory array to 1 MB
         memory: vec![0; MEMORY_SIZE],
         ip: ip,
         ..Default::default()
-    }
+    };
+
+    // Initialize register values, as needed
+    match init_sp {
+        Some(sp) => {
+            state.reg_file.insert(RegName::Sp, sp);
+        }
+        _ => {}
+    };
+
+    state
 }
 
 /// An enum representing where to place the destination value in.
