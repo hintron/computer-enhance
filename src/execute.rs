@@ -273,7 +273,6 @@ pub fn execute(
             // bytes of the dest register to replace
             new_val = Some(match op {
                 OpCodeType::Mov | OpCodeType::Pop | OpCodeType::Popf => {
-                    // MGH TODO: Get popf working
                     // NOTE: Pop already decremented SP in operand_pre_work(),
                     // so all that is left is a move.
                     execute_mov(dest_val, source_val, dest_width, source_width)
