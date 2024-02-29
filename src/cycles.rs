@@ -31,6 +31,8 @@ pub enum OperandsType {
     Mem,
     MemPtr16,
     MemPtr32,
+    NearProc,
+    FarProc,
 }
 
 /// Now that the instruction is all decoded, fill in clock information
@@ -279,6 +281,27 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             ),
             Some(OperandsType::AccImm),
         ) => inst.clocks_base = 4,
+        // Call
+        (Some(OpCodeType::Call), Some(OperandsType::NearProc)) => {
+            inst.clocks_base = 19;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::FarProc)) => {
+            inst.clocks_base = 28;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::MemPtr16)) => {
+            inst.clocks_base = 21;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 16;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::MemPtr32)) => {
+            inst.clocks_base = 37;
+            inst.transfers = 4;
+        }
         // Cmp
         (Some(OpCodeType::Cmp), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         (Some(OpCodeType::Cmp), Some(OperandsType::RegMem)) => {
