@@ -179,6 +179,8 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    operand_pre_work(op_type, &mut state.reg_file);
+
     // Figure out destination width, which will dictate how wide the data
     // transfer is for this instruction
     let dest_width = match (
@@ -305,16 +307,6 @@ pub fn execute(
                     new_val
                 }
                 OpCodeType::Pop => {
-                    // Increment SP by 2
-                    let sp_val = match state.reg_file.get(&RegName::Sp) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    let (new_sp, overflowed) = sp_val.overflowing_add(2);
-                    if overflowed {
-                        println!("Stack underflow! new_sp: {new_sp}")
-                    }
-                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
                     // Now move from stack to reg
                     let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
                     new_val
@@ -428,6 +420,29 @@ pub fn execute(
     }
 
     return (effect, false);
+}
+
+/// Pre-work *before* getting operands, like incrementing SP for Pop
+fn operand_pre_work(op: OpCodeType, reg_file: &mut BTreeMap<RegName, u16>) {
+    match op {
+        // By incrementing SP before getting operands, we can turn Pop[f] into a
+        // simple mov.
+        OpCodeType::Pop | OpCodeType::Popf => {
+            // Increment SP by 2, so next load from SP gets correct value
+            let sp_val = match reg_file.get(&RegName::Sp) {
+                Some(x) => *x,
+                None => 0,
+            };
+            let (new_sp, overflowed) = sp_val.overflowing_add(2);
+            println!("Incrementing SP by 2: {sp_val} -> {new_sp}");
+            if overflowed {
+                println!("Stack underflow! new_sp: {new_sp}")
+            }
+            let _old_sp_val = reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+            println!("Old val: {_old_sp_val}");
+        }
+        _ => {}
+    }
 }
 
 /// Get the final source value for most instructions
