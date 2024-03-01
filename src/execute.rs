@@ -258,7 +258,7 @@ pub fn execute(
         | OpCodeType::Jb
         | OpCodeType::Jp) => {
             new_val = None;
-            jumped = handle_jmp_variants(jump_op, inst, state, dest_val);
+            jumped = handle_jmp_variants(jump_op, state, dest_val);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -269,7 +269,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, inst, state, dest_val);
+                jumped = handle_jmp_variants(jump_op, state, dest_val);
             }
         }
         OpCodeType::Ret => {
@@ -743,7 +743,6 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
 /// CPU state. If the jump op jumped, then return true. Otherwise, return false.
 fn handle_jmp_variants(
     jump_op: OpCodeType,
-    inst: &InstType,
     state: &mut CpuStateType,
     dest_val: Option<u16>,
 ) -> bool {
@@ -753,13 +752,7 @@ fn handle_jmp_variants(
             // NOTE: i8 offset will be sign extended to i16 automatically
             jmp_value as i16
         }
-        _ => {
-            println!("inst debug: {:#?}", inst);
-            unimplemented!(
-                "Jump variant {jump_op} is missing a dest_val: {}",
-                inst.text.as_ref().unwrap()
-            );
-        }
+        _ => unimplemented!("Jump variant {jump_op} is missing a dest_val"),
     };
 
     println!("state.ip before: {}", state.ip);
@@ -777,10 +770,7 @@ fn handle_jmp_variants(
         OpCodeType::Loop => true, // Only cx != 0
         OpCodeType::Jp => state.flags_reg.parity,
         OpCodeType::Jmp => true,
-        x @ _ => {
-            println!("inst debug: {:#?}", inst);
-            unimplemented!("Unimplemented jump op {x} in handle_jmp_variants()")
-        }
+        x @ _ => unimplemented!("Unimplemented jump variant {x}"),
     };
     let overflowed = match jump {
         true => {
