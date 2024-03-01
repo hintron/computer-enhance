@@ -259,8 +259,7 @@ pub fn execute(
         | OpCodeType::Jb
         | OpCodeType::Jp) => {
             new_val = None;
-            dest_target = None;
-            jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
+            jumped = handle_jmp_variants(jump_op, inst, state, dest_val);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -271,7 +270,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
+                jumped = handle_jmp_variants(jump_op, inst, state, dest_val);
             }
         }
         OpCodeType::Ret => {
@@ -551,8 +550,8 @@ fn get_dest_val(
     mem_addr_dst: Option<u16>,
 ) -> (Option<u16>, Option<DestTarget>) {
     // Get the op's destination reg and its current value
-    match (inst.dest_reg, mem_addr_dst) {
-        (Some(dest_reg), None) => {
+    match (inst.dest_reg, mem_addr_dst, inst.jmp_value) {
+        (Some(dest_reg), None, _) => {
             println!("Dest is reg!");
             // Note: This also currently covers ModRmDataType::Reg(_)
             // Get the value of the dest register
@@ -563,11 +562,15 @@ fn get_dest_val(
             let dest_target = DestTarget::RegisterName(dest_reg.name);
             (Some(dest_val), Some(dest_target))
         }
-        (_, Some(address)) => {
+        (_, Some(address), _) => {
             println!("Dest is mem addr!");
             let dest_target = DestTarget::MemAddress(address as usize);
             let dest_val = load_u16_from_mem(&state.memory, address);
             (Some(dest_val), Some(dest_target))
+        }
+        (_, _, Some(jump_val)) => {
+            // Immediate values for jumps. No dest target
+            (Some(jump_val as u16), None)
         }
         // Immediate values can't be a destination
         _ => {
@@ -743,29 +746,18 @@ fn handle_jmp_variants(
     jump_op: OpCodeType,
     inst: &InstType,
     state: &mut CpuStateType,
-    mem_addr: Option<u16>,
+    dest_val: Option<u16>,
 ) -> bool {
-    let jmp_value = match (inst.jmp_value, mem_addr, inst.dest_reg) {
-        (Some(jmp_value), _, _) => {
-            println!("Immediate jump value");
-            jmp_value
-        }
-        (_, Some(addr), _) => {
-            // indirect jmps store their jmp value in memory at an address
-            let val = load_u16_from_mem(&state.memory, addr) as i16;
-            println!("Indirect jump value from memory: [{addr:x}] = {val}");
-            val
-        }
-        (_, _, Some(reg)) => {
-            // Get jump value from a reg
-            let val = state.reg_file.get(&reg.name).unwrap_or(&0);
-            println!("Indirect jump value from reg {reg}: {val}");
-            *val as i16
+    // Convert dest value into jump offset
+    let jmp_value = match dest_val {
+        Some(jmp_value) => {
+            // NOTE: i8 offset will be sign extended to i16 automatically
+            jmp_value as i16
         }
         _ => {
             println!("inst debug: {:#?}", inst);
             unimplemented!(
-                "Jump variant {jump_op} is missing a jmp_value or indirect addr: {}",
+                "Jump variant {jump_op} is missing a dest_val: {}",
                 inst.text.as_ref().unwrap()
             );
         }
