@@ -1275,11 +1275,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type = Some(OpCodeType::Jmp);
             inst.immediate_bytes.push(ImmBytesType::IpInc8);
         }
-        // call - Direct within segment
+        // call - Direct within segment (intrasegment/near)
         0xE8 => {
             inst.op_type = Some(OpCodeType::Call);
             inst.immediate_bytes.push(ImmBytesType::IpIncLo);
             inst.immediate_bytes.push(ImmBytesType::IpIncHi);
+            inst.operands_type = Some(OperandsType::NearProc)
         }
         // ret - Within segment
         0xC3 => {
@@ -1944,7 +1945,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                         inst.operands_type = Some(OperandsType::Reg8);
                     }
                 }
-                (OpCodeType::Jmp, _, _) => {
+                (OpCodeType::Jmp | OpCodeType::Call, _, _) => {
                     if is_intersegment {
                         inst.operands_type = Some(OperandsType::MemPtr32);
                     } else {
@@ -2486,7 +2487,7 @@ fn decode_grp1_op(bits: u8) -> (OpCodeType, bool) {
 
 /// Get the op code of an instruction starting with 0xFF. `bits` is the value
 /// of the middle 3 'op' bits in the second mod-op-r/m byte.
-/// Also, in the case of the two jmp instructions, return true if it's an
+/// Also, in the case of the jmp and call instructions, return true if it's an
 /// indirect intersegment, and false if it's indirect within segment
 /// (intrasegment).
 fn decode_grp2_op(bits: u8) -> (OpCodeType, bool) {
@@ -2494,7 +2495,7 @@ fn decode_grp2_op(bits: u8) -> (OpCodeType, bool) {
         0b000 => (OpCodeType::Inc, false),
         0b001 => (OpCodeType::Dec, false),
         0b010 => (OpCodeType::Call, false),
-        0b011 => (OpCodeType::Call, false),
+        0b011 => (OpCodeType::Call, true),
         0b100 => (OpCodeType::Jmp, false),
         0b101 => (OpCodeType::Jmp, true),
         0b110 => (OpCodeType::Push, false),

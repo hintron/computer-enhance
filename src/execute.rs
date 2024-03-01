@@ -186,6 +186,8 @@ pub fn execute(
     let mut shift_count = None;
     let mut old_sp = None;
     let mut new_sp = None;
+    // If true, this instruction accesses memory via the stack at this instruction
+    let mut stack_mem_addr = None;
     // If this instruction has a destination memory address, then marks two
     // transfers instead of one
     let mut double_mem_dest = false;
@@ -201,6 +203,13 @@ pub fn execute(
         // convert push[f] into a simple mov
         OpCodeType::Push | OpCodeType::Pushf => {
             (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
+            // Stack access is accounted for in dest_val
+        }
+        OpCodeType::Call => {
+            (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
+            // Account for implicit stack mem accesses, since dest_val is a jump
+            // target, not the stack addr
+            stack_mem_addr = new_sp;
         }
         _ => {}
     }
@@ -252,6 +261,7 @@ pub fn execute(
     inst.mem_access_word_unaligned = calculate_8086_unaligned_access(
         mem_addr_src,
         mem_addr_dst,
+        stack_mem_addr,
         double_mem_dest,
         transfer_width,
         inst.transfers,
@@ -294,6 +304,13 @@ pub fn execute(
             if cx != 0 {
                 jumped = handle_jmp_variants(jump_op, state, dest_val);
             }
+        }
+        OpCodeType::Call => {
+            new_val = None;
+            // Push current IP onto the stack (memory access)
+            stack_push(state.ip, &state.reg_file, &mut state.memory);
+            // Change current IP to call target
+            jumped = handle_jmp_variants(OpCodeType::Call, state, dest_val);
         }
         OpCodeType::Ret => {
             unimplemented!("The Ret instruction isn't yet implemented",);
@@ -482,6 +499,17 @@ pub fn execute(
     }
 
     return (effect, false);
+}
+
+// Push an item onto the stack (decrement of the stack is assumed to have
+// happened before this call).
+fn stack_push(val: u16, reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>) {
+    let sp_val = match reg_file.get(&RegName::Sp) {
+        Some(x) => *x,
+        None => 0,
+    };
+    store_u16_in_mem(memory, sp_val as usize, val);
+    println!("Push onto stack: {val:x} at addr {sp_val:x}");
 }
 
 /// Decrement SP by 2, then return the old and new SP values
@@ -793,6 +821,7 @@ fn handle_jmp_variants(
         OpCodeType::Loop => true, // Only cx != 0
         OpCodeType::Jp => state.flags_reg.parity,
         OpCodeType::Jmp => true,
+        OpCodeType::Call => true,
         x @ _ => unimplemented!("Unimplemented jump variant {x}"),
     };
     let overflowed = match jump {

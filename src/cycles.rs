@@ -31,6 +31,8 @@ pub enum OperandsType {
     Mem,
     MemPtr16,
     MemPtr32,
+    NearProc,
+    FarProc,
 }
 
 /// Now that the instruction is all decoded, fill in clock information
@@ -76,6 +78,8 @@ pub fn print_inst_clock_debug(inst: &InstType) {
 ///
 /// `mem_addr_src` and `mem_addr_dst` are the final memory addresses for the
 /// destination operand and source operand, if they exist.
+/// `stack_mem_addr` is the mem addr of the stack access, if it will happen and
+/// is not already accounted for by mem_addr_dst.
 /// `double_mem_dest` means that the dst mem addr is accessed twice, like for an
 /// `inc [addr]` or `add [addr], 1`.
 /// `transfers` is the number of times this instruction either loads or stores
@@ -87,16 +91,21 @@ pub fn print_inst_clock_debug(inst: &InstType) {
 pub fn calculate_8086_unaligned_access(
     mem_addr_src: Option<u16>,
     mem_addr_dst: Option<u16>,
+    stack_mem_addr: Option<u16>,
     double_mem_dest: bool,
     transfer_width: WidthType,
     transfers: u64,
 ) -> u64 {
     // If an instruction has a mem addr, it should also have transfers. If not,
     // then the transfers value was probably not set properly.
-    if (transfers > 0) && (mem_addr_src.is_none() && mem_addr_dst.is_none()) {
+    if (transfers > 0)
+        && (mem_addr_src.is_none() && mem_addr_dst.is_none() && stack_mem_addr.is_none())
+    {
         unimplemented!("This instruction has no mem_addr set, yet it has mem transfers!")
     };
-    if (transfers == 0) && (mem_addr_src.is_some() || mem_addr_dst.is_some()) {
+    if (transfers == 0)
+        && (mem_addr_src.is_some() || mem_addr_dst.is_some() || stack_mem_addr.is_some())
+    {
         unimplemented!("This instruction has no mem transfers, yet a mem_addr is set!")
     };
     if transfers == 0 {
@@ -128,6 +137,15 @@ pub fn calculate_8086_unaligned_access(
                 } else {
                     unaligned_accesses += 1;
                 }
+            }
+        }
+        _ => {}
+    }
+    match stack_mem_addr {
+        Some(addr) => {
+            estimated_transfers += 1;
+            if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
+                unaligned_accesses += 1;
             }
         }
         _ => {}
@@ -290,6 +308,27 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             ),
             Some(OperandsType::AccImm),
         ) => inst.clocks_base = 4,
+        // Call
+        (Some(OpCodeType::Call), Some(OperandsType::NearProc)) => {
+            inst.clocks_base = 19;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::FarProc)) => {
+            inst.clocks_base = 28;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::MemPtr16)) => {
+            inst.clocks_base = 21;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 16;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Call), Some(OperandsType::MemPtr32)) => {
+            inst.clocks_base = 37;
+            inst.transfers = 4;
+        }
         // Cmp
         (Some(OpCodeType::Cmp), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         (Some(OpCodeType::Cmp), Some(OperandsType::RegMem)) => {
