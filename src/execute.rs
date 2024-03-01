@@ -134,8 +134,6 @@ enum DestTarget {
     RegisterName(RegName),
     /// Store the result in the flags register
     FlagsReg,
-    /// No target - don't store the result.
-    None,
 }
 
 /// Execute the given instruction and modify the passed in CPU state. Return a
@@ -239,6 +237,11 @@ pub fn execute(
     // Print this instruction's clock debug info now that all clock data is set
     print_inst_clock_debug(inst);
 
+    let (dest_val, dest_val_target) = get_dest_val(inst, state, mem_addr_dst);
+    dest_target = dest_val_target;
+
+    let (source_val, source_width) = get_source_val(inst, state, mem_addr_src, transfer_width);
+
     // SUB/CMP: The source operand is subtracted from the destination operand,
     // and the result replaces the destination operand.
 
@@ -255,7 +258,7 @@ pub fn execute(
         | OpCodeType::Jb
         | OpCodeType::Jp) => {
             new_val = None;
-            dest_target = DestTarget::None;
+            dest_target = None;
             jumped = handle_jmp_variants(jump_op, inst, state, mem_addr_src);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
@@ -263,7 +266,7 @@ pub fn execute(
             // Decrement cx by 1 and jump if cx != 0
             let cx = state.reg_file.get(&RegName::Cx).unwrap() - 1;
             new_val = Some(cx);
-            dest_target = DestTarget::RegisterName(RegName::Cx);
+            dest_target = Some(DestTarget::RegisterName(RegName::Cx));
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
@@ -275,11 +278,30 @@ pub fn execute(
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
-            let (dest_val, dest_val_target) = get_dest_val(inst, state, mem_addr_dst);
-            dest_target = dest_val_target;
+            // These all expect source and destinations to be set
+            let dest_val = match dest_val {
+                Some(val) => val,
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!(
+                        "{} has no dest val: `{}`",
+                        op_type,
+                        inst.text.as_ref().unwrap()
+                    );
+                }
+            };
 
-            let (source_val, source_width) =
-                get_source_val(inst, state, mem_addr_src, transfer_width);
+            let (source_val, source_width) = match (source_val, source_width) {
+                (Some(val), Some(width)) => (val, width),
+                _ => {
+                    println!("inst debug: {:#?}", inst);
+                    unimplemented!(
+                        "{} has no source val or width: `{}`",
+                        op_type,
+                        inst.text.as_ref().unwrap()
+                    );
+                }
+            };
 
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
@@ -331,7 +353,7 @@ pub fn execute(
 
             // CMP and TEST do not store the result
             match op {
-                OpCodeType::Cmp | OpCodeType::Test => dest_target = DestTarget::None,
+                OpCodeType::Cmp | OpCodeType::Test => dest_target = None,
                 _ => {}
             }
 
@@ -401,22 +423,22 @@ pub fn execute(
 
     // Store the new value somewhere
     match (&dest_target, new_val) {
-        (DestTarget::RegisterName(reg_name), Some(new_val)) => {
+        (Some(DestTarget::RegisterName(reg_name)), Some(new_val)) => {
             // Store new val in the dest register
             let old_val = state.reg_file.insert(*reg_name, new_val).unwrap_or(0);
             if old_val != new_val {
                 effect.push_str(&format!(" {}:0x{:x}->0x{:x}", reg_name, old_val, new_val));
             }
         }
-        (DestTarget::MemAddress(addr), Some(new_val)) => {
+        (Some(DestTarget::MemAddress(addr)), Some(new_val)) => {
             store_u16_in_mem(&mut state.memory, *addr, new_val);
             // Don't print out memory changes (yet)
         }
-        (DestTarget::FlagsReg, Some(new_val)) => {
+        (Some(DestTarget::FlagsReg), Some(new_val)) => {
             state.flags_reg = u16_to_flags(new_val);
             print_flags = true;
         }
-        (DestTarget::None, _) => {} // Nothing is stored back into destination
+        (None, _) => {} // Nothing is stored back into destination
         _ => {}
     }
 
@@ -478,7 +500,7 @@ fn get_source_val(
     state: &CpuStateType,
     mem_addr_src: Option<u16>,
     transfer_width: WidthType,
-) -> (u16, WidthType) {
+) -> (Option<u16>, Option<WidthType>) {
     // Get the op's source val either from a source reg or an immediate
     match (
         inst.source_reg,
@@ -489,7 +511,7 @@ fn get_source_val(
         (_, Some(address), _, _) => {
             let source_val = load_u16_from_mem(&state.memory, address);
             let source_width = transfer_width;
-            (source_val, source_width)
+            (Some(source_val), Some(source_width))
         }
         // Handle source reg to dest reg
         (Some(source_reg), _, _, _) => {
@@ -498,29 +520,24 @@ fn get_source_val(
                 Some(x) => *x,
                 None => 0,
             };
-            (source_val, source_reg.width)
+            (Some(source_val), Some(source_reg.width))
         }
         (_, _, Some(AddTo::Source), _) => {
             // Use data as an immediate source value
             let source_width = transfer_width;
-            (inst.data_value.unwrap(), source_width)
+            (Some(inst.data_value.unwrap()), Some(source_width))
         }
         (_, _, _, Some(source_hardcoded_val)) => {
             // Use the hardcoded source value
-            (source_hardcoded_val, transfer_width)
+            (Some(source_hardcoded_val), Some(transfer_width))
         }
         _ => {
             // Handle any other special sources
             match inst.op_type {
-                Some(OpCodeType::Pushf) => (flags_to_u16(&state.flags_reg), WidthType::Word),
-                _ => {
-                    println!("inst debug: {:#?}", inst);
-                    unimplemented!(
-                        "{:?} has no source: `{}`",
-                        inst.op_type,
-                        inst.text.as_ref().unwrap()
-                    );
+                Some(OpCodeType::Pushf) => {
+                    (Some(flags_to_u16(&state.flags_reg)), Some(WidthType::Word))
                 }
+                _ => (None, None),
             }
         }
     }
@@ -531,7 +548,7 @@ fn get_dest_val(
     inst: &InstType,
     state: &CpuStateType,
     mem_addr_dst: Option<u16>,
-) -> (u16, DestTarget) {
+) -> (Option<u16>, Option<DestTarget>) {
     // Get the op's destination reg and its current value
     match (inst.dest_reg, mem_addr_dst) {
         (Some(dest_reg), None) => {
@@ -543,27 +560,23 @@ fn get_dest_val(
                 None => 0,
             };
             let dest_target = DestTarget::RegisterName(dest_reg.name);
-            (dest_val, dest_target)
+            (Some(dest_val), Some(dest_target))
         }
         (_, Some(address)) => {
             println!("Dest is mem addr!");
             let dest_target = DestTarget::MemAddress(address as usize);
             let dest_val = load_u16_from_mem(&state.memory, address);
-            (dest_val, dest_target)
+            (Some(dest_val), Some(dest_target))
         }
         // Immediate values can't be a destination
         _ => {
             // Handle any other special destinations
             match inst.op_type {
-                Some(OpCodeType::Popf) => (flags_to_u16(&state.flags_reg), DestTarget::FlagsReg),
-                _ => {
-                    println!("inst debug: {:#?}", inst);
-                    unimplemented!(
-                        "{:?} has no dest: `{}`",
-                        inst.op_type,
-                        inst.text.as_ref().unwrap()
-                    )
-                }
+                Some(OpCodeType::Popf) => (
+                    Some(flags_to_u16(&state.flags_reg)),
+                    Some(DestTarget::FlagsReg),
+                ),
+                _ => (None, None),
             }
         }
     }
