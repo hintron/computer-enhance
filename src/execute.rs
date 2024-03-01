@@ -175,6 +175,7 @@ pub fn execute(
     let mut dest_target;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
+    let mut print_flags = false;
     let mut new_val_overflowed = false;
     let mut new_val_carry = false;
     let mut new_val_aux_carry = false;
@@ -413,6 +414,7 @@ pub fn execute(
         }
         (DestTarget::FlagsReg, Some(new_val)) => {
             state.flags_reg = u16_to_flags(new_val);
+            print_flags = true;
         }
         (DestTarget::None, _) => {} // Nothing is stored back into destination
         _ => {}
@@ -431,7 +433,7 @@ pub fn execute(
     }
 
     // Print change in flags register, if needed
-    if (modify_flags || dest_target == DestTarget::FlagsReg) && (old_flags != state.flags_reg) {
+    if (modify_flags || print_flags) && (old_flags != state.flags_reg) {
         effect.push_str(&format!(" flags:{}->{}", old_flags, state.flags_reg));
     }
 
