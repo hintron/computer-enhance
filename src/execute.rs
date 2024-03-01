@@ -187,17 +187,18 @@ pub fn execute(
         inst.source_reg,
         inst.source_width,
     ) {
-        (Some(dest_reg), _, _, _) => Some(dest_reg.width),
-        (_, Some(dest_width), _, _) => Some(dest_width),
-        (_, _, Some(source_reg), _) => Some(source_reg.width),
-        (_, _, _, Some(source_width)) => Some(source_width),
-        _ => None,
+        (Some(dest_reg), _, _, _) => dest_reg.width,
+        (_, Some(dest_width), _, _) => dest_width,
+        (_, _, Some(source_reg), _) => source_reg.width,
+        (_, _, _, Some(source_width)) => source_width,
+        // Just default to word width
+        _ => WidthType::Word,
     };
 
     // Is it a byte that is going from src to dst, or a word?
     let transfer_width = match dest_width {
-        Some(WidthType::Word) | None => WidthType::Word,
-        Some(WidthType::Hi8 | WidthType::Byte) => WidthType::Byte,
+        WidthType::Word => WidthType::Word,
+        WidthType::Hi8 | WidthType::Byte => WidthType::Byte,
     };
 
     // Get the final memory addresses for source and dest, if applicable
@@ -247,13 +248,6 @@ pub fn execute(
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
-            let dest_width = match dest_width {
-                Some(x) => x,
-                None => unimplemented!(
-                    "op '{op}': No dest reg, dest width, source reg, or source width"
-                ),
-            };
-
             let (dest_val, dest_val_target) = get_dest_val(inst, state, mem_addr_dst);
             dest_target = dest_val_target;
 
