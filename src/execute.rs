@@ -187,8 +187,6 @@ pub fn execute(
         // simple mov.
         OpCodeType::Push => {
             (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
-            // old_sp = Some(old);
-            // new_sp = Some(new);
         }
         _ => {}
     }
@@ -472,8 +470,6 @@ fn get_source_val(
         inst.source_hardcoded,
     ) {
         (_, Some(address), _, _) => {
-            // MGH TODO: On a pop, we need to first increment SP, *then*
-            // get value that SP points at
             let source_val = load_u16_from_mem(&state.memory, address);
             let source_width = transfer_width;
             (source_val, source_width)
