@@ -186,6 +186,9 @@ pub fn execute(
     let mut shift_count = None;
     let mut old_sp = None;
     let mut new_sp = None;
+    // If this instruction has a destination memory address, then marks two
+    // transfers instead of one
+    let mut double_mem_dest = false;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -199,6 +202,21 @@ pub fn execute(
         OpCodeType::Push | OpCodeType::Pushf => {
             (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
         }
+        _ => {}
+    }
+
+    // Account for implicit double destination mem accesses
+    match op_type {
+        OpCodeType::Dec
+        | OpCodeType::Inc
+        | OpCodeType::Add
+        | OpCodeType::Sub
+        | OpCodeType::Cmp
+        | OpCodeType::And
+        | OpCodeType::Test
+        | OpCodeType::Xor
+        | OpCodeType::Shl
+        | OpCodeType::Shr => double_mem_dest = true,
         _ => {}
     }
 
@@ -231,8 +249,13 @@ pub fn execute(
 
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
-    inst.mem_access_word_unaligned =
-        calculate_8086_unaligned_access(mem_addr_src, mem_addr_dst, transfer_width, inst.transfers);
+    inst.mem_access_word_unaligned = calculate_8086_unaligned_access(
+        mem_addr_src,
+        mem_addr_dst,
+        double_mem_dest,
+        transfer_width,
+        inst.transfers,
+    );
 
     // Print this instruction's clock debug info now that all clock data is set
     print_inst_clock_debug(inst);
