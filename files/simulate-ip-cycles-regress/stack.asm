@@ -1,7 +1,7 @@
 bits 16
 
 Code:
-mov sp, 0x1000
+mov sp, 0xFFFE
 mov ax, 1
 mov bx, 2
 mov cx, 3

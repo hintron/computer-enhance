@@ -172,6 +172,8 @@ pub fn execute(
     let current_ip = state.ip;
     let mut jumped = false;
     let mut shift_count = None;
+    let mut old_sp = None;
+    let mut new_sp = None;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -179,7 +181,17 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
-    operand_pre_work(op_type, &mut state.reg_file);
+    // Decrement SP as needed before processing operands
+    match op_type {
+        // By incrementing SP before getting operands, we can turn Pop[f] into a
+        // simple mov.
+        OpCodeType::Push => {
+            (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
+            // old_sp = Some(old);
+            // new_sp = Some(new);
+        }
+        _ => {}
+    }
 
     // Figure out destination width, which will dictate how wide the data
     // transfer is for this instruction
@@ -261,8 +273,8 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match op {
-                OpCodeType::Mov | OpCodeType::Pop => {
-                    // NOTE: Pop already decremented SP in operand_pre_work(),
+                OpCodeType::Mov | OpCodeType::Push => {
+                    // NOTE: Push already decremented SP in decrement_sp(),
                     // so all that is left is a move.
                     execute_mov(dest_val, source_val, dest_width, source_width)
                 }
@@ -290,18 +302,9 @@ pub fn execute(
                     shift_count = Some(bit_shift_cnt);
                     result
                 }
-                OpCodeType::Push => {
+                OpCodeType::Pop => {
                     let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
-                    // Now decrement SP by 2
-                    let sp_val = match state.reg_file.get(&RegName::Sp) {
-                        Some(x) => *x,
-                        None => 0,
-                    };
-                    let (new_sp, overflowed) = sp_val.overflowing_sub(2);
-                    if overflowed {
-                        println!("Stack overflow! new_sp: {new_sp}")
-                    }
-                    let _old_sp_val = state.reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+                    (old_sp, new_sp) = increment_sp(&mut state.reg_file);
                     new_val
                 }
                 _ => {
@@ -402,6 +405,13 @@ pub fn execute(
         _ => {}
     }
 
+    match (old_sp, new_sp) {
+        (Some(old_val), Some(new_val)) => {
+            effect.push_str(&format!(" sp:0x{:x}->0x{:x}", old_val, new_val))
+        }
+        _ => {}
+    }
+
     if !settings.no_ip {
         // Tack on the IP change to the instruction effect string
         effect.push_str(&format!(" ip:0x{:x}->0x{:x}", current_ip, state.ip));
@@ -415,27 +425,36 @@ pub fn execute(
     return (effect, false);
 }
 
-/// Pre-work *before* getting operands, like incrementing SP for Pop
-fn operand_pre_work(op: OpCodeType, reg_file: &mut BTreeMap<RegName, u16>) {
-    match op {
-        // By incrementing SP before getting operands, we can turn Pop[f] into a
-        // simple mov.
-        OpCodeType::Pop | OpCodeType::Popf => {
-            // Increment SP by 2, so next load from SP gets correct value
-            let sp_val = match reg_file.get(&RegName::Sp) {
-                Some(x) => *x,
-                None => 0,
-            };
-            let (new_sp, overflowed) = sp_val.overflowing_add(2);
-            println!("Incrementing SP by 2: {sp_val} -> {new_sp}");
-            if overflowed {
-                println!("Stack underflow! new_sp: {new_sp}")
-            }
-            let _old_sp_val = reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
-            println!("Old val: {_old_sp_val}");
-        }
-        _ => {}
+/// Decrement SP by 2, then return the old and new SP values
+fn decrement_sp(reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
+    let old_sp = match reg_file.get(&RegName::Sp) {
+        Some(x) => *x,
+        None => 0,
+    };
+    let (new_sp, overflowed) = old_sp.overflowing_sub(2);
+    println!("Decrementing SP by 2: {old_sp} -> {new_sp}");
+    if overflowed {
+        println!("Overflow!")
     }
+    reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+    println!("Old val: {old_sp}");
+    (Some(old_sp), Some(new_sp))
+}
+
+/// Increment SP by 2, then return the old and new SP values
+fn increment_sp(reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
+    let old_sp = match reg_file.get(&RegName::Sp) {
+        Some(x) => *x,
+        None => 0,
+    };
+    let (new_sp, overflowed) = old_sp.overflowing_add(2);
+    println!("Incrementing SP by 2: {old_sp} -> {new_sp}");
+    if overflowed {
+        println!("Overflow!")
+    }
+    reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
+    println!("Old val: {old_sp}");
+    (Some(old_sp), Some(new_sp))
 }
 
 /// Get the final source value for most instructions
