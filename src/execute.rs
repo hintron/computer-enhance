@@ -181,10 +181,9 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
-    // Decrement SP as needed before processing operands
     match op_type {
-        // By incrementing SP before getting operands, we can turn Pop[f] into a
-        // simple mov.
+        // By decrementing SP before processing src and dst operands, we can
+        // convert push into a simple mov
         OpCodeType::Push => {
             (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
         }
