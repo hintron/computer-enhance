@@ -112,6 +112,8 @@ enum ImmBytesType {
     IpInc8,
     IpIncLo,
     IpIncHi,
+    CsLo,
+    CsHi,
     /// The following byte can be ignored (e.g. the second byte of aam/aad
     /// apparently provides no additional data)
     DoNotCare,
@@ -560,6 +562,8 @@ pub struct InstType {
     ip_inc8: Option<u8>,
     ip_inc_lo: Option<u8>,
     ip_inc_hi: Option<u8>,
+    cs_lo: Option<u8>,
+    cs_hi: Option<u8>,
     /// Whether disp_value should be applied to the source or destination.
     pub add_disp_to: Option<AddTo>,
     /// Whether data_value should be applied to the source or destination.
@@ -796,6 +800,8 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
             ImmBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
             ImmBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
             ImmBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
+            ImmBytesType::CsLo => inst.cs_lo = Some(*byte),
+            ImmBytesType::CsHi => inst.cs_hi = Some(*byte),
             ImmBytesType::DoNotCare => {}
         }
     }
@@ -823,11 +829,17 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 fn calculate_execution_values(inst: &mut InstType) {
     // Calculate any jump displacement value
     if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
-        inst.jmp_value = Some(get_ip_increment(
+        let (ip_val, cs) = get_ip_increment(
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
-        ));
+            inst.cs_lo.as_ref(),
+            inst.cs_hi.as_ref(),
+        );
+        inst.jmp_value = match cs {
+            Some(cs_val) => Some((ip_val as u16 + (cs_val << 4)) as i16),
+            None => Some(ip_val),
+        };
     }
 
     // Get the actual u16 value of the data immediate bytes
@@ -907,6 +919,8 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
             inst.ip_inc8.as_ref(),
             inst.ip_inc_lo.as_ref(),
             inst.ip_inc_hi.as_ref(),
+            inst.cs_lo.as_ref(),
+            inst.cs_hi.as_ref(),
             inst.processed_bytes.len(),
         ));
     }
@@ -1283,6 +1297,14 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xEB => {
             inst.op_type = Some(OpCodeType::Jmp);
             inst.immediate_bytes.push(ImmBytesType::IpInc8);
+        }
+        // jmp - Direct intersegment
+        0xEA => {
+            inst.op_type = Some(OpCodeType::Jmp);
+            inst.immediate_bytes.push(ImmBytesType::IpIncLo);
+            inst.immediate_bytes.push(ImmBytesType::IpIncHi);
+            inst.immediate_bytes.push(ImmBytesType::CsLo);
+            inst.immediate_bytes.push(ImmBytesType::CsHi);
         }
         // call - Direct within segment (intrasegment/near)
         0xE8 => {
@@ -2100,16 +2122,27 @@ fn process_data_bytes(
 }
 
 /// Take in IP offset bytes and return the IP increment value as an i16.
-fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lo: Option<&u8>, ip_inc_hi: Option<&u8>) -> i16 {
-    match (ip_inc8, ip_inc_lo, ip_inc_hi) {
+fn get_ip_increment(
+    ip_inc8: Option<&u8>,
+    ip_inc_lo: Option<&u8>,
+    ip_inc_hi: Option<&u8>,
+    cs_lo: Option<&u8>,
+    cs_hi: Option<&u8>,
+) -> (i16, Option<u16>) {
+    let ip_inc = match (ip_inc8, ip_inc_lo, ip_inc_hi) {
         (Some(ip_inc8), _, _) => (*ip_inc8 as i8) as i16,
         (None, Some(lo), Some(hi)) => {
             // Combine lo and hi
-            let ip_inc = ((*hi as i16) << 8) | (*lo as i16);
-            ip_inc
+            ((*hi as i16) << 8) | (*lo as i16)
         }
         _ => unreachable!(),
-    }
+    };
+    // If CS immediate bytes exist, add them to ip
+    let cs = match (cs_lo, cs_hi) {
+        (Some(lo), Some(hi)) => Some(*lo as u16 | ((*hi as u16) << 8)),
+        _ => None,
+    };
+    (ip_inc, cs)
 }
 
 /// Take in IP offset bytes and instruction length and return the IP increment
@@ -2125,11 +2158,18 @@ fn get_ip_increment_str(
     ip_inc8: Option<&u8>,
     ip_inc_lo: Option<&u8>,
     ip_inc_hi: Option<&u8>,
+    cs_lo: Option<&u8>,
+    cs_hi: Option<&u8>,
     len: usize,
 ) -> String {
-    let mut ip_inc = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi);
-    ip_inc += len as i16;
-    format!("${:+}", ip_inc)
+    let (ip_inc, cs) = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi, cs_lo, cs_hi);
+    match cs {
+        Some(cs_val) => format!("{cs_val}:{ip_inc}"),
+        None => {
+            let ip_val = ip_inc + len as i16;
+            format!("${:+}", ip_val)
+        }
+    }
 }
 
 /// Print out the hex and binary of a byte in an assembly comment
