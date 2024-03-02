@@ -575,6 +575,9 @@ pub struct InstType {
     pub mem_access: bool,
     // If mod rm encodes a mem operation, indicate whether it's for src or dest.
     pub add_mod_rm_mem_to: Option<AddTo>,
+    /// If true, then this instruction is an indirect intersegment/far variant
+    /// and needs an explicit `far` keyword.
+    pub far_prefix: bool,
     /// If true, sign extend the value in data_lo to be 2 bytes/16 bits wide.
     sign_extend_data_lo: bool,
     /// The expected immediate byte types to parse after we parse the 1st byte
@@ -857,10 +860,16 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
     match (mod_rm_addr, inst.d_field) {
         (None, _) => {}
         (Some(mod_rm_addr), None | Some(false)) => {
+            if inst.far_prefix {
+                dest_text.push_str("far ");
+            }
             // Dest is rm field
             dest_text.push_str(&mod_rm_addr);
         }
         (Some(mod_rm_addr), Some(true)) => {
+            if inst.far_prefix {
+                source_text.push_str("far ");
+            }
             // Source is rm field
             source_text.push_str(&mod_rm_addr);
         }
@@ -1940,6 +1949,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
         Some(ModRmByteType::ModGrp2Rm) => {
             let (op_type, is_intersegment) = decode_grp2_op((byte & 0b00111000) >> 3);
             inst.op_type = Some(op_type);
+            inst.far_prefix = is_intersegment;
             match (op_type, mode, inst.w_field) {
                 // We know the size if Register Mode
                 (_, ModType::RegisterMode, Some(w_field)) => {

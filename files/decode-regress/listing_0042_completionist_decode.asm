@@ -436,9 +436,9 @@ retf
 ret
 
 call [bp+si-0x3a]
-; call far [bp+si-0x3a]
+call far [bp+si-0x3a]
 jmp [di]
-; jmp far [di]
+jmp far [di]
 
 ; jmp 21862:30600
 
