@@ -202,11 +202,11 @@ pub fn execute(
         // By decrementing SP before processing src and dst operands, we can
         // convert push[f] into a simple mov
         OpCodeType::Push | OpCodeType::Pushf => {
-            (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
+            (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
             // Stack access is accounted for in dest_val
         }
         OpCodeType::Call => {
-            (old_sp, new_sp) = decrement_sp(&mut state.reg_file);
+            (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
             // Account for implicit stack mem accesses, since dest_val is a jump
             // target, not the stack addr
             stack_mem_addr = new_sp;
@@ -376,7 +376,7 @@ pub fn execute(
                 }
                 OpCodeType::Pop | OpCodeType::Popf => {
                     let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
-                    (old_sp, new_sp) = increment_sp(&mut state.reg_file);
+                    (old_sp, new_sp) = increment_sp(2, &mut state.reg_file);
                     new_val
                 }
                 _ => {
@@ -513,13 +513,14 @@ fn stack_push(val: u16, reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>)
 }
 
 /// Decrement SP by 2, then return the old and new SP values
-fn decrement_sp(reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
+/// Decrement SP, then return the old and new SP values
+fn decrement_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
     let old_sp = match reg_file.get(&RegName::Sp) {
         Some(x) => *x,
         None => 0,
     };
-    let (new_sp, overflowed) = old_sp.overflowing_sub(2);
-    println!("Decrementing SP by 2: {old_sp} -> {new_sp}");
+    let (new_sp, overflowed) = old_sp.overflowing_sub(count);
+    println!("Decrementing SP by {count}: {old_sp} -> {new_sp}");
     if overflowed {
         println!("Overflow!")
     }
@@ -528,14 +529,14 @@ fn decrement_sp(reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u
     (Some(old_sp), Some(new_sp))
 }
 
-/// Increment SP by 2, then return the old and new SP values
-fn increment_sp(reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
+/// Increment SP, then return the old and new SP values
+fn increment_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
     let old_sp = match reg_file.get(&RegName::Sp) {
         Some(x) => *x,
         None => 0,
     };
-    let (new_sp, overflowed) = old_sp.overflowing_add(2);
-    println!("Incrementing SP by 2: {old_sp} -> {new_sp}");
+    let (new_sp, overflowed) = old_sp.overflowing_add(count);
+    println!("Incrementing SP by {count}: {old_sp} -> {new_sp}");
     if overflowed {
         println!("Overflow!")
     }
