@@ -1285,6 +1285,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         // ret - Within segment
         0xC3 => {
             inst.op_type = Some(OpCodeType::Ret);
+            inst.operands_type = Some(OperandsType::NoPop)
         }
         // ret - Within segment adding immediate to SP
         0xC2 => {
@@ -1292,10 +1293,12 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             inst.immediate_bytes.push(ImmBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
+            inst.operands_type = Some(OperandsType::Pop)
         }
         // retf - Intersegment ret
         0xCB => {
             inst.op_type = Some(OpCodeType::Retf);
+            inst.operands_type = Some(OperandsType::NoPop)
         }
         // retf - Intersegment ret adding immediate to SP
         0xCA => {
@@ -1303,6 +1306,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.immediate_bytes.push(ImmBytesType::DataLo);
             inst.immediate_bytes.push(ImmBytesType::DataHi);
             inst.add_data_to = Some(AddTo::Source);
+            inst.operands_type = Some(OperandsType::Pop)
         }
         // push - Register
         0x50..=0x57 => {

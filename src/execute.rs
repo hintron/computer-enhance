@@ -211,6 +211,10 @@ pub fn execute(
             // target, not the stack addr
             stack_mem_addr = new_sp;
         }
+        OpCodeType::Ret => {
+            // Account for implicit stack mem accesses
+            stack_mem_addr = Some(get_sp(&state.reg_file));
+        }
         _ => {}
     }
 
@@ -313,7 +317,17 @@ pub fn execute(
             jumped = handle_jmp_variants(OpCodeType::Call, state, dest_val);
         }
         OpCodeType::Ret => {
-            unimplemented!("The Ret instruction isn't yet implemented",);
+            new_val = None;
+            // The IP value to return to, stored at the top of the stack
+            let ret_ip_addr = Some(stack_pop(&state.reg_file, &mut state.memory));
+            // If ret has an optional pop, just add that to ret_ip_addr
+            (old_sp, new_sp) = match source_val {
+                // Ret addr + pop val
+                Some(pop_val) => decrement_sp(2 + pop_val, &mut state.reg_file),
+                // Just increment for ret addr
+                _ => decrement_sp(2, &mut state.reg_file),
+            };
+            jumped = handle_jmp_variants(OpCodeType::Ret, state, ret_ip_addr);
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
@@ -512,7 +526,26 @@ fn stack_push(val: u16, reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>)
     println!("Push onto stack: {val:x} at addr {sp_val:x}");
 }
 
+// Pop an item off the stack (increment of the stack is assumed to happen after
+// this call).
+fn stack_pop(reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>) -> u16 {
+    let sp_val = match reg_file.get(&RegName::Sp) {
+        Some(x) => *x,
+        None => 0,
+    };
+    let val = load_u16_from_mem(memory, sp_val);
+    println!("Pop off stack: {val:x} from addr {sp_val:x}");
+    val
+}
+
 /// Decrement SP by 2, then return the old and new SP values
+fn get_sp(reg_file: &BTreeMap<RegName, u16>) -> u16 {
+    match reg_file.get(&RegName::Sp) {
+        Some(x) => *x,
+        None => 0,
+    }
+}
+
 /// Decrement SP, then return the old and new SP values
 fn decrement_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u16>, Option<u16>) {
     let old_sp = match reg_file.get(&RegName::Sp) {
@@ -810,6 +843,8 @@ fn handle_jmp_variants(
     state: &mut CpuStateType,
     dest_val: Option<u16>,
 ) -> bool {
+    // If true, replace ip with jmp_value, otherwise, add jmp_value to ip
+    let mut replace_ip = false;
     // Convert dest value into jump offset
     let jmp_value = match dest_val {
         Some(jmp_value) => {
@@ -835,14 +870,23 @@ fn handle_jmp_variants(
         OpCodeType::Jp => state.flags_reg.parity,
         OpCodeType::Jmp => true,
         OpCodeType::Call => true,
+        OpCodeType::Ret => {
+            replace_ip = true;
+            true
+        }
         x @ _ => unimplemented!("Unimplemented jump variant {x}"),
     };
-    let overflowed = match jump {
-        true => {
+    let overflowed = match (jump, replace_ip) {
+        (true, false) => {
             // Add the IP increment value to IP
             let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
             state.ip = result as u16;
             overflowed
+        }
+        (true, true) => {
+            // Replace the IP entirely with jmp_value. No overflow possible.
+            state.ip = jmp_value as u16;
+            false
         }
         _ => false,
     };
