@@ -33,6 +33,8 @@ pub enum OperandsType {
     MemPtr32,
     NearProc,
     FarProc,
+    NoPop,
+    Pop,
 }
 
 /// Now that the instruction is all decoded, fill in clock information
@@ -540,6 +542,23 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         ) => {
             inst.clocks_base = 20;
             inst.clocks_per_bit = Some(4);
+            inst.transfers = 2;
+        }
+        // Ret (intra-segment) / Retf (intersegment)
+        (Some(OpCodeType::Ret), Some(OperandsType::NoPop)) => {
+            inst.clocks_base = 8;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Ret), Some(OperandsType::Pop)) => {
+            inst.clocks_base = 12;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Retf), Some(OperandsType::NoPop)) => {
+            inst.clocks_base = 18;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Retf), Some(OperandsType::Pop)) => {
+            inst.clocks_base = 17;
             inst.transfers = 2;
         }
         // Test
