@@ -420,9 +420,7 @@ lock xchg [100], al
 ; ; submitted test cases!
 ; ;
 
-; MGH TODO: Finish implementing the following instructions:
-
-; call 123:456
+call 123:456
 jmp 789:34
 
 mov [bx+si+59],es

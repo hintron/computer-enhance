@@ -1313,6 +1313,15 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.immediate_bytes.push(ImmBytesType::IpIncHi);
             inst.operands_type = Some(OperandsType::NearProc)
         }
+        // call - Direct intersegment
+        0x9A => {
+            inst.op_type = Some(OpCodeType::Call);
+            inst.immediate_bytes.push(ImmBytesType::IpIncLo);
+            inst.immediate_bytes.push(ImmBytesType::IpIncHi);
+            inst.immediate_bytes.push(ImmBytesType::CsLo);
+            inst.immediate_bytes.push(ImmBytesType::CsHi);
+            inst.operands_type = Some(OperandsType::FarProc)
+        }
         // ret - Within segment
         0xC3 => {
             inst.op_type = Some(OpCodeType::Ret);
