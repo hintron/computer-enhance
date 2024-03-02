@@ -735,24 +735,24 @@ fn get_effective_addr(
     disp: Option<i16>,
     reg_file: &BTreeMap<RegName, u16>,
 ) -> Option<u16> {
-    match (mod_rm_data, disp) {
-        (ModRmDataType::MemDirectAddr, Some(address)) => Some(address as u16),
+    let (result, overflowed) = match (mod_rm_data, disp) {
+        (ModRmDataType::MemDirectAddr, Some(address)) => (address as u16, false),
         (ModRmDataType::MemReg(reg), _) => {
             // Get reg value and return
-            Some(*reg_file.get(&reg.name).unwrap_or(&0))
+            (*reg_file.get(&reg.name).unwrap_or(&0), false)
         }
         (ModRmDataType::MemRegReg(reg1, reg2), _) => {
             // i.e. base + index
             let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
             let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
-            Some(val1 + val2)
+            val1.overflowing_add(val2)
         }
         (ModRmDataType::MemRegDisp(_), None) => {
             unreachable!("ERROR: No displacement found for MemRegDisp")
         }
         (ModRmDataType::MemRegDisp(reg), Some(disp)) => {
             let val = *reg_file.get(&reg.name).unwrap_or(&0);
-            Some(val + disp as u16)
+            val.overflowing_add(disp as u16)
         }
         (ModRmDataType::MemRegRegDisp(_, _), None) => {
             unreachable!("ERROR: No displacement found for MemRegRegDisp")
@@ -761,13 +761,22 @@ fn get_effective_addr(
             // Get reg 1 + 2, add together with disp, and return
             let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
             let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
-            Some(val1 + val2 + disp as u16)
+            let (temp, overflowed) = val1.overflowing_add(val2);
+            let (temp2, overflowed2) = temp.overflowing_add(disp as u16);
+            (temp2, overflowed || overflowed2)
         }
         // Type Reg isn't a mem access, so this will be handled via source and
         // dest registers
-        (ModRmDataType::Reg(_), _) => None,
+        (ModRmDataType::Reg(_), _) => return None,
         _ => unreachable!(),
+    };
+    if overflowed {
+        println!(
+            "Get effective addr calculation overflowed! {:?}, {:?}",
+            mod_rm_data, disp
+        );
     }
+    Some(result)
 }
 
 /// Given the memory array and a 16-bit address, return a 16-bit value
