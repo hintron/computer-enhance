@@ -323,9 +323,9 @@ pub fn execute(
             // If ret has an optional pop, just add that to ret_ip_addr
             (old_sp, new_sp) = match source_val {
                 // Ret addr + pop val
-                Some(pop_val) => decrement_sp(2 + pop_val, &mut state.reg_file),
+                Some(pop_val) => increment_sp(2 + pop_val, &mut state.reg_file),
                 // Just increment for ret addr
-                _ => decrement_sp(2, &mut state.reg_file),
+                _ => increment_sp(2, &mut state.reg_file),
             };
             jumped = handle_jmp_variants(OpCodeType::Ret, state, ret_ip_addr);
         }
