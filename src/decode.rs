@@ -535,7 +535,7 @@ pub struct InstType {
     /// or dest_reg, depending on d_field.
     reg_field: Option<RegType>,
     /// This is the segment register field, used with "segment register"
-    /// variants of push and pop, as well as
+    /// variants of push and pop, as well as for segment override prefixes.
     sr_field: Option<RegType>,
     /// The op code type
     pub op_type: Option<OpCodeType>,
@@ -868,7 +868,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
     let mut source_text = String::new();
     let mut dest_text = String::new();
 
-    let mod_rm_addr = get_mod_rm_addr_str(inst.mod_rm_data, inst.disp_value);
+    let mod_rm_addr = get_mod_rm_addr_str(inst.mod_rm_data, inst.disp_value, inst.sr_field);
     match (mod_rm_addr, inst.d_field) {
         (None, _) => {}
         (Some(mod_rm_addr), None | Some(false)) => {
@@ -1015,6 +1015,13 @@ fn decode_prefix_bytes(byte: u8, inst: &mut InstType) -> bool {
             inst.has_string_byte = Some(true);
             inst.z_field = Some((byte & 0x1) == 1);
             "rep "
+        }
+        // Segment register override prefixes
+        0x26 | 0x2E | 0x36 | 0x3E => {
+            let sr_field = decode_sr_field((byte & 0b000_11_000) >> 3);
+            inst.sr_field = Some(sr_field);
+            // Have effective address logic deal with printing the sr_field
+            return true;
         }
         // This byte isn't a prefix...
         _ => return false,
@@ -2049,35 +2056,42 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
 fn get_mod_rm_addr_str(
     mod_rm_data: Option<ModRmDataType>,
     disp_value: Option<i16>,
+    seg_reg: Option<RegType>,
 ) -> Option<String> {
     let mod_rm_data = match mod_rm_data {
-        None => return None,
+        // Don't print anything here, since the reg will already have been
+        // copied into a source or dest reg and printed via that.
+        None | Some(ModRmDataType::Reg(_)) => return None,
         Some(x) => x,
     };
 
+    // Print out segment override, if it exists
+    let mut str = match seg_reg {
+        Some(seg_reg) => format!("[{seg_reg}:"),
+        None => format!("["),
+    };
+
     match (mod_rm_data, disp_value) {
-        (ModRmDataType::MemDirectAddr, Some(address)) => Some(format!("[0x{address:04X}]")),
-        (ModRmDataType::MemReg(reg), _) => Some(format!("[{reg}]")),
-        (ModRmDataType::MemRegReg(reg1, reg2), _) => Some(format!("[{reg1} + {reg2}]")),
+        (ModRmDataType::MemDirectAddr, Some(address)) => str.push_str(&format!("0x{address:04X}]")),
+        (ModRmDataType::MemReg(reg), _) => str.push_str(&format!("{reg}]")),
+        (ModRmDataType::MemRegReg(reg1, reg2), _) => str.push_str(&format!("{reg1} + {reg2}]")),
         (ModRmDataType::MemRegDisp(_), None) => {
             unreachable!("ERROR: No displacement found for MemRegDisp")
         }
         (ModRmDataType::MemRegDisp(reg), Some(disp)) => {
             let sign = if disp >= 0 { "+" } else { "-" };
-            Some(format!("[{reg} {sign} {}]", disp.abs()))
+            str.push_str(&format!("{reg} {sign} {}]", disp.abs()))
         }
         (ModRmDataType::MemRegRegDisp(_, _), None) => {
             unreachable!("ERROR: No displacement found for MemRegRegDisp")
         }
         (ModRmDataType::MemRegRegDisp(reg1, reg2), Some(disp)) => {
             let sign = if disp >= 0 { "+" } else { "-" };
-            Some(format!("[{reg1} + {reg2} {sign} {}]", disp.abs()))
+            str.push_str(&format!("{reg1} + {reg2} {sign} {}]", disp.abs()))
         }
-        // Don't print anything here, since the reg will already have been
-        // copied into a source or dest reg and printed via that.
-        (ModRmDataType::Reg(_), _) => None,
         _ => unreachable!(),
     }
+    Some(str)
 }
 
 fn get_disp_value(disp_lo: Option<&u8>, disp_hi: Option<&u8>) -> Option<i16> {

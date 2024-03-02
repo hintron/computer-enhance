@@ -396,23 +396,20 @@ wait
 lock not byte [bp + 9905]
 lock xchg [100], al
 
-; NOTE(mgh): the following 11 instructions don't compile with my version of
-; NASM! Perhaps it's because it's an older/academic NASM that doesn't support
-; these types of segmented instructions. At any rate, ignore them for now.
+; MGH NOTE: Segment registers need to be inside the brackets for my NASM
+mov al, [cs:bx + si]
+mov bx, [ds:bp + di]
+mov dx, [es:bp]
+mov ah, [ss:bx + si + 4]
 
-; mov al, cs:[bx + si]
-; mov bx, ds:[bp + di]
-; mov dx, es:[bp]
-; mov ah, ss:[bx + si + 4]
+and [ss:bp + si + 10], ch
+or [ds:bx + di + 1000], dx
+xor bx, [es:bp]
+cmp cx, [es:4384]
+test byte [cs:bp - 39], 239
+sbb word [cs:bx + si - 4332], 10328
 
-; and ss:[bp + si + 10], ch
-; or ds:[bx + di + 1000], dx
-; xor bx, es:[bp]
-; cmp cx, es:[4384]
-; test byte cs:[bp - 39], 239
-; sbb word cs:[bx + si - 4332], 10328
-
-; lock not byte CS:[bp + 9905]
+lock not byte [CS:bp + 9905]
 
 ; ;
 ; ; NOTE(casey): These were not in the original homework set, but have been added since, as people
