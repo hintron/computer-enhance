@@ -752,7 +752,9 @@ fn get_effective_addr(
         }
         (ModRmDataType::MemRegDisp(reg), Some(disp)) => {
             let val = *reg_file.get(&reg.name).unwrap_or(&0);
-            val.overflowing_add(disp as u16)
+            // Disp is signed, so do signed addition to not trigger overflow warning
+            let (result, overflowed) = (val as i16).overflowing_add(disp);
+            (result as u16, overflowed)
         }
         (ModRmDataType::MemRegRegDisp(_, _), None) => {
             unreachable!("ERROR: No displacement found for MemRegRegDisp")
@@ -762,8 +764,9 @@ fn get_effective_addr(
             let val1 = *reg_file.get(&reg1.name).unwrap_or(&0);
             let val2 = *reg_file.get(&reg2.name).unwrap_or(&0);
             let (temp, overflowed) = val1.overflowing_add(val2);
-            let (temp2, overflowed2) = temp.overflowing_add(disp as u16);
-            (temp2, overflowed || overflowed2)
+            // Disp is signed, so do signed addition to not trigger overflow warning
+            let (temp2, overflowed2) = (temp as i16).overflowing_add(disp);
+            (temp2 as u16, overflowed || overflowed2)
         }
         // Type Reg isn't a mem access, so this will be handled via source and
         // dest registers
@@ -772,7 +775,7 @@ fn get_effective_addr(
     };
     if overflowed {
         println!(
-            "Get effective addr calculation overflowed! {:?}, {:?}",
+            "Get effective addr calculation overflowed! {:?}, {:?}, result={result}(0x{result:x})",
             mod_rm_data, disp
         );
     }
