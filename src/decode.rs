@@ -1965,8 +1965,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             }
         }
         Some(ModRmByteType::ModGrp1Rm) => {
-            let (op_type, is_test_inst) = decode_grp1_op((byte & 0b00111000) >> 3);
-            inst.op_type = Some(op_type);
+            let op_type = decode_grp1_op((byte & 0b00111000) >> 3);
             match (mode, inst.w_field) {
                 // We know the size if Register Mode
                 (ModType::RegisterMode, _) => {}
@@ -1975,14 +1974,18 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 (_, Some(true)) => inst.dest_width = Some(WidthType::Word),
                 (_, None) => unreachable!(),
             }
-            if is_test_inst {
-                inst.add_data_to = Some(AddTo::Source);
-                inst.immediate_bytes.push(ImmBytesType::DataLo);
-                match inst.w_field {
-                    Some(true) => inst.immediate_bytes.push(ImmBytesType::DataHi),
-                    _ => {}
+            match op_type {
+                OpCodeType::Test => {
+                    inst.add_data_to = Some(AddTo::Source);
+                    inst.immediate_bytes.push(ImmBytesType::DataLo);
+                    match inst.w_field {
+                        Some(true) => inst.immediate_bytes.push(ImmBytesType::DataHi),
+                        _ => {}
+                    }
                 }
+                _ => {}
             }
+            inst.op_type = Some(op_type);
         }
         Some(ModRmByteType::ModGrp2Rm) => {
             let (op_type, is_intersegment) = decode_grp2_op((byte & 0b00111000) >> 3);
@@ -2546,18 +2549,16 @@ fn decode_shift_op(bits: u8) -> OpCodeType {
 
 /// Get the op code an instruction starting with 0b 1111 011. `bits` is the
 /// value of the middle 3 'op' bits in the second mod-op-r/m byte.
-/// In addition, return true for the second value if the instruction requires
-/// a data/immediate operand (i.e. the test instruction)
-fn decode_grp1_op(bits: u8) -> (OpCodeType, bool) {
+fn decode_grp1_op(bits: u8) -> OpCodeType {
     match bits {
-        0b000 => (OpCodeType::Test, true),
+        0b000 => OpCodeType::Test,
         0b001 => panic!("Unused field 0b001 in decode_grp1_op()"),
-        0b010 => (OpCodeType::Not, false),
-        0b011 => (OpCodeType::Neg, false),
-        0b100 => (OpCodeType::Mul, false),
-        0b101 => (OpCodeType::Imul, false),
-        0b110 => (OpCodeType::Div, false),
-        0b111 => (OpCodeType::Idiv, false),
+        0b010 => OpCodeType::Not,
+        0b011 => OpCodeType::Neg,
+        0b100 => OpCodeType::Mul,
+        0b101 => OpCodeType::Imul,
+        0b110 => OpCodeType::Div,
+        0b111 => OpCodeType::Idiv,
         _ => panic!("Bad bits specified in decode_grp1_op()"),
     }
 }
