@@ -191,6 +191,9 @@ pub fn execute(
     // If this instruction has a destination memory address, then marks two
     // transfers instead of one
     let mut double_mem_dest = false;
+    // Accumulate a string of register changes as needed, if not covered by
+    // new_val + dest_target
+    let mut reg_change_str = None;
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -328,6 +331,62 @@ pub fn execute(
                 _ => increment_sp(2, &mut state.reg_file),
             };
             jumped = handle_jmp_variants(OpCodeType::Ret, state, ret_ip_addr);
+        }
+        OpCodeType::Imul => {
+            new_val = None;
+            // dest_val is really the single explicit source operand
+            // AX/AL is an implicit operand
+            let ax_val = *(state.reg_file.get(&RegName::Ax).unwrap_or(&0));
+            // If the upper half of the result is not the sign extension of the
+            // lower half of the result, CF and OF are set; otherwise they are
+            // cleared.
+            let (new_dx, new_ax, overflowed) = match (dest_val, dest_width) {
+                (Some(val), WidthType::Word) => {
+                    // Multiply AX with word-sized operand and store in DX:AX
+                    let result = ((val as i16 as i32) * (ax_val as i16 as i32)) as u32;
+                    let dx = (result >> 16) as u16;
+                    let ax = result as u16;
+                    let overflowed = (dx & 0x8000) != (ax & 0x8000);
+                    (Some(dx), ax, overflowed)
+                }
+                (Some(val), WidthType::Hi8) => {
+                    // Multiply AL with byte-sized operand and store in AX
+                    let ax = (((val as i16) >> 8) * (ax_val as u8 as i8 as i16)) as u16;
+                    let overflowed = (ax >> 8) & 0x80 != (ax & 0x80);
+                    (None, ax, overflowed)
+                }
+                (Some(val), WidthType::Byte) => {
+                    // Multiply AL with byte-sized operand and store in AX
+                    let ax = ((val as u8 as i8 as i16) * (ax_val as u8 as i8 as i16)) as u16;
+                    let overflowed = (ax >> 8) & 0x80 != (ax & 0x80);
+                    (None, ax, overflowed)
+                }
+                (None, _) => unimplemented!("{op_type} is missing operand"),
+            };
+
+            // Store the new dx and ax values, as needed
+            let mut temp = String::new();
+            let old_ax = state.reg_file.insert(RegName::Ax, new_ax).unwrap_or(0);
+            if old_ax != new_ax {
+                temp.push_str(&format!(" {}:0x{:x}->0x{:x}", RegName::Ax, old_ax, new_ax));
+            }
+            match new_dx {
+                Some(new_dx) => {
+                    let old_dx = state.reg_file.insert(RegName::Dx, new_dx).unwrap_or(0);
+                    if old_dx != new_dx {
+                        temp.push_str(&format!(" {}:0x{:x}->0x{:x}", RegName::Dx, old_dx, new_dx));
+                    }
+                }
+                _ => {}
+            }
+            if !temp.is_empty() {
+                reg_change_str = Some(temp);
+            }
+
+            state.flags_reg.overflow = overflowed;
+            // Carry is the same as overflow for imul
+            state.flags_reg.carry = overflowed;
+            print_flags = true;
         }
         // Handle all other non-special purpose ops here
         op @ _ => {
@@ -471,6 +530,12 @@ pub fn execute(
             state.flags_reg.auxiliary_carry = new_val_aux_carry;
         }
         // No new val to process
+        _ => {}
+    }
+
+    // Append reg changes
+    match reg_change_str {
+        Some(string) => effect.push_str(&string),
         _ => {}
     }
 

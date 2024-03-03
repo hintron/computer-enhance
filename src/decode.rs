@@ -1989,6 +1989,17 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                         _ => inst.operands_type = Some(OperandsType::MemImm),
                     }
                 }
+                OpCodeType::Imul => {
+                    // Set cycles info
+                    match (mode, inst.w_field) {
+                        (ModType::RegisterMode, Some(true)) => {
+                            inst.operands_type = Some(OperandsType::Reg16)
+                        }
+                        (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::Reg8),
+                        (_, Some(true)) => inst.operands_type = Some(OperandsType::Mem16),
+                        _ => inst.operands_type = Some(OperandsType::Mem8),
+                    }
+                }
                 _ => {}
             }
             inst.op_type = Some(op_type);

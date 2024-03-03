@@ -29,6 +29,8 @@ pub enum OperandsType {
     /// reg16/regptr16
     Reg16,
     Mem,
+    Mem8,
+    Mem16,
     MemPtr16,
     MemPtr32,
     NearProc,
@@ -370,6 +372,20 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         ) => {
             inst.clocks_base = 4;
             inst.clocks_jump = Some(12);
+        }
+        (Some(OpCodeType::Imul), Some(OperandsType::Reg8)) => {
+            inst.clocks_base = 80;
+        }
+        (Some(OpCodeType::Imul), Some(OperandsType::Reg16)) => {
+            inst.clocks_base = 128;
+        }
+        (Some(OpCodeType::Imul), Some(OperandsType::Mem8)) => {
+            inst.clocks_base = 86;
+            inst.transfers = 1;
+        }
+        (Some(OpCodeType::Imul), Some(OperandsType::Mem16)) => {
+            inst.clocks_base = 134;
+            inst.transfers = 1;
         }
         (Some(OpCodeType::Inc | OpCodeType::Dec), Some(OperandsType::Reg8)) => {
             inst.clocks_base = 3;
