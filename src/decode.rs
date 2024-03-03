@@ -1684,6 +1684,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
             inst.w_field = Some(w_field);
+            inst.operands_type = Some(OperandsType::AccImm);
         }
         // int - Type specified
         0xCD => {
@@ -1981,6 +1982,11 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                     match inst.w_field {
                         Some(true) => inst.immediate_bytes.push(ImmBytesType::DataHi),
                         _ => {}
+                    }
+                    // Set cycles info
+                    match mode {
+                        ModType::RegisterMode => inst.operands_type = Some(OperandsType::RegImm),
+                        _ => inst.operands_type = Some(OperandsType::MemImm),
                     }
                 }
                 _ => {}
