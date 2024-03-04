@@ -296,11 +296,23 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
-        jump_op @ (OpCodeType::Jmp
-        | OpCodeType::Jne
-        | OpCodeType::Je
+        jump_op @ (OpCodeType::Ja
+        | OpCodeType::Jnb
         | OpCodeType::Jb
-        | OpCodeType::Jp) => {
+        | OpCodeType::Jbe
+        | OpCodeType::Je
+        | OpCodeType::Jg
+        | OpCodeType::Jnl
+        | OpCodeType::Jl
+        | OpCodeType::Jle
+        | OpCodeType::Jne
+        | OpCodeType::Jno
+        | OpCodeType::Jnp
+        | OpCodeType::Jns
+        | OpCodeType::Jo
+        | OpCodeType::Jp
+        | OpCodeType::Js
+        | OpCodeType::Jmp) => {
             new_val = None;
             jumped = handle_jmp_variants(jump_op, state, dest_val);
         }
