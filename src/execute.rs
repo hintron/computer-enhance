@@ -352,12 +352,18 @@ pub fn execute(
                 (Some(val), WidthType::Hi8) => {
                     // Multiply AL with byte-sized operand and store in AX
                     let ax = (((val as i16) >> 8) * (ax_val as u8 as i8 as i16)) as u16;
+                    println!("val: {:x}", (val as i16) >> 8);
+                    println!("al: {:x}", ax_val as u8 as i8 as i16);
+                    println!("Ax: {ax:x}");
                     let overflowed = (ax >> 8) & 0x80 != (ax & 0x80);
                     (None, ax, overflowed)
                 }
                 (Some(val), WidthType::Byte) => {
                     // Multiply AL with byte-sized operand and store in AX
                     let ax = ((val as u8 as i8 as i16) * (ax_val as u8 as i8 as i16)) as u16;
+                    println!("val: {:x}", val as u8 as i8 as i16);
+                    println!("al: {:x}", ax_val as u8 as i8 as i16);
+                    println!("Ax: {ax:x}");
                     let overflowed = (ax >> 8) & 0x80 != (ax & 0x80);
                     (None, ax, overflowed)
                 }
