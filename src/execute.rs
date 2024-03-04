@@ -937,7 +937,21 @@ fn handle_jmp_variants(
         OpCodeType::Je => state.flags_reg.zero,
         // jb/jnae/jc - jump below/not above or equal/carry
         OpCodeType::Jb => state.flags_reg.carry,
+        OpCodeType::Jbe => !state.flags_reg.carry,
         // NOTE: For loops, cx was already checked to be != 0
+        OpCodeType::Jg => {
+            (state.flags_reg.sign ^ state.flags_reg.overflow) || state.flags_reg.zero == false
+        }
+        OpCodeType::Jnl => (state.flags_reg.sign ^ state.flags_reg.overflow) == false,
+        OpCodeType::Jl => state.flags_reg.sign ^ state.flags_reg.overflow,
+        OpCodeType::Jle => {
+            (state.flags_reg.sign ^ state.flags_reg.overflow) || state.flags_reg.zero
+        }
+        OpCodeType::Jno => !state.flags_reg.overflow,
+        OpCodeType::Jnp => !state.flags_reg.parity,
+        OpCodeType::Jns => !state.flags_reg.sign,
+        OpCodeType::Jo => state.flags_reg.overflow,
+        OpCodeType::Js => state.flags_reg.sign,
         OpCodeType::Loopnz => !state.flags_reg.zero,
         OpCodeType::Loopz => state.flags_reg.zero,
         OpCodeType::Loop => true, // Only cx != 0
