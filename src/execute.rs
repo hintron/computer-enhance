@@ -265,14 +265,20 @@ pub fn execute(
 
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
-    inst.mem_access_word_unaligned = calculate_8086_unaligned_access(
+    inst.mem_access_word_unaligned = match calculate_8086_unaligned_access(
         mem_addr_src,
         mem_addr_dst,
         stack_mem_addr,
         double_mem_dest,
         transfer_width,
         inst.transfers,
-    );
+    ) {
+        Some(transfers) => transfers,
+        None => {
+            println!("inst: {inst:#?}");
+            unimplemented!("Bad cycle timing for instruction");
+        }
+    };
 
     // Print this instruction's clock debug info now that all clock data is set
     print_inst_clock_debug(inst);

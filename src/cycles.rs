@@ -99,21 +99,23 @@ pub fn calculate_8086_unaligned_access(
     double_mem_dest: bool,
     transfer_width: WidthType,
     transfers: u64,
-) -> u64 {
+) -> Option<u64> {
     // If an instruction has a mem addr, it should also have transfers. If not,
     // then the transfers value was probably not set properly.
     if (transfers > 0)
         && (mem_addr_src.is_none() && mem_addr_dst.is_none() && stack_mem_addr.is_none())
     {
-        unimplemented!("This instruction has no mem_addr set, yet it has mem transfers!")
+        println!("ERROR: This instruction has no mem_addr set, yet it has mem transfers!");
+        return None;
     };
     if (transfers == 0)
         && (mem_addr_src.is_some() || mem_addr_dst.is_some() || stack_mem_addr.is_some())
     {
-        unimplemented!("This instruction has no mem transfers, yet a mem_addr is set!")
+        println!("ERROR: This instruction has no mem transfers, yet a mem_addr is set!");
+        return None;
     };
     if transfers == 0 {
-        return 0;
+        return Some(0);
     }
 
     let mut estimated_transfers = 0;
@@ -161,7 +163,7 @@ pub fn calculate_8086_unaligned_access(
         unimplemented!("Memory transfers for this instruction ({transfers}) don't match estimated transfers ({estimated_transfers})!");
     }
 
-    unaligned_accesses
+    Some(unaligned_accesses)
 }
 
 // Calculate 8088 word transfer penalties if not already set for the inst
