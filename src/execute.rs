@@ -201,21 +201,22 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    // Account for cycles caused by implicit stack mem accesses
     match op_type {
         // By decrementing SP before processing src and dst operands, we can
         // convert push[f] into a simple mov
         OpCodeType::Push | OpCodeType::Pushf => {
             (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
-            // Stack access is accounted for in dest_val
+            stack_mem_addr = new_sp;
+        }
+        OpCodeType::Pop | OpCodeType::Popf => {
+            stack_mem_addr = Some(get_sp(&state.reg_file));
         }
         OpCodeType::Call => {
             (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
-            // Account for implicit stack mem accesses, since dest_val is a jump
-            // target, not the stack addr
             stack_mem_addr = new_sp;
         }
         OpCodeType::Ret => {
-            // Account for implicit stack mem accesses
             stack_mem_addr = Some(get_sp(&state.reg_file));
         }
         _ => {}
@@ -240,16 +241,14 @@ pub fn execute(
     // transfer is for this instruction
     let dest_width = match (
         inst.dest_reg,
-        inst.dest_reg_mem_access,
         inst.dest_width,
         inst.source_reg,
-        inst.source_reg_mem_access,
         inst.source_width,
     ) {
-        (Some(dest_reg), false, _, _, _, _) => dest_reg.width,
-        (_, _, Some(dest_width), _, _, _) => dest_width,
-        (_, _, _, Some(source_reg), false, _) => source_reg.width,
-        (_, _, _, _, _, Some(source_width)) => source_width,
+        (Some(dest_reg), _, _, _) => dest_reg.width,
+        (_, Some(dest_width), _, _) => dest_width,
+        (_, _, Some(source_reg), _) => source_reg.width,
+        (_, _, _, Some(source_width)) => source_width,
         // Just default to word width
         _ => WidthType::Word,
     };
@@ -338,6 +337,39 @@ pub fn execute(
             };
             jumped = handle_jmp_variants(OpCodeType::Ret, state, ret_ip_addr);
         }
+        OpCodeType::Push => {
+            new_val = None;
+            let (source_val, source_width) = match (source_val, source_width) {
+                (Some(val), Some(width)) => (val, width),
+                (None, _) => unreachable!("Push doesn't have a source!"),
+                (_, None) => unreachable!("Push doesn't have a source width!"),
+            };
+            let source_val_sized = execute_mov(0xFFFF, source_val, WidthType::Word, source_width);
+            stack_push(source_val_sized, &state.reg_file, &mut state.memory);
+        }
+        OpCodeType::Pushf => {
+            new_val = None;
+            let source_val = flags_to_u16(&state.flags_reg);
+            // No need to resize source_val - word to word transfer
+            stack_push(source_val, &state.reg_file, &mut state.memory);
+        }
+        OpCodeType::Pop => {
+            let dest_val = match dest_val {
+                Some(x) => x,
+                None => unreachable!("Pop doesn't have a dest!"),
+            };
+            let popped_val = stack_pop(&state.reg_file, &mut state.memory);
+            let popped_val_sized = execute_mov(dest_val, popped_val, dest_width, WidthType::Word);
+            new_val = Some(popped_val_sized);
+            (old_sp, new_sp) = increment_sp(2, &mut state.reg_file);
+        }
+        OpCodeType::Popf => {
+            let popped_val = stack_pop(&state.reg_file, &mut state.memory);
+            // No need to resize popped_val - word to word transfer
+            new_val = Some(popped_val);
+            dest_target = Some(DestTarget::FlagsReg);
+            (old_sp, new_sp) = increment_sp(2, &mut state.reg_file);
+        }
         OpCodeType::Imul => {
             new_val = None;
             // dest_val is really the single explicit source operand
@@ -424,11 +456,7 @@ pub fn execute(
             // Figure out what part of the source value to put where, and which
             // bytes of the dest register to replace
             new_val = Some(match op {
-                OpCodeType::Mov | OpCodeType::Push | OpCodeType::Pushf => {
-                    // NOTE: Push already decremented SP in decrement_sp(),
-                    // so all that is left is a move.
-                    execute_mov(dest_val, source_val, dest_width, source_width)
-                }
+                OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
                 op @ (OpCodeType::Add | OpCodeType::Sub | OpCodeType::Cmp) => {
                     let (result, overflowed, carry, aux_carry) =
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
@@ -452,11 +480,6 @@ pub fn execute(
                         execute_shift(dest_val, source_val, dest_width, source_width, op);
                     shift_count = Some(bit_shift_cnt);
                     result
-                }
-                OpCodeType::Pop | OpCodeType::Popf => {
-                    let new_val = execute_mov(dest_val, source_val, dest_width, source_width);
-                    (old_sp, new_sp) = increment_sp(2, &mut state.reg_file);
-                    new_val
                 }
                 _ => {
                     println!("inst debug: {:#?}", inst);
@@ -686,15 +709,7 @@ fn get_source_val(
             // Use the hardcoded source value
             (Some(source_hardcoded_val), Some(transfer_width))
         }
-        _ => {
-            // Handle any other special sources
-            match inst.op_type {
-                Some(OpCodeType::Pushf) => {
-                    (Some(flags_to_u16(&state.flags_reg)), Some(WidthType::Word))
-                }
-                _ => (None, None),
-            }
-        }
+        _ => (None, None),
     }
 }
 
@@ -728,16 +743,7 @@ fn get_dest_val(
             (Some(jump_val as u16), None)
         }
         // Immediate values can't be a destination
-        _ => {
-            // Handle any other special destinations
-            match inst.op_type {
-                Some(OpCodeType::Popf) => (
-                    Some(flags_to_u16(&state.flags_reg)),
-                    Some(DestTarget::FlagsReg),
-                ),
-                _ => (None, None),
-            }
-        }
+        _ => (None, None),
     }
 }
 
@@ -809,21 +815,6 @@ fn get_inst_mem_addrs(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Op
             mem_addr_dst = ea
         }
         (Some(_), _) => unimplemented!("No add_mod_rm_mem_to set!"),
-        _ => {}
-    }
-
-    // src reg indirect mem access
-    match (inst.source_reg, inst.source_reg_mem_access) {
-        (Some(reg), true) => {
-            mem_addr_src = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
-        }
-        _ => {}
-    }
-    // dest reg indirect mem access
-    match (inst.dest_reg, inst.dest_reg_mem_access) {
-        (Some(reg), true) => {
-            mem_addr_dst = Some(*state.reg_file.get(&reg.name).unwrap_or(&0));
-        }
         _ => {}
     }
 
