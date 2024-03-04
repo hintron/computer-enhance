@@ -808,6 +808,7 @@ fn get_inst_mem_addrs(inst: &InstType, state: &CpuStateType) -> (Option<u16>, Op
             }
             mem_addr_dst = ea
         }
+        (Some(_), _) => unimplemented!("No add_mod_rm_mem_to set!"),
         _ => {}
     }
 
