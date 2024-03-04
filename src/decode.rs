@@ -1069,6 +1069,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // adc (add w/ carry) - Reg/mem with register to either
