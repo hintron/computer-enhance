@@ -1961,9 +1961,15 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             let (op_type, is_intersegment) = decode_grp2_op((byte & 0b00111000) >> 3);
             inst.op_type = Some(op_type);
             inst.far_prefix = is_intersegment;
-            match mode {
-                ModType::RegisterMode => {}
-                _ => inst.add_mod_rm_mem_to = Some(AddTo::Source),
+            match (mode, op_type) {
+                (ModType::RegisterMode, _) => {}
+                (_, OpCodeType::Push) => inst.add_mod_rm_mem_to = Some(AddTo::Source),
+                (_, OpCodeType::Inc | OpCodeType::Dec) => {
+                    inst.source_hardcoded = Some(1);
+                    inst.source_hardcoded_implicit = true;
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                }
+                (_, _) => inst.add_mod_rm_mem_to = Some(AddTo::Dest),
             }
             match (op_type, mode, inst.w_field) {
                 // We know the size if Register Mode
