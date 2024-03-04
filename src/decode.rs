@@ -1963,7 +1963,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             inst.far_prefix = is_intersegment;
             match mode {
                 ModType::RegisterMode => {}
-                _ => inst.add_mod_rm_mem_to = Some(AddTo::Dest),
+                _ => inst.add_mod_rm_mem_to = Some(AddTo::Source),
             }
             match (op_type, mode, inst.w_field) {
                 // We know the size if Register Mode
