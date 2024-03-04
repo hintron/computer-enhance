@@ -2009,6 +2009,10 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
             let (op_type, is_intersegment) = decode_grp2_op((byte & 0b00111000) >> 3);
             inst.op_type = Some(op_type);
             inst.far_prefix = is_intersegment;
+            match mode {
+                ModType::RegisterMode => {}
+                _ => inst.add_mod_rm_mem_to = Some(AddTo::Dest),
+            }
             match (op_type, mode, inst.w_field) {
                 // We know the size if Register Mode
                 (_, ModType::RegisterMode, Some(w_field)) => {
