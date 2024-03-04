@@ -228,7 +228,6 @@ pub fn execute(
         | OpCodeType::Inc
         | OpCodeType::Add
         | OpCodeType::Sub
-        | OpCodeType::Cmp
         | OpCodeType::And
         | OpCodeType::Test
         | OpCodeType::Xor
