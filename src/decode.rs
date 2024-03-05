@@ -921,7 +921,7 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
         }
     }
 
-    let ip_str = get_ip_increment_str(
+    let ip_str = get_ip_change_str(
         inst.ip_inc8.as_ref(),
         inst.ip_inc_lohi.as_ref(),
         inst.ip_lohi.as_ref(),
@@ -2160,8 +2160,8 @@ fn get_ip_increment(
     }
 }
 
-/// Take in IP offset bytes and instruction length and return the IP increment
-/// value as a string.
+/// Take in all possible IP-changing sources and return a string representing
+/// the new IP value.
 ///
 /// The tricky part is that we can't recreate label text - but all labels are
 /// just translated into relative offsets to the IP. So we use `$` in NASM to
@@ -2169,7 +2169,7 @@ fn get_ip_increment(
 /// line. However, while executing an instruction, the IP always refers to the
 /// next instruction. Thus, $ == IP - len. So when a jump instruction does IP =
 /// IP + X, that is really IP = ($ + len) + X, which is why we add len.
-fn get_ip_increment_str(
+fn get_ip_change_str(
     ip_inc8: Option<&u8>,
     ip_inc_lohi: Option<&u16>,
     ip_lohi: Option<&u16>,
