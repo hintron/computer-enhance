@@ -96,6 +96,7 @@ pub fn calculate_8086_unaligned_access(
     mem_addr_src: Option<u16>,
     mem_addr_dst: Option<u16>,
     stack_mem_addr: Option<u16>,
+    stack_mem_count: u16,
     double_mem_dest: bool,
     transfer_width: WidthType,
     transfers: u64,
@@ -149,9 +150,12 @@ pub fn calculate_8086_unaligned_access(
     }
     match stack_mem_addr {
         Some(addr) => {
-            estimated_transfers += 1;
-            if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
-                unaligned_accesses += 1;
+            // Count up penalties for each stack access in this instruction
+            for i in 0..stack_mem_count {
+                estimated_transfers += 1;
+                if (transfer_width == WidthType::Word) && ((addr + i) & 0x1 == 1) {
+                    unaligned_accesses += 1;
+                }
             }
         }
         _ => {}
@@ -405,6 +409,14 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         (Some(OpCodeType::Inc | OpCodeType::Dec), Some(OperandsType::Mem)) => {
             inst.clocks_base = 15;
             inst.transfers = 2;
+        }
+        (Some(OpCodeType::Int3), _) => {
+            inst.clocks_base = 52;
+            inst.transfers = 5;
+        }
+        (Some(OpCodeType::Int), _) => {
+            inst.clocks_base = 51;
+            inst.transfers = 5;
         }
         (Some(OpCodeType::Jcxz | OpCodeType::Loopz), _) => {
             inst.clocks_base = 6;
