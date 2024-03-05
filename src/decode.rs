@@ -837,17 +837,10 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 
 /// Set additional public info in the instruction to pass to the execution side.
 fn calculate_execution_values(inst: &mut InstType) {
-    // Calculate any jump displacement value
-    let (ip_inc, ip_abs) = get_ip_increment(
-        inst.ip_inc8.as_ref(),
-        inst.ip_inc_lohi.as_ref(),
-        inst.ip_lohi.as_ref(),
-    );
-    inst.ip_inc = ip_inc;
-    inst.ip_abs = match (ip_abs, inst.cs_lohi) {
-        (Some(ip_abs), Some(cs)) => Some(ip_abs as u16 + (cs << 4)),
-        _ => None,
-    };
+    // Calculate the ip increment value, if it exists
+    inst.ip_inc = get_ip_increment(inst.ip_inc8.as_ref(), inst.ip_inc_lohi.as_ref());
+    // Calculate the ip absolute value, if it exists
+    inst.ip_abs = get_ip_absolute(inst.ip_lohi, inst.cs_lohi);
 
     // Get the actual u16 value of the data immediate bytes
     if inst.add_data_to.is_some() {
@@ -2145,18 +2138,28 @@ fn process_data_bytes(
     }
 }
 
-/// Take in IP offset bytes and return either an i16 IP increment value for the
-/// first result or the absolute u16 IP value for the second result.
-fn get_ip_increment(
-    ip_inc8: Option<&u8>,
-    ip_inc_lohi: Option<&u16>,
-    ip_lohi: Option<&u16>,
-) -> (Option<i16>, Option<u16>) {
-    match (ip_inc8, ip_inc_lohi, ip_lohi) {
-        (Some(ip_inc8), _, _) => (Some((*ip_inc8 as i8) as i16), None),
-        (_, Some(ip_inc16), _) => (Some(*ip_inc16 as i16), None),
-        (_, _, Some(ip_16)) => (None, Some(*ip_16)),
-        _ => (None, None),
+/// Take in two possible IP increment values and return a single i16 value
+fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lohi: Option<&u16>) -> Option<i16> {
+    match (ip_inc8, ip_inc_lohi) {
+        (Some(ip_inc8), _) => Some((*ip_inc8 as i8) as i16),
+        (_, Some(ip_inc16)) => Some(*ip_inc16 as i16),
+        _ => None,
+    }
+}
+
+/// Calculate an absolute IP value, given hardcoded IP and CS values
+fn get_ip_absolute(ip_lohi: Option<u16>, cs_lohi: Option<u16>) -> Option<u16> {
+    match (ip_lohi, cs_lohi) {
+        (Some(ip_abs), Some(cs)) => Some(ip_abs as u16 + (cs << 4)),
+        _ => None,
+    }
+}
+
+/// Take in ip HiLo and hardcoded CS value and return a string representation
+fn get_ip_absolute_str(ip_lohi: Option<&u16>, cs_lohi: Option<&u16>) -> Option<String> {
+    match (ip_lohi, cs_lohi) {
+        (Some(ip_lohi), Some(cs_lohi)) => Some(format!("{cs_lohi}:{ip_lohi}")),
+        _ => None,
     }
 }
 
@@ -2176,14 +2179,14 @@ fn get_ip_change_str(
     cs_lohi: Option<&u16>,
     len: usize,
 ) -> Option<String> {
-    let (ip_inc, ip_abs) = get_ip_increment(ip_inc8, ip_inc_lohi, ip_lohi);
-    match (ip_inc, ip_abs, cs_lohi) {
-        (Some(ip_inc), _, _) => {
+    let ip_inc = get_ip_increment(ip_inc8, ip_inc_lohi);
+    let ip_abs_str = get_ip_absolute_str(ip_lohi, cs_lohi);
+    match (ip_inc, ip_abs_str) {
+        (Some(ip_inc), _) => {
             let ip_val = ip_inc + len as i16;
             Some(format!("${:+}", ip_val))
         }
-        (_, Some(ip_abs), Some(cs_val)) => Some(format!("{cs_val}:{ip_abs}")),
-        _ => None,
+        (_, ip_abs_str) => ip_abs_str,
     }
 }
 
