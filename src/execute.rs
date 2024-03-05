@@ -288,6 +288,12 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
+        OpCodeType::Cli => {
+            state.flags_reg.interrupt_enable = false;
+        }
+        OpCodeType::Sti => {
+            state.flags_reg.interrupt_enable = true;
+        }
         jump_op @ (OpCodeType::Ja
         | OpCodeType::Jnb
         | OpCodeType::Jb

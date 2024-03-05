@@ -142,6 +142,7 @@ pub enum OpCodeType {
     Cbw,
     Clc,
     Cld,
+    /// Clear interrupt flag (disable interrupts)
     Cli,
     Cmc,
     Cmp,
@@ -238,6 +239,7 @@ pub enum OpCodeType {
     Shr,
     Stc,
     Std,
+    /// Set interrupt flag (enable interrupts)
     Sti,
     Stos,
     Sub,
