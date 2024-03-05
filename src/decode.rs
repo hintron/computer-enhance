@@ -643,18 +643,28 @@ pub struct InstType {
 /// Returns a vector of instructions executed, as well as the final CPU state.
 pub fn decode_execute(
     program_bytes: Vec<u8>,
+    program_length: u64,
     decode_settings: &DecodeSettings,
     exec_settings: &ExecuteSettings,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
-    let mut cpu_state = init_state(exec_settings.init_ip, exec_settings.init_sp);
+    let mut cpu_state = init_state(program_bytes, exec_settings.init_ip, exec_settings.init_sp);
 
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip
     // decode, use that InstType, and advance the IP. Use the # of
     // processed bytes in InstType to advance the IP.
     loop {
-        let inst_byte_window = match get_inst_window(cpu_state.ip as usize, &program_bytes) {
+        // If the IP surpassed the original program length, then exit, or else
+        // we may start decoding zeroes as instructions since the vector was
+        // resized to be 1 MB. This check works for most code, but could start
+        // being a problem if we are executing self-modifying code that creates
+        // and executes instructions past the end of the original program.
+        if (cpu_state.ip as u64) >= program_length {
+            println!("IP surpassed original program length. Halting CPU.");
+            break;
+        }
+        let inst_byte_window = match get_inst_window(cpu_state.ip as usize, &cpu_state.memory) {
             Some(x) => x,
             None => break,
         };
@@ -712,8 +722,7 @@ pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<Ins
     insts
 }
 
-/// Decode a single instruction, advancing the byte stream iterator as needed.\
-/// Return the instruction.
+/// Decode a single instruction from a given slice of 16 bytes
 ///
 /// # Approach:
 /// An instruction stream is parsed byte by byte, as 8086 has variable-length

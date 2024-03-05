@@ -11,7 +11,7 @@ use crate::decode::{
     AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
 };
 
-const MEMORY_SIZE: usize = 1024 * 1024;
+pub const MEMORY_SIZE: usize = 1024 * 1024;
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
@@ -102,14 +102,21 @@ impl fmt::Display for FlagsRegType {
     }
 }
 
-pub fn init_state(init_ip: Option<u16>, init_sp: Option<u16>) -> CpuStateType {
+/// Move the given vector containing the program into the CPU state and use it
+/// as memory during execution.
+/// Initialize the SP and IP registers according to the given values.
+pub fn init_state(
+    program_bytes: Vec<u8>,
+    init_ip: Option<u16>,
+    init_sp: Option<u16>,
+) -> CpuStateType {
     let ip = match init_ip {
         Some(x) => x,
         None => 0,
     };
     let mut state = CpuStateType {
         // Initialize the memory array to 1 MB
-        memory: vec![0; MEMORY_SIZE],
+        memory: program_bytes,
         ip: ip,
         ..Default::default()
     };

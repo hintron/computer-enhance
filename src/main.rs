@@ -247,7 +247,7 @@ fn main() -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
 
-    let program_bytes = file_to_byte_vec(&args.input_file)?;
+    let (program_bytes, program_length) = file_to_byte_vec(&args.input_file, args.execute)?;
     let mut output_file = get_output_file_from_path(&args.output_file, args.overwrite)?;
     println!(
         "Decoding instructions from file '{}'...",
@@ -277,8 +277,12 @@ fn main() -> Result<()> {
             init_ip: args.init_ip,
             init_sp: args.init_sp,
         };
-        let (text_lines, mut cpu_state) =
-            decode_execute(program_bytes, &decode_settings, &execute_settings);
+        let (text_lines, mut cpu_state) = decode_execute(
+            program_bytes,
+            program_length,
+            &decode_settings,
+            &execute_settings,
+        );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
         }

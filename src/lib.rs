@@ -19,9 +19,13 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
 
+use execute::MEMORY_SIZE;
+
 /// Takes in a file path string and returns a byte vector containing the
-/// entire contents of the file.
-pub fn file_to_byte_vec(input_path: &Option<String>) -> Result<Vec<u8>> {
+/// entire contents of the file. If we are executing, the byte vector is
+/// expanded to be 1 MB. Return the byte vector as well as the length of the
+/// code, so we know when we run off the end in simple code snippets.
+pub fn file_to_byte_vec(input_path: &Option<String>, exec: bool) -> Result<(Vec<u8>, u64)> {
     // Make sure required args exist
     let mut input_file = match input_path {
         Some(file) => {
@@ -33,7 +37,19 @@ pub fn file_to_byte_vec(input_path: &Option<String>) -> Result<Vec<u8>> {
 
     let mut inst_stream: Vec<u8> = vec![];
     input_file.read_to_end(&mut inst_stream)?;
-    Ok(inst_stream)
+
+    let original_program_size = inst_stream.len() as u64;
+
+    // If we are executing, then make sure this vector is 1 MB so it can act as
+    // the program's memory.
+    if exec {
+        inst_stream.resize(MEMORY_SIZE, 0)
+    };
+
+    println!("Original program bytes length: {original_program_size}");
+    println!("Current program bytes length: {}", inst_stream.len());
+
+    Ok((inst_stream, original_program_size))
 }
 
 /// Takes in an output file path string and returns a File handle
