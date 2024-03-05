@@ -8,7 +8,8 @@ use crate::cycles::{
     calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
 };
 use crate::decode::{
-    AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
+    get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
+    WidthType,
 };
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
@@ -195,6 +196,8 @@ pub fn execute(
     let mut new_sp = None;
     // If true, this instruction accesses memory via the stack at this instruction
     let mut stack_mem_addr = None;
+    // The number of stack pushes or pops an instruction does
+    let mut stack_mem_count = 0;
     // If this instruction has a destination memory address, then marks two
     // transfers instead of one
     let mut double_mem_dest = false;
@@ -211,13 +214,27 @@ pub fn execute(
     // Get mem address for implicit stack mem access so we can account for any
     // cycle penalties
     match op_type {
-        OpCodeType::Push | OpCodeType::Pushf | OpCodeType::Call => {
+        OpCodeType::Push
+        | OpCodeType::Pushf
+        | OpCodeType::Call
+        | OpCodeType::Int
+        | OpCodeType::Int3 => {
             (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
             stack_mem_addr = new_sp;
         }
         OpCodeType::Pop | OpCodeType::Popf | OpCodeType::Ret => {
             stack_mem_addr = Some(get_sp(&state.reg_file));
         }
+        _ => {}
+    }
+    match op_type {
+        OpCodeType::Push
+        | OpCodeType::Pushf
+        | OpCodeType::Call
+        | OpCodeType::Pop
+        | OpCodeType::Popf
+        | OpCodeType::Ret => stack_mem_count = 1,
+        OpCodeType::Int | OpCodeType::Int3 => stack_mem_count = 5,
         _ => {}
     }
 
@@ -266,6 +283,7 @@ pub fn execute(
         mem_addr_src,
         mem_addr_dst,
         stack_mem_addr,
+        stack_mem_count,
         double_mem_dest,
         transfer_width,
         inst.transfers,
@@ -355,6 +373,37 @@ pub fn execute(
             stack_push(state.ip, &state.reg_file, &mut state.memory);
             // Change current IP to call target
             jumped = handle_jmp_variants(OpCodeType::Call, state, inst.ip_inc, inst.ip_abs);
+        }
+        OpCodeType::Int | OpCodeType::Int3 => {
+            // Get the interrupt number
+            let int_num = match (op_type, source_val) {
+                (OpCodeType::Int3, _) => 3,
+                (_, Some(immed8)) => immed8,
+                _ => unreachable!(),
+            };
+            // Push flags
+            let flags = flags_to_u16(&state.flags_reg);
+            stack_push(flags, &state.reg_file, &mut state.memory);
+            // Push CS
+            (_, _) = decrement_sp(2, &mut state.reg_file);
+            let cs = state.reg_file.get(&RegName::Cs).unwrap_or(&0);
+            stack_push(*cs, &state.reg_file, &mut state.memory);
+            // Push IP
+            (_, new_sp) = decrement_sp(2, &mut state.reg_file);
+            stack_push(state.ip, &state.reg_file, &mut state.memory);
+            // Clear IF and TF
+            state.flags_reg.interrupt_enable = false;
+            state.flags_reg.trap = false;
+            print_flags = true;
+            // Get the new IP and CS from the interrupt vector table in memory
+            let int_address_ip = int_num * 4;
+            let int_address_cs = int_address_ip + 2;
+            let int_ip = load_u16_from_mem(&state.memory, int_address_ip);
+            let int_cs = load_u16_from_mem(&state.memory, int_address_cs);
+            // Create the new absolute IP address to jump to
+            let ip_abs = get_ip_absolute(Some(int_ip), Some(int_cs));
+            // Jump to ip_abs
+            jumped = handle_jmp_variants(op_type, state, None, ip_abs);
         }
         OpCodeType::Ret => {
             // The IP value to return to, stored at the top of the stack
@@ -961,6 +1010,8 @@ fn handle_jmp_variants(
         OpCodeType::Jmp => true,
         OpCodeType::Call => true,
         OpCodeType::Ret => true,
+        OpCodeType::Int => true,
+        OpCodeType::Int3 => true,
         x @ _ => unimplemented!("Unimplemented jump variant {x}"),
     };
     let overflowed = match (jump, ip_inc, ip_abs) {

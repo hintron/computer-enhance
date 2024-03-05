@@ -2163,7 +2163,7 @@ fn get_ip_increment(ip_inc8: Option<&u8>, ip_inc_lohi: Option<&u16>) -> Option<i
 }
 
 /// Calculate an absolute IP value, given hardcoded IP and CS values
-fn get_ip_absolute(ip_lohi: Option<u16>, cs_lohi: Option<u16>) -> Option<u16> {
+pub fn get_ip_absolute(ip_lohi: Option<u16>, cs_lohi: Option<u16>) -> Option<u16> {
     match (ip_lohi, cs_lohi) {
         (Some(ip_abs), Some(cs)) => Some(ip_abs as u16 + (cs << 4)),
         _ => None,
