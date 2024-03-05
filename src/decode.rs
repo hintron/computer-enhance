@@ -867,7 +867,6 @@ fn calculate_execution_values(inst: &mut InstType) {
     // NOTE: We can't calculate the effective address until we get into execute,
     // since we need to access register values from the reg file, which is part
     // of the CPU state.
-    // See calculate_mem_addr()
 }
 
 fn build_source_dest_strings(inst: &InstType) -> (String, String) {
