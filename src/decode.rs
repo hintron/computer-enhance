@@ -538,7 +538,7 @@ pub struct InstType {
     reg_field: Option<RegType>,
     /// This is the segment register field, used with "segment register"
     /// variants of push and pop, as well as for segment override prefixes.
-    sr_field: Option<RegType>,
+    pub sr_field: Option<RegType>,
     /// The op code type
     pub op_type: Option<OpCodeType>,
     /// A suffix string to append to the opcode, like `b` for `movsb`

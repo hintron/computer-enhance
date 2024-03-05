@@ -8,7 +8,7 @@ use crate::cycles::{
     calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
 };
 use crate::decode::{
-    AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
+    AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName, RegType, WidthType,
 };
 
 const MEMORY_SIZE: usize = 1024 * 1024;
@@ -194,6 +194,14 @@ pub fn execute(
     // Accumulate a string of register changes as needed, if not covered by
     // new_val + dest_target
     let mut reg_change_str = None;
+
+    // If ip_abs wasn't set yet, then check to see if
+    if inst.ip_abs.is_none() {
+        // MGH TODO: Figure out what the base value should be
+        // MGH TODO: "When BP is used in a memory reference, SS is assumed as the segment. Otherwise DS is assumed."
+        // MGH TODO: SS is also assumed to be seg reg for implicit stack access during push and pop ([SS:SP]).
+        inst.ip_abs = get_ip_absolute_seg_reg(Some(1), inst.sr_field, &state.reg_file);
+    }
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
@@ -610,6 +618,22 @@ pub fn execute(
     }
 
     return (effect, false);
+}
+
+/// Calculate an absolute IP value, given hardcoded IP and CS values
+fn get_ip_absolute_seg_reg(
+    ip_base: Option<u16>,
+    seg_reg: Option<RegType>,
+    reg_file: &BTreeMap<RegName, u16>,
+) -> Option<u16> {
+    match (ip_base, seg_reg) {
+        (Some(ip_base), Some(seg_reg)) => {
+            let seg_reg_val = reg_file.get(&seg_reg.name).unwrap_or(&0);
+
+            Some(ip_base as u16 + (seg_reg_val << 4))
+        }
+        _ => None,
+    }
 }
 
 // Push an item onto the stack (decrement of the stack is assumed to have
