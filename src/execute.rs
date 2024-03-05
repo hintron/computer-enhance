@@ -201,10 +201,9 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
-    // Account for cycles caused by implicit stack mem accesses
+    // Get mem address for implicit stack mem access so we can account for any
+    // cycle penalties
     match op_type {
-        // By decrementing SP before processing src and dst operands, we can
-        // convert push[f] into a simple mov
         OpCodeType::Push | OpCodeType::Pushf | OpCodeType::Call => {
             (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
             stack_mem_addr = new_sp;
