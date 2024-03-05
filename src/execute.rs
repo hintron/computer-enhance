@@ -314,7 +314,7 @@ pub fn execute(
         | OpCodeType::Js
         | OpCodeType::Jmp) => {
             new_val = None;
-            jumped = handle_jmp_variants(jump_op, state, dest_val);
+            jumped = handle_jmp_variants(jump_op, state, inst.ip_inc, inst.ip_abs);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
             // pg 2-45 - 2-46
@@ -325,7 +325,7 @@ pub fn execute(
             println!("loop: cx is now {cx}");
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
-                jumped = handle_jmp_variants(jump_op, state, dest_val);
+                jumped = handle_jmp_variants(jump_op, state, inst.ip_inc, inst.ip_abs);
             }
         }
         OpCodeType::Call => {
@@ -333,7 +333,7 @@ pub fn execute(
             // Push current IP onto the stack (memory access)
             stack_push(state.ip, &state.reg_file, &mut state.memory);
             // Change current IP to call target
-            jumped = handle_jmp_variants(OpCodeType::Call, state, dest_val);
+            jumped = handle_jmp_variants(OpCodeType::Call, state, inst.ip_inc, inst.ip_abs);
         }
         OpCodeType::Ret => {
             new_val = None;
@@ -346,7 +346,7 @@ pub fn execute(
                 // Just increment for ret addr
                 _ => increment_sp(2, &mut state.reg_file),
             };
-            jumped = handle_jmp_variants(OpCodeType::Ret, state, ret_ip_addr);
+            jumped = handle_jmp_variants(OpCodeType::Ret, state, None, ret_ip_addr);
         }
         OpCodeType::Push => {
             new_val = None;
@@ -731,8 +731,8 @@ fn get_dest_val(
     mem_addr_dst: Option<u16>,
 ) -> (Option<u16>, Option<DestTarget>) {
     // Get the op's destination reg and its current value
-    match (inst.dest_reg, mem_addr_dst, inst.jmp_value) {
-        (Some(dest_reg), None, _) => {
+    match (inst.dest_reg, mem_addr_dst) {
+        (Some(dest_reg), None) => {
             println!("Dest is reg!");
             // Note: This also currently covers ModRmDataType::Reg(_)
             // Get the value of the dest register
@@ -743,15 +743,11 @@ fn get_dest_val(
             let dest_target = DestTarget::RegisterName(dest_reg.name);
             (Some(dest_val), Some(dest_target))
         }
-        (_, Some(address), _) => {
+        (_, Some(address)) => {
             println!("Dest is mem addr!");
             let dest_target = DestTarget::MemAddress(address as usize);
             let dest_val = load_u16_from_mem(&state.memory, address);
             (Some(dest_val), Some(dest_target))
-        }
-        (_, _, Some(jump_val)) => {
-            // Immediate values for jumps. No dest target
-            (Some(jump_val as u16), None)
         }
         // Immediate values can't be a destination
         _ => (None, None),
@@ -915,19 +911,9 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
 fn handle_jmp_variants(
     jump_op: OpCodeType,
     state: &mut CpuStateType,
-    dest_val: Option<u16>,
+    ip_inc: Option<i16>,
+    ip_abs: Option<u16>,
 ) -> bool {
-    // If true, replace ip with jmp_value, otherwise, add jmp_value to ip
-    let mut replace_ip = false;
-    // Convert dest value into jump offset
-    let jmp_value = match dest_val {
-        Some(jmp_value) => {
-            // NOTE: i8 offset will be sign extended to i16 automatically
-            jmp_value as i16
-        }
-        _ => unimplemented!("Jump variant {jump_op} is missing a dest_val"),
-    };
-
     println!("state.ip before: {}", state.ip);
 
     // See table 2-15 on pg. 2-46 of the 8086 documentation
@@ -958,22 +944,19 @@ fn handle_jmp_variants(
         OpCodeType::Jp => state.flags_reg.parity,
         OpCodeType::Jmp => true,
         OpCodeType::Call => true,
-        OpCodeType::Ret => {
-            replace_ip = true;
-            true
-        }
+        OpCodeType::Ret => true,
         x @ _ => unimplemented!("Unimplemented jump variant {x}"),
     };
-    let overflowed = match (jump, replace_ip) {
-        (true, false) => {
+    let overflowed = match (jump, ip_inc, ip_abs) {
+        (true, Some(ip_inc), _) => {
             // Add the IP increment value to IP
-            let (result, overflowed) = (state.ip as i16).overflowing_add(jmp_value);
+            let (result, overflowed) = (state.ip as i16).overflowing_add(ip_inc);
             state.ip = result as u16;
             overflowed
         }
-        (true, true) => {
-            // Replace the IP entirely with jmp_value. No overflow possible.
-            state.ip = jmp_value as u16;
+        (true, _, Some(ip_abs)) => {
+            // Replace the IP entirely. No overflow possible.
+            state.ip = ip_abs;
             false
         }
         _ => false,
