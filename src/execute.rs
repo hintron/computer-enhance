@@ -645,7 +645,7 @@ fn stack_push(val: u16, reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>)
         None => 0,
     };
     store_u16_in_mem(memory, sp_val as usize, val);
-    println!("Push onto stack: {val:x} at addr {sp_val:x}");
+    println!("Push onto stack: 0x{val:x} at addr 0x{sp_val:x}");
 }
 
 // Pop an item off the stack (increment of the stack is assumed to happen after
@@ -656,7 +656,7 @@ fn stack_pop(reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>) -> u16 {
         None => 0,
     };
     let val = load_u16_from_mem(memory, sp_val);
-    println!("Pop off stack: {val:x} from addr {sp_val:x}");
+    println!("Pop off stack: 0x{val:x} from addr 0x{sp_val:x}");
     val
 }
 
@@ -675,7 +675,7 @@ fn decrement_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u1
         None => 0,
     };
     let (new_sp, overflowed) = old_sp.overflowing_sub(count);
-    println!("Decrementing SP by {count}: {old_sp} -> {new_sp}");
+    println!("Decrementing SP by {count}: 0x{old_sp:x} -> 0x{new_sp:x}");
     if overflowed {
         println!("Overflow!")
     }
@@ -691,7 +691,7 @@ fn increment_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u1
         None => 0,
     };
     let (new_sp, overflowed) = old_sp.overflowing_add(count);
-    println!("Incrementing SP by {count}: {old_sp} -> {new_sp}");
+    println!("Incrementing SP by {count}: 0x{old_sp:x} -> 0x{new_sp:x}");
     if overflowed {
         println!("Overflow!")
     }
@@ -911,7 +911,7 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
     let upper = memory[(address + 1) as usize] as u16;
     // Combine into a single u16 value
     let val = lower | (upper << 8);
-    println!("Loaded {val} from {address}");
+    println!("Loaded 0x{val:x} from 0x{address:x}");
     val
 }
 
@@ -920,7 +920,7 @@ fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
     // Store 16-bit value in little endian order
     memory[address] = (new_val & 0x00FF) as u8;
     memory[address + 1] = ((new_val & 0xFF00) >> 8) as u8;
-    println!("Stored {new_val} at {address}");
+    println!("Stored 0x{new_val:x} at 0x{address:x}");
 }
 
 /// Handle the logic for the given jump op code. Modify the IP register in the
