@@ -335,6 +335,13 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 37;
             inst.transfers = 4;
         }
+        // Set/clear flags
+        (Some(OpCodeType::Clc), _) => inst.clocks_base = 2,
+        (Some(OpCodeType::Cld), _) => inst.clocks_base = 2,
+        (Some(OpCodeType::Cli), _) => inst.clocks_base = 2,
+        (Some(OpCodeType::Stc), _) => inst.clocks_base = 2,
+        (Some(OpCodeType::Std), _) => inst.clocks_base = 2,
+        (Some(OpCodeType::Sti), _) => inst.clocks_base = 2,
         // Cmp
         (Some(OpCodeType::Cmp), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         (Some(OpCodeType::Cmp), Some(OperandsType::RegMem)) => {
