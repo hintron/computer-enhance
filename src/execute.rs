@@ -680,7 +680,6 @@ fn decrement_sp(count: u16, reg_file: &mut BTreeMap<RegName, u16>) -> (Option<u1
         println!("Overflow!")
     }
     reg_file.insert(RegName::Sp, new_sp).unwrap_or(0);
-    println!("Old val: {old_sp}");
     (Some(old_sp), Some(new_sp))
 }
 
