@@ -560,8 +560,7 @@ pub struct InstType {
     /// destination.
     pub disp_value: Option<i16>,
     ip_inc8: Option<u8>,
-    ip_inc_lo: Option<u8>,
-    ip_inc_hi: Option<u8>,
+    ip_inc_lohi: Option<u16>,
     cs_lo: Option<u8>,
     cs_hi: Option<u8>,
     /// Whether disp_value should be applied to the source or destination.
@@ -788,8 +787,13 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
             ImmBytesType::Data8 => inst.data_8 = Some(*byte),
             ImmBytesType::DataHi => inst.data_hi = Some(*byte),
             ImmBytesType::IpInc8 => inst.ip_inc8 = Some(*byte),
-            ImmBytesType::IpIncLo => inst.ip_inc_lo = Some(*byte),
-            ImmBytesType::IpIncHi => inst.ip_inc_hi = Some(*byte),
+            ImmBytesType::IpIncLo => inst.ip_inc_lohi = Some(*byte as u16),
+            ImmBytesType::IpIncHi => {
+                inst.ip_inc_lohi = match inst.ip_inc_lohi {
+                    Some(val) => Some((*byte as u16) << 8 | val),
+                    None => unimplemented!("Hit IpIncHi without preceding InIncLo!"),
+                }
+            }
             ImmBytesType::CsLo => inst.cs_lo = Some(*byte),
             ImmBytesType::CsHi => inst.cs_hi = Some(*byte),
             ImmBytesType::DoNotCare => {}
@@ -818,11 +822,10 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 /// Set additional public info in the instruction to pass to the execution side.
 fn calculate_execution_values(inst: &mut InstType) {
     // Calculate any jump displacement value
-    if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
+    if inst.ip_inc8.is_some() || inst.ip_inc_lohi.is_some() {
         let (ip_val, cs) = get_ip_increment(
             inst.ip_inc8.as_ref(),
-            inst.ip_inc_lo.as_ref(),
-            inst.ip_inc_hi.as_ref(),
+            inst.ip_inc_lohi.as_ref(),
             inst.cs_lo.as_ref(),
             inst.cs_hi.as_ref(),
         );
@@ -904,11 +907,10 @@ fn build_source_dest_strings(inst: &InstType) -> (String, String) {
             }
         }
     }
-    if inst.ip_inc8.is_some() || inst.ip_inc_lo.is_some() {
+    if inst.ip_inc8.is_some() || inst.ip_inc_lohi.is_some() {
         dest_text.push_str(&get_ip_increment_str(
             inst.ip_inc8.as_ref(),
-            inst.ip_inc_lo.as_ref(),
-            inst.ip_inc_hi.as_ref(),
+            inst.ip_inc_lohi.as_ref(),
             inst.cs_lo.as_ref(),
             inst.cs_hi.as_ref(),
             inst.processed_bytes.len(),
@@ -2130,16 +2132,15 @@ fn process_data_bytes(
 /// Take in IP offset bytes and return the IP increment value as an i16.
 fn get_ip_increment(
     ip_inc8: Option<&u8>,
-    ip_inc_lo: Option<&u8>,
-    ip_inc_hi: Option<&u8>,
+    ip_inc_lohi: Option<&u16>,
     cs_lo: Option<&u8>,
     cs_hi: Option<&u8>,
 ) -> (i16, Option<u16>) {
-    let ip_inc = match (ip_inc8, ip_inc_lo, ip_inc_hi) {
-        (Some(ip_inc8), _, _) => (*ip_inc8 as i8) as i16,
-        (None, Some(lo), Some(hi)) => {
+    let ip_inc = match (ip_inc8, ip_inc_lohi) {
+        (Some(ip_inc8), _) => (*ip_inc8 as i8) as i16,
+        (None, Some(ip_lohi)) => {
             // Combine lo and hi
-            ((*hi as i16) << 8) | (*lo as i16)
+            *ip_lohi as i16
         }
         _ => unreachable!(),
     };
@@ -2162,13 +2163,12 @@ fn get_ip_increment(
 /// IP + X, that is really IP = ($ + len) + X, which is why we add len.
 fn get_ip_increment_str(
     ip_inc8: Option<&u8>,
-    ip_inc_lo: Option<&u8>,
-    ip_inc_hi: Option<&u8>,
+    ip_inc_lohi: Option<&u16>,
     cs_lo: Option<&u8>,
     cs_hi: Option<&u8>,
     len: usize,
 ) -> String {
-    let (ip_inc, cs) = get_ip_increment(ip_inc8, ip_inc_lo, ip_inc_hi, cs_lo, cs_hi);
+    let (ip_inc, cs) = get_ip_increment(ip_inc8, ip_inc_lohi, cs_lo, cs_hi);
     match cs {
         Some(cs_val) => format!("{cs_val}:{ip_inc}"),
         None => {
