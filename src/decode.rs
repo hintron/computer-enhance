@@ -140,7 +140,9 @@ pub enum OpCodeType {
     And,
     Call,
     Cbw,
+    /// Clear carry flag
     Clc,
+    /// Clear direction flag
     Cld,
     /// Clear interrupt flag (disable interrupts)
     Cli,
@@ -237,7 +239,9 @@ pub enum OpCodeType {
     Shl,
     /// shr - shift right - logical (zero fill, don't sign extend)
     Shr,
+    /// Set carry flag
     Stc,
+    /// Set direction flag
     Std,
     /// Set interrupt flag (enable interrupts)
     Sti,

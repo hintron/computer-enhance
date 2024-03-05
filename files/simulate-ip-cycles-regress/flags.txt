@@ -1,0 +1,44 @@
+**************
+**** 8086 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov dl, 1 ; Clocks: +4 = 4 | dx:0x0->0x1 ip:0x0->0x2
+add dl, 255 ; Clocks: +4 = 8 | dx:0x1->0x0 ip:0x2->0x5 flags:->CPAZ
+clc ; Clocks: +2 = 10 | ip:0x5->0x6 flags:CPAZ->PAZ
+sti ; Clocks: +2 = 12 | ip:0x6->0x7 flags:PAZ->PAZI
+std ; Clocks: +2 = 14 | ip:0x7->0x8 flags:PAZI->PAZID
+stc ; Clocks: +2 = 16 | ip:0x8->0x9 flags:PAZID->CPAZID
+cli ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->CPAZD
+clc ; Clocks: +2 = 20 | ip:0xa->0xb flags:CPAZD->PAZD
+cld ; Clocks: +2 = 22 | ip:0xb->0xc flags:PAZD->PAZ
+
+Final registers:
+      ip: 0x000c (12)
+   flags: PAZ
+
+**************
+**** 8088 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov dl, 1 ; Clocks: +4 = 4 | dx:0x0->0x1 ip:0x0->0x2
+add dl, 255 ; Clocks: +4 = 8 | dx:0x1->0x0 ip:0x2->0x5 flags:->CPAZ
+clc ; Clocks: +2 = 10 | ip:0x5->0x6 flags:CPAZ->PAZ
+sti ; Clocks: +2 = 12 | ip:0x6->0x7 flags:PAZ->PAZI
+std ; Clocks: +2 = 14 | ip:0x7->0x8 flags:PAZI->PAZID
+stc ; Clocks: +2 = 16 | ip:0x8->0x9 flags:PAZID->CPAZID
+cli ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->CPAZD
+clc ; Clocks: +2 = 20 | ip:0xa->0xb flags:CPAZD->PAZD
+cld ; Clocks: +2 = 22 | ip:0xb->0xc flags:PAZD->PAZ
+
+Final registers:
+      ip: 0x000c (12)
+   flags: PAZ
+
