@@ -169,7 +169,7 @@ pub fn execute(
     let old_flags = state.flags_reg.clone();
 
     // The destination value
-    let new_val;
+    let mut new_val = None;
     let mut dest_target;
     // Set this var if we should set the flags reg at the end
     let mut modify_flags = false;
@@ -305,7 +305,6 @@ pub fn execute(
         | OpCodeType::Jp
         | OpCodeType::Js
         | OpCodeType::Jmp) => {
-            new_val = None;
             jumped = handle_jmp_variants(jump_op, state, inst.ip_inc, inst.ip_abs);
         }
         jump_op @ (OpCodeType::Loopnz | OpCodeType::Loopz | OpCodeType::Loop) => {
@@ -321,14 +320,12 @@ pub fn execute(
             }
         }
         OpCodeType::Call => {
-            new_val = None;
             // Push current IP onto the stack (memory access)
             stack_push(state.ip, &state.reg_file, &mut state.memory);
             // Change current IP to call target
             jumped = handle_jmp_variants(OpCodeType::Call, state, inst.ip_inc, inst.ip_abs);
         }
         OpCodeType::Ret => {
-            new_val = None;
             // The IP value to return to, stored at the top of the stack
             let ret_ip_addr = Some(stack_pop(&state.reg_file, &mut state.memory));
             // If ret has an optional pop, just add that to ret_ip_addr
@@ -341,7 +338,6 @@ pub fn execute(
             jumped = handle_jmp_variants(OpCodeType::Ret, state, None, ret_ip_addr);
         }
         OpCodeType::Push => {
-            new_val = None;
             let (source_val, source_width) = match (source_val, source_width) {
                 (Some(val), Some(width)) => (val, width),
                 (None, _) => unreachable!("Push doesn't have a source!"),
@@ -351,7 +347,6 @@ pub fn execute(
             stack_push(source_val_sized, &state.reg_file, &mut state.memory);
         }
         OpCodeType::Pushf => {
-            new_val = None;
             let source_val = flags_to_u16(&state.flags_reg);
             // No need to resize source_val - word to word transfer
             stack_push(source_val, &state.reg_file, &mut state.memory);
@@ -374,7 +369,6 @@ pub fn execute(
             (old_sp, new_sp) = increment_sp(2, &mut state.reg_file);
         }
         OpCodeType::Imul => {
-            new_val = None;
             // dest_val is really the single explicit source operand
             // AX/AL is an implicit operand
             let ax_val = *(state.reg_file.get(&RegName::Ax).unwrap_or(&0));
