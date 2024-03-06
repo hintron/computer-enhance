@@ -211,6 +211,56 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    // Handle emulator hooks before doing any "real" instructions
+    match (op_type, inst.data_value) {
+        (OpCodeType::Int, Some(int_num @ (0x0 | 0x10 | 0x1B | 0x21))) => {
+            let ax = *state.reg_file.get(&RegName::Ax).unwrap();
+            let ah = (ax >> 8) as u8;
+            let al = ax as i8;
+            // Handle various emulator hooks
+            match (int_num, ah) {
+                (0x0, _) => unimplemented!("int 0x{int_num:x} (divide by 0)"),
+                (0x10, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (BIOS interrupt)"),
+                (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
+                (0x21, 0x02 | 0x09) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x40) => {
+                    let string_start = *state.reg_file.get(&RegName::Dx).unwrap() as usize;
+                    let string_len = *state.reg_file.get(&RegName::Cx).unwrap() as usize;
+                    let string_end = string_start + string_len;
+                    let _file_number = *state.reg_file.get(&RegName::Bx).unwrap();
+                    // Get the string to print from memory
+                    println!("printString(): {string_start}..{string_end} ({string_len})");
+                    let str_slice = &state.memory[string_start..string_end];
+                    let str_to_print = match std::str::from_utf8(str_slice) {
+                        Ok(str_utf8) => str_utf8,
+                        Err(e) => {
+                            effect.push_str(&format!("ERROR: Invalid UTF-8 sequence: {e}"));
+                            return (effect, true);
+                        }
+                    };
+                    println!("PROGRAM: {str_to_print}");
+                }
+                // See https://en.wikipedia.org/wiki/COM_file
+                // See https://github.com/hintron/8086-toolchain/blob/27a3148651bd/emulator/Bios.cpp#L105-L150
+                // Register AH defines the specific "function" or "service"
+                // under int 0x21 to run. E.g. 0x21 function 0x4C specifies
+                // program termination, according to the COM file spec.
+                (0x21, 0x4C) => {
+                    println!("Exiting emulator w/ exit code {al}!");
+                    effect.push_str(&format!(
+                        "EXIT {al}: int 0x21 func 0x4c - emulator exit interrupt"
+                    ));
+                    // MGH TODO: Return the error code somehow
+                    return (effect, true);
+                }
+                _ => {}
+            }
+            // Now that the emulator hook has completed, go to next instruction
+            return (effect, false);
+        }
+        _ => {}
+    };
+
     // Get mem address for implicit stack mem access so we can account for any
     // cycle penalties
     match op_type {
@@ -381,46 +431,6 @@ pub fn execute(
                 (_, Some(immed8)) => immed8,
                 _ => unreachable!(),
             };
-
-            let ax = *state.reg_file.get(&RegName::Ax).unwrap();
-            let ah = (ax >> 8) as u8;
-            let al = ax as i8;
-            // Handle various emulator hooks
-            match (int_num, ah) {
-                (0x0, _) => unimplemented!("int 0x{int_num:x} (divide by 0)"),
-                (0x10, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (BIOS interrupt)"),
-                (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
-                (0x21, 0x02 | 0x09) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
-                (0x21, 0x40) => {
-                    let string_start = *state.reg_file.get(&RegName::Dx).unwrap() as usize;
-                    let string_end = *state.reg_file.get(&RegName::Cx).unwrap() as usize;
-                    let _file_number = *state.reg_file.get(&RegName::Bx).unwrap();
-                    // Get the string to print from memory
-                    let str_slice = &state.memory[string_start..string_end];
-                    let str_to_print = match std::str::from_utf8(str_slice) {
-                        Ok(str_utf8) => str_utf8,
-                        Err(e) => {
-                            effect.push_str(&format!("ERROR: Invalid UTF-8 sequence: {e}"));
-                            return (effect, true);
-                        }
-                    };
-                    println!("PROGRAM: {str_to_print}");
-                }
-                // See https://en.wikipedia.org/wiki/COM_file
-                // See https://github.com/hintron/8086-toolchain/blob/27a3148651bd/emulator/Bios.cpp#L105-L150
-                // Register AH defines the specific "function" or "service"
-                // under int 0x21 to run. E.g. 0x21 function 0x4C specifies
-                // program termination, according to the COM file spec.
-                (0x21, 0x4C) => {
-                    println!("Exiting emulator w/ exit code {al}!");
-                    effect.push_str(&format!(
-                        "EXIT {al}: int 0x21 func 0x4c - emulator exit interrupt"
-                    ));
-                    // MGH TODO: Return the error code somehow
-                    return (effect, true);
-                }
-                _ => {}
-            }
 
             // Push flags
             let flags = flags_to_u16(&state.flags_reg);
