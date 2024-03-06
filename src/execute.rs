@@ -375,6 +375,12 @@ pub fn execute(
             jumped = handle_jmp_variants(OpCodeType::Call, state, inst.ip_inc, inst.ip_abs);
         }
         OpCodeType::Int | OpCodeType::Int3 => {
+            // Get the interrupt number
+            let int_num = match (op_type, source_val) {
+                (OpCodeType::Int3, _) => 3,
+                (_, Some(immed8)) => immed8,
+                _ => unreachable!(),
+            };
             // Push flags
             let flags = flags_to_u16(&state.flags_reg);
             stack_push(flags, &state.reg_file, &mut state.memory);
@@ -389,12 +395,6 @@ pub fn execute(
             state.flags_reg.interrupt_enable = false;
             state.flags_reg.trap = false;
             print_flags = true;
-            // Get the interrupt number
-            let int_num = match (op_type, source_val) {
-                (OpCodeType::Int3, _) => 3,
-                (_, Some(immed8)) => immed8,
-                _ => unreachable!(),
-            };
             // Get the new IP and CS from the interrupt vector table in memory
             let int_address_ip = int_num * 4;
             let int_address_cs = int_address_ip + 2;
