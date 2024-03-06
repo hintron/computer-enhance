@@ -381,6 +381,17 @@ pub fn execute(
                 (_, Some(immed8)) => immed8,
                 _ => unreachable!(),
             };
+
+            // Handle various emulator hooks
+            match int_num {
+                0x21 => {
+                    println!("Exiting emulator!");
+                    effect.push_str(&format!("EXIT: int 0x21 - emulator exit interrupt"));
+                    return (effect, true);
+                }
+                _ => {}
+            }
+
             // Push flags
             let flags = flags_to_u16(&state.flags_reg);
             stack_push(flags, &state.reg_file, &mut state.memory);
