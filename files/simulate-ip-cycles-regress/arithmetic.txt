@@ -50,11 +50,17 @@ sub ch, 127 ; Clocks: +4 = 162 | cx:0x8304->0x404 ip:0x6a->0x6d flags:CAS->AO
 sub dl, cl ; Clocks: +3 = 165 | dx:0xfa->0xf6 ip:0x6d->0x6f flags:AO->PS
 sub dl, ch ; Clocks: +3 = 168 | dx:0xf6->0xf2 ip:0x6f->0x71 flags:PS->S
 sub dx, -2 ; Clocks: +4 = 172 | dx:0xf2->0xf4 ip:0x71->0x74 flags:S->CA
+lea si, [bp + si + 4096] ; Clocks: +14 = 186 (2 + 12ea) | si:0x0->0x1000 ip:0x74->0x78
+lea bp, [0x2000] ; Clocks: +8 = 194 (2 + 6ea) | bp:0x0->0x2000 ip:0x78->0x7c
+lea sp, [bp + si] ; Clocks: +10 = 204 (2 + 8ea) | sp:0x0->0x3000 ip:0x7c->0x7e
 
 Final registers:
       cx: 0x0404 (1028)
       dx: 0x00f4 (244)
-      ip: 0x0074 (116)
+      sp: 0x3000 (12288)
+      bp: 0x2000 (8192)
+      si: 0x1000 (4096)
+      ip: 0x007e (126)
    flags: CA
 
 **************
@@ -109,10 +115,16 @@ sub ch, 127 ; Clocks: +4 = 162 | cx:0x8304->0x404 ip:0x6a->0x6d flags:CAS->AO
 sub dl, cl ; Clocks: +3 = 165 | dx:0xfa->0xf6 ip:0x6d->0x6f flags:AO->PS
 sub dl, ch ; Clocks: +3 = 168 | dx:0xf6->0xf2 ip:0x6f->0x71 flags:PS->S
 sub dx, -2 ; Clocks: +4 = 172 | dx:0xf2->0xf4 ip:0x71->0x74 flags:S->CA
+lea si, [bp + si + 4096] ; Clocks: +14 = 186 (2 + 12ea) | si:0x0->0x1000 ip:0x74->0x78
+lea bp, [0x2000] ; Clocks: +8 = 194 (2 + 6ea) | bp:0x0->0x2000 ip:0x78->0x7c
+lea sp, [bp + si] ; Clocks: +10 = 204 (2 + 8ea) | sp:0x0->0x3000 ip:0x7c->0x7e
 
 Final registers:
       cx: 0x0404 (1028)
       dx: 0x00f4 (244)
-      ip: 0x0074 (116)
+      sp: 0x3000 (12288)
+      bp: 0x2000 (8192)
+      si: 0x1000 (4096)
+      ip: 0x007e (126)
    flags: CA
 

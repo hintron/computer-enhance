@@ -203,6 +203,7 @@ pub enum OpCodeType {
     Js,
     Lahf,
     Lds,
+    /// Load effective address to register
     Lea,
     Les,
     Lods,

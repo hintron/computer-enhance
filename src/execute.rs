@@ -325,7 +325,14 @@ pub fn execute(
     };
 
     // Get the final memory addresses for source and dest, if applicable
-    let (mem_addr_src, mem_addr_dst) = get_inst_mem_addrs(inst, state);
+    let (mut mem_addr_src, mem_addr_dst) = get_inst_mem_addrs(inst, state);
+
+    // lea doesn't actually access memory, so clear mem_addr_src to avoid memory
+    // cycle counting and unnecessary source calculations
+    if op_type == OpCodeType::Lea {
+        new_val = mem_addr_src;
+        mem_addr_src = None;
+    }
 
     // Now that we have the final memory address, if any, we can check it to see
     // if there are any unaligned word mem access penalties for the 8086
@@ -363,6 +370,7 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
+        OpCodeType::Lea => {}
         OpCodeType::Cbw => {
             let ax = *state.reg_file.get(&RegName::Ax).unwrap_or(&0);
             let ax = ax as u8 as i8 as i16 as u16;

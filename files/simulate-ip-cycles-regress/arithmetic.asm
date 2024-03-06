@@ -46,3 +46,8 @@ sub dl, cl
 sub dl, ch
 sub dx, -2
 
+; test lea
+lea si, [bp + si + 0x1000]
+lea bp, [0x2000]
+lea sp, [bp + si]
+
