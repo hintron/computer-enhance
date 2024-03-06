@@ -382,11 +382,26 @@ pub fn execute(
                 _ => unreachable!(),
             };
 
+            let ax = *state.reg_file.get(&RegName::Ax).unwrap();
+            let ah = (ax >> 8) as u8;
+            let al = ax as i8;
             // Handle various emulator hooks
-            match int_num {
-                0x21 => {
-                    println!("Exiting emulator!");
-                    effect.push_str(&format!("EXIT: int 0x21 - emulator exit interrupt"));
+            match (int_num, ah) {
+                (0x0, _) => unimplemented!("int 0x{int_num:x} (divide by 0)"),
+                (0x10, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (BIOS interrupt)"),
+                (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
+                (0x21, 0x02 | 0x09 | 0x40) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                // See https://en.wikipedia.org/wiki/COM_file
+                // See https://github.com/hintron/8086-toolchain/blob/27a3148651bd/emulator/Bios.cpp#L105-L150
+                // Register AH defines the specific "function" or "service"
+                // under int 0x21 to run. E.g. 0x21 function 0x4C specifies
+                // program termination, according to the COM file spec.
+                (0x21, 0x4C) => {
+                    println!("Exiting emulator w/ exit code {al}!");
+                    effect.push_str(&format!(
+                        "EXIT {al}: int 0x21 func 0x4c - emulator exit interrupt"
+                    ));
+                    // MGH TODO: Return the error code somehow
                     return (effect, true);
                 }
                 _ => {}
