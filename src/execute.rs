@@ -390,7 +390,22 @@ pub fn execute(
                 (0x0, _) => unimplemented!("int 0x{int_num:x} (divide by 0)"),
                 (0x10, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (BIOS interrupt)"),
                 (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
-                (0x21, 0x02 | 0x09 | 0x40) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x02 | 0x09) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x40) => {
+                    let string_start = *state.reg_file.get(&RegName::Dx).unwrap() as usize;
+                    let string_end = *state.reg_file.get(&RegName::Cx).unwrap() as usize;
+                    let _file_number = *state.reg_file.get(&RegName::Bx).unwrap();
+                    // Get the string to print from memory
+                    let str_slice = &state.memory[string_start..string_end];
+                    let str_to_print = match std::str::from_utf8(str_slice) {
+                        Ok(str_utf8) => str_utf8,
+                        Err(e) => {
+                            effect.push_str(&format!("ERROR: Invalid UTF-8 sequence: {e}"));
+                            return (effect, true);
+                        }
+                    };
+                    println!("PROGRAM: {str_to_print}");
+                }
                 // See https://en.wikipedia.org/wiki/COM_file
                 // See https://github.com/hintron/8086-toolchain/blob/27a3148651bd/emulator/Bios.cpp#L105-L150
                 // Register AH defines the specific "function" or "service"
