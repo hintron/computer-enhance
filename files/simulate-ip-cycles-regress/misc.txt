@@ -1,0 +1,36 @@
+**************
+**** 8086 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov al, 255 ; Clocks: +4 = 4 | ax:0x0->0xff ip:0x0->0x2
+cbw ; Clocks: +2 = 6 | ax:0xff->0xffff ip:0x2->0x3
+cwd ; Clocks: +5 = 11 | dx:0x0->0xffff ip:0x3->0x4
+mov al, 0 ; Clocks: +4 = 15 | ax:0xffff->0xff00 ip:0x4->0x6
+cbw ; Clocks: +2 = 17 | ax:0xff00->0x0 ip:0x6->0x7
+cwd ; Clocks: +5 = 22 | dx:0xffff->0x0 ip:0x7->0x8
+
+Final registers:
+      ip: 0x0008 (8)
+
+**************
+**** 8088 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov al, 255 ; Clocks: +4 = 4 | ax:0x0->0xff ip:0x0->0x2
+cbw ; Clocks: +2 = 6 | ax:0xff->0xffff ip:0x2->0x3
+cwd ; Clocks: +5 = 11 | dx:0x0->0xffff ip:0x3->0x4
+mov al, 0 ; Clocks: +4 = 15 | ax:0xffff->0xff00 ip:0x4->0x6
+cbw ; Clocks: +2 = 17 | ax:0xff00->0x0 ip:0x6->0x7
+cwd ; Clocks: +5 = 22 | dx:0xffff->0x0 ip:0x7->0x8
+
+Final registers:
+      ip: 0x0008 (8)
+

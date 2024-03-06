@@ -139,6 +139,7 @@ pub enum OpCodeType {
     Add,
     And,
     Call,
+    /// Convert byte to word
     Cbw,
     /// Clear carry flag
     Clc,
@@ -149,6 +150,7 @@ pub enum OpCodeType {
     Cmc,
     Cmp,
     Cmps,
+    /// Convert word to double word
     Cwd,
     Daa,
     Das,

@@ -363,6 +363,20 @@ pub fn execute(
     // MOV does not update any flags.
 
     match op_type {
+        OpCodeType::Cbw => {
+            let ax = *state.reg_file.get(&RegName::Ax).unwrap_or(&0);
+            let ax = ax as u8 as i8 as i16 as u16;
+            new_val = Some(ax);
+            dest_target = Some(DestTarget::RegisterName(RegName::Ax));
+        }
+        OpCodeType::Cwd => {
+            let ax = *state.reg_file.get(&RegName::Ax).unwrap_or(&0);
+            let dxax = ax as i16 as i32 as u32;
+            let dx = (dxax >> 16) as u16;
+            new_val = Some(dx);
+            dest_target = Some(DestTarget::RegisterName(RegName::Dx));
+            // We don't need to touch ax
+        }
         OpCodeType::Cli => {
             state.flags_reg.interrupt_enable = false;
             print_flags = true;
