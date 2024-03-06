@@ -1,0 +1,70 @@
+**************
+**** 8086 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov ah, 1 ; Clocks: +4 = 4 | ax:0x0->0x100 ip:0x0->0x2
+mov al, 3 ; Clocks: +4 = 8 | ax:0x100->0x103 ip:0x2->0x4
+and al, ah ; Clocks: +3 = 11 | ax:0x103->0x101 ip:0x4->0x6
+and al, al ; Clocks: +3 = 14 | ip:0x6->0x8
+mov ax, 65535 ; Clocks: +4 = 18 | ax:0x101->0xffff ip:0x8->0xb
+test ax, 2 ; Clocks: +4 = 22 | ip:0xb->0xe
+and ax, 254 ; Clocks: +4 = 26 | ax:0xffff->0xfe ip:0xe->0x11
+test ax, 2 ; Clocks: +4 = 30 | ip:0x11->0x14
+mov bl, 1 ; Clocks: +4 = 34 | bx:0x0->0x1 ip:0x14->0x16
+and bl, 2 ; Clocks: +4 = 38 | bx:0x1->0x0 ip:0x16->0x19 flags:->PZ
+mov bh, 2 ; Clocks: +4 = 42 | bx:0x0->0x200 ip:0x19->0x1b
+and bl, bh ; Clocks: +3 = 45 | ip:0x1b->0x1d
+xor ax, ax ; Clocks: +3 = 48 | ax:0xfe->0x0 ip:0x1d->0x1f
+xor bh, bh ; Clocks: +3 = 51 | bx:0x200->0x0 ip:0x1f->0x21
+mov bl, 255 ; Clocks: +4 = 55 | bx:0x0->0xff ip:0x21->0x23
+xor bl, bl ; Clocks: +3 = 58 | bx:0xff->0x0 ip:0x23->0x25
+mov cx, 65535 ; Clocks: +4 = 62 | cx:0x0->0xffff ip:0x25->0x28
+mov dx, 65534 ; Clocks: +4 = 66 | dx:0x0->0xfffe ip:0x28->0x2b
+xor dx, cx ; Clocks: +3 = 69 | dx:0xfffe->0x1 ip:0x2b->0x2d flags:PZ->
+xor dx, cx ; Clocks: +3 = 72 | dx:0x1->0xfffe ip:0x2d->0x2f flags:->S
+xor dx, cx ; Clocks: +3 = 75 | dx:0xfffe->0x1 ip:0x2f->0x31 flags:S->
+
+Final registers:
+      cx: 0xffff (65535)
+      dx: 0x0001 (1)
+      ip: 0x0031 (49)
+
+**************
+**** 8088 ****
+**************
+
+WARNING: Clocks reported by this utility are strictly from the 8086 manual.
+They will be inaccurate, both because the manual clocks are estimates, and because
+some of the entries in the manual look highly suspicious and are probably typos.
+
+mov ah, 1 ; Clocks: +4 = 4 | ax:0x0->0x100 ip:0x0->0x2
+mov al, 3 ; Clocks: +4 = 8 | ax:0x100->0x103 ip:0x2->0x4
+and al, ah ; Clocks: +3 = 11 | ax:0x103->0x101 ip:0x4->0x6
+and al, al ; Clocks: +3 = 14 | ip:0x6->0x8
+mov ax, 65535 ; Clocks: +4 = 18 | ax:0x101->0xffff ip:0x8->0xb
+test ax, 2 ; Clocks: +4 = 22 | ip:0xb->0xe
+and ax, 254 ; Clocks: +4 = 26 | ax:0xffff->0xfe ip:0xe->0x11
+test ax, 2 ; Clocks: +4 = 30 | ip:0x11->0x14
+mov bl, 1 ; Clocks: +4 = 34 | bx:0x0->0x1 ip:0x14->0x16
+and bl, 2 ; Clocks: +4 = 38 | bx:0x1->0x0 ip:0x16->0x19 flags:->PZ
+mov bh, 2 ; Clocks: +4 = 42 | bx:0x0->0x200 ip:0x19->0x1b
+and bl, bh ; Clocks: +3 = 45 | ip:0x1b->0x1d
+xor ax, ax ; Clocks: +3 = 48 | ax:0xfe->0x0 ip:0x1d->0x1f
+xor bh, bh ; Clocks: +3 = 51 | bx:0x200->0x0 ip:0x1f->0x21
+mov bl, 255 ; Clocks: +4 = 55 | bx:0x0->0xff ip:0x21->0x23
+xor bl, bl ; Clocks: +3 = 58 | bx:0xff->0x0 ip:0x23->0x25
+mov cx, 65535 ; Clocks: +4 = 62 | cx:0x0->0xffff ip:0x25->0x28
+mov dx, 65534 ; Clocks: +4 = 66 | dx:0x0->0xfffe ip:0x28->0x2b
+xor dx, cx ; Clocks: +3 = 69 | dx:0xfffe->0x1 ip:0x2b->0x2d flags:PZ->
+xor dx, cx ; Clocks: +3 = 72 | dx:0x1->0xfffe ip:0x2d->0x2f flags:->S
+xor dx, cx ; Clocks: +3 = 75 | dx:0xfffe->0x1 ip:0x2f->0x31 flags:S->
+
+Final registers:
+      cx: 0xffff (65535)
+      dx: 0x0001 (1)
+      ip: 0x0031 (49)
+

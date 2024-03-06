@@ -1108,6 +1108,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // inc - register
@@ -1187,6 +1188,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // or - reg/mem with register to either
@@ -1208,6 +1210,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // xor - reg/mem with register to either
@@ -1229,6 +1232,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to/from register
@@ -1432,6 +1436,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             let reg_field = decode_reg_field(byte & 0b111, Some(true));
             inst.reg_field = Some(reg_field);
             inst.source_reg = Some(reg_field);
+            inst.operands_type = Some(OperandsType::AccImm);
         }
         // in - fixed port
         0xE4..=0xE5 => {
@@ -1554,6 +1559,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // sbb (subtract with borrow) - Reg/memory and register to either
@@ -1575,6 +1581,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         // dec - register
@@ -1617,6 +1624,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             } else {
                 inst.dest_reg = Some(RegType{name: RegName::Ax, width:WidthType::Byte});
             }
+            inst.operands_type = Some(OperandsType::AccImm);
             inst.w_field = Some(w_field);
         }
         0x70..=0x7F | 0xE0..=0xE3 => {
