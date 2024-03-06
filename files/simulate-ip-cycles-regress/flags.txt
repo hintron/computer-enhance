@@ -12,12 +12,14 @@ clc ; Clocks: +2 = 10 | ip:0x5->0x6 flags:CPAZ->PAZ
 sti ; Clocks: +2 = 12 | ip:0x6->0x7 flags:PAZ->PAZI
 std ; Clocks: +2 = 14 | ip:0x7->0x8 flags:PAZI->PAZID
 stc ; Clocks: +2 = 16 | ip:0x8->0x9 flags:PAZID->CPAZID
-cli ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->CPAZD
-clc ; Clocks: +2 = 20 | ip:0xa->0xb flags:CPAZD->PAZD
-cld ; Clocks: +2 = 22 | ip:0xb->0xc flags:PAZD->PAZ
+cmc ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->PAZID
+cmc ; Clocks: +2 = 20 | ip:0xa->0xb flags:PAZID->CPAZID
+cli ; Clocks: +2 = 22 | ip:0xb->0xc flags:CPAZID->CPAZD
+clc ; Clocks: +2 = 24 | ip:0xc->0xd flags:CPAZD->PAZD
+cld ; Clocks: +2 = 26 | ip:0xd->0xe flags:PAZD->PAZ
 
 Final registers:
-      ip: 0x000c (12)
+      ip: 0x000e (14)
    flags: PAZ
 
 **************
@@ -34,11 +36,13 @@ clc ; Clocks: +2 = 10 | ip:0x5->0x6 flags:CPAZ->PAZ
 sti ; Clocks: +2 = 12 | ip:0x6->0x7 flags:PAZ->PAZI
 std ; Clocks: +2 = 14 | ip:0x7->0x8 flags:PAZI->PAZID
 stc ; Clocks: +2 = 16 | ip:0x8->0x9 flags:PAZID->CPAZID
-cli ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->CPAZD
-clc ; Clocks: +2 = 20 | ip:0xa->0xb flags:CPAZD->PAZD
-cld ; Clocks: +2 = 22 | ip:0xb->0xc flags:PAZD->PAZ
+cmc ; Clocks: +2 = 18 | ip:0x9->0xa flags:CPAZID->PAZID
+cmc ; Clocks: +2 = 20 | ip:0xa->0xb flags:PAZID->CPAZID
+cli ; Clocks: +2 = 22 | ip:0xb->0xc flags:CPAZID->CPAZD
+clc ; Clocks: +2 = 24 | ip:0xc->0xd flags:CPAZD->PAZD
+cld ; Clocks: +2 = 26 | ip:0xd->0xe flags:PAZD->PAZ
 
 Final registers:
-      ip: 0x000c (12)
+      ip: 0x000e (14)
    flags: PAZ
 

@@ -9,6 +9,8 @@ clc
 sti
 std
 stc
+cmc
+cmc
 cli
 clc
 cld

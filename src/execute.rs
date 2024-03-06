@@ -393,6 +393,10 @@ pub fn execute(
             state.flags_reg.carry = true;
             print_flags = true;
         }
+        OpCodeType::Cmc => {
+            state.flags_reg.carry = !state.flags_reg.carry;
+            print_flags = true;
+        }
         OpCodeType::Cld => {
             state.flags_reg.direction = false;
             print_flags = true;

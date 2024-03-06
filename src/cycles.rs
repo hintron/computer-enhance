@@ -342,7 +342,8 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
         // Convert insts
         (Some(OpCodeType::Cbw), _) => inst.clocks_base = 2,
         (Some(OpCodeType::Cwd), _) => inst.clocks_base = 5,
-        // Set/clear flags
+        // Set/clear/toggle flags
+        (Some(OpCodeType::Cmc), _) => inst.clocks_base = 2,
         (Some(OpCodeType::Clc), _) => inst.clocks_base = 2,
         (Some(OpCodeType::Cld), _) => inst.clocks_base = 2,
         (Some(OpCodeType::Cli), _) => inst.clocks_base = 2,
