@@ -634,8 +634,14 @@ pub fn execute(
                 op @ (OpCodeType::Shl | OpCodeType::Shr | OpCodeType::Sar) => {
                     // Shift source is either cl or immediate w/ max 255
                     let bit_shift_cnt = (source_val & 0xFF) as u8;
-                    let result = execute_shift(dest_val, bit_shift_cnt, dest_width, op);
+                    let (result, carry, overflowed) =
+                        execute_shift(dest_val, bit_shift_cnt, dest_width, op);
                     shift_count = Some(bit_shift_cnt);
+                    match overflowed {
+                        Some(overflowed) => new_val_overflowed = overflowed,
+                        None => {}
+                    }
+                    new_val_carry = carry;
                     result
                 }
                 _ => {
@@ -1211,29 +1217,60 @@ fn execute_mov(
     }
 }
 
-/// Execute a shift OpType and return the result
-fn execute_shift(dst: u16, src: u8, dst_width: WidthType, op: OpCodeType) -> u16 {
-    match dst_width {
+/// Execute a shift OpType and return the result, the carry flag (CF), and the
+/// overflow flag (OF), if set. CF always contains the value of the last bit
+/// shifted out of the destination operand, while OF is None (undefined) if a
+/// it's a multi-bit shift. If it's a single-bit shift, set OF if the value of
+/// the sign bit was changed, and clear OF if the sign bit was the same.
+fn execute_shift(
+    dst: u16,
+    src: u8,
+    dst_width: WidthType,
+    op: OpCodeType,
+) -> (u16, bool, Option<bool>) {
+    let (result, carry, overflowed) = match dst_width {
         WidthType::Word => {
-            let result = match op {
+            let sign_bit_orig = dst & 0x8000;
+            let (result, carry) = match op {
                 OpCodeType::Shl => {
                     let (result, _overflowed) = dst.overflowing_shl(src as u32);
-                    result
+                    let carry = if src >= 16 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst << src - 1) & 0x8000) != 0
+                    };
+                    (result, carry)
                 }
                 OpCodeType::Shr => {
                     let (result, _overflowed) = dst.overflowing_shr(src as u32);
-                    result
+                    let carry = if src >= 16 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst >> (src - 1)) & 0x1) != 0
+                    };
+                    (result, carry)
                 }
                 OpCodeType::Sar => {
                     let (result, _overflowed) = (dst as i16).overflowing_shr(src as u32);
-                    result as u16
+                    let carry = if src >= 16 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst >> (src - 1)) & 0x1) != 0
+                    };
+                    (result as u16, carry)
                 }
                 _ => unimplemented!(),
             };
-            println!(
-                "WORD {op:?}: dest={dst} (0x{dst:x}), src={src} (0x{src:x}), result={result} (0x{result:04x})"
-            );
-            result
+            let sign_bit_new = result & 0x8000;
+            let overflowed = if src == 1 {
+                Some(sign_bit_orig != sign_bit_new)
+            } else {
+                None
+            };
+            (result, carry, overflowed)
         }
         // Operate on two bytes
         WidthType::Byte | WidthType::Hi8 => {
@@ -1243,34 +1280,63 @@ fn execute_shift(dst: u16, src: u8, dst_width: WidthType, op: OpCodeType) -> u16
                 WidthType::Hi8 => ((dst & 0xFF00) >> 8) as u8,
                 _ => unreachable!(),
             };
-
-            let result = match op {
+            let sign_bit_orig = dst_u8 & 0x80;
+            let (result, carry) = match op {
                 OpCodeType::Shl => {
                     let (result, _overflowed) = dst_u8.overflowing_shl(src as u32);
-                    result
+                    let carry = if src >= 8 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst << src - 1) & 0x80) != 0
+                    };
+                    (result, carry)
                 }
                 OpCodeType::Shr => {
                     let (result, _overflowed) = dst_u8.overflowing_shr(src as u32);
-                    result
+                    let carry = if src >= 8 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst >> (src - 1)) & 0x1) != 0
+                    };
+                    (result, carry)
                 }
                 OpCodeType::Sar => {
                     let (result, _overflowed) = (dst as i8).overflowing_shr(src as u32);
-                    result as u8
+                    let carry = if src >= 8 {
+                        false
+                    } else {
+                        // Get what would be the last bit shifted out
+                        ((dst >> (src - 1)) & 0x1) != 0
+                    };
+                    (result as u8, carry)
                 }
                 _ => unimplemented!(),
             };
 
+            let sign_bit_new = result & 0x80;
+            let overflowed = if src == 1 {
+                Some(sign_bit_orig != sign_bit_new)
+            } else {
+                None
+            };
             let merged_result = match dst_width {
                 WidthType::Byte => result as u16 | (dst & 0xFF00),
                 WidthType::Hi8 => (result as u16) << 8 | (dst & 0xFF),
                 _ => unreachable!(),
             };
 
-            println!("BYTE {op:?}: dest={dst_u8} (0x{dst_u8:x}), src={src} (0x{src:x}), result={merged_result} (0x{merged_result:04x})");
             // Merge the result back into the bottom byte of the destination
-            merged_result
+            (merged_result, carry, overflowed)
         }
-    }
+    };
+
+    println!(
+        "shift: ({dst_width:?}) 0x{dst:x} {op} {src} -> 0x{result:x}; CF={} OF={:?}",
+        carry, overflowed
+    );
+    (result, carry, overflowed)
 }
 
 /// Execute an OpCodeType and return the result.
