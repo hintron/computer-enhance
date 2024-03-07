@@ -22,3 +22,23 @@ mov dx, 65534
 xor dx, cx
 xor dx, cx
 xor dx, cx
+
+; Test shifts
+mov al, -1
+mov cl, 7
+shl al, cl
+shl al, 1
+shl al, 1
+
+mov bx, -1
+mov cl, 4
+shl bx, cl
+sar bx, cl
+shl bx, cl
+shr bx, cl
+
+mov dx, 1
+mov cl, 15
+shl dx, cl
+sar dx, cl
+shr dx, cl
