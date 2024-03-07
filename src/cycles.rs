@@ -630,9 +630,10 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             // NOTE: This is not in the docs, but I believe it is a typo
             inst.transfers = 1;
         }
-        // NOTE: Even though the cycle timing docs for xchg show MemReg, in
-        // reality NASM always encodes xchg with the rm field as the source and
-        // the reg field as the destination. So the OperandsType will be RegMem
+        // NOTE: Even though the cycle timing docs for xchg show memory as the
+        // destination, in reality, NASM seems to always encode xchg with the
+        // rm field as the source and the reg field as the destination. So
+        // OperandsType will be RegMem, not MemReg.
         (Some(OpCodeType::Xchg), Some(OperandsType::AccReg)) => inst.clocks_base = 3,
         (Some(OpCodeType::Xchg), Some(OperandsType::RegMem)) => {
             inst.clocks_base = 17;
