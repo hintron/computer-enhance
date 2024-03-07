@@ -8,6 +8,9 @@ mov al, 0
 cbw
 cwd
 
+; Test xchg
+; NOTE: xchg always treats the rm field as a source, no matter what order you
+; write it in assembly. Do that here so that the instruction printouts match.
 mov bx, -1
 ; reg to reg
 xchg bl, ch
@@ -17,10 +20,10 @@ xchg ax, cx
 ; reg to mem
 mov [0x100], word -1
 mov dx, 0x5555
-xchg [0x100], dx
-xchg [0x100], dl
+xchg dx, [0x100]
+xchg dl, [0x100]
 ; TODO: Fix bug where high byte with mem addr results in incorrect placement
-; xchg [0x101], dh
+; xchg dh, [0x101]
 
 ; NOTE: exchanging between same register is currently unsupported
 ; xchg bl, bh

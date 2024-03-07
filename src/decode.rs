@@ -1427,7 +1427,9 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0x86..=0x87 => {
             inst.op_type = Some(OpCodeType::Xchg);
             inst.w_field = Some((byte & 0x1) == 1);
-            inst.d_field = Some(false);
+            // NOTE: xchg always treats the rm field as a source and the reg as
+            // the destination, no matter what order you write it in assembly
+            inst.d_field = Some(true);
             inst.mod_rm_byte = Some(ModRmByteType::ModRegRm);
         }
         // xchg - Register with accumulator
