@@ -709,7 +709,7 @@ pub fn get_total_clocks_str(
     inst: &InstType,
     cpu_type: CpuType,
     jumped: bool,
-    shift_count: Option<u16>,
+    shift_count: Option<u8>,
 ) -> Option<String> {
     let print_clocks = inst.clocks_ea.is_some()
         || (inst.mem_access_word_unaligned > 0 && cpu_type == CpuType::Intel8086)
@@ -758,7 +758,7 @@ pub fn get_total_clocks(
     inst: &InstType,
     cpu_type: CpuType,
     jumped: bool,
-    shift_count: Option<u16>,
+    shift_count: Option<u8>,
 ) -> u64 {
     let mut total = inst.clocks_base;
     match (jumped, inst.clocks_jump) {
