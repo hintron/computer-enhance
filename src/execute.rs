@@ -224,12 +224,13 @@ pub fn execute(
                 (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
                 (0x21, 0x02 | 0x09) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
                 (0x21, 0x40) => {
+                    // The underlying print 'syscall' for print() and printString()
                     let string_start = *state.reg_file.get(&RegName::Dx).unwrap() as usize;
                     let string_len = *state.reg_file.get(&RegName::Cx).unwrap() as usize;
                     let string_end = string_start + string_len;
                     let _file_number = *state.reg_file.get(&RegName::Bx).unwrap();
                     // Get the string to print from memory
-                    println!("printString(): {string_start}..{string_end} ({string_len})");
+                    println!("emulator print: {string_start}..{string_end} ({string_len})");
                     let str_slice = &state.memory[string_start..string_end];
                     let str_to_print = match std::str::from_utf8(str_slice) {
                         Ok(str_utf8) => str_utf8,
