@@ -1251,9 +1251,18 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst & src,
                 OpCodeType::Xor => dst ^ src,
-                OpCodeType::Shl => dst << src,
-                OpCodeType::Shr => dst >> src,
-                OpCodeType::Sar => ((dst as i16) >> src) as u16,
+                OpCodeType::Shl => {
+                    let (result, _overflowed) = dst.overflowing_shl(src as u32);
+                    result
+                }
+                OpCodeType::Shr => {
+                    let (result, _overflowed) = dst.overflowing_shr(src as u32);
+                    result
+                }
+                OpCodeType::Sar => {
+                    let (result, _overflowed) = (dst as i16).overflowing_shr(src as u32);
+                    result as u16
+                }
                 _ => unimplemented!(),
             };
             println!(
@@ -1286,9 +1295,18 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
                 OpCodeType::Xor => dst_u8 ^ src_u8,
-                OpCodeType::Shl => dst_u8 << src_u8,
-                OpCodeType::Shr => dst_u8 >> src_u8,
-                OpCodeType::Sar => ((dst as i8) >> src) as u8,
+                OpCodeType::Shl => {
+                    let (result, _overflowed) = dst_u8.overflowing_shl(src_u8 as u32);
+                    result
+                }
+                OpCodeType::Shr => {
+                    let (result, _overflowed) = dst_u8.overflowing_shr(src_u8 as u32);
+                    result
+                }
+                OpCodeType::Sar => {
+                    let (result, _overflowed) = (dst as i8).overflowing_shr(src as u32);
+                    result as u8
+                }
                 _ => unimplemented!(),
             };
 
