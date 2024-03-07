@@ -1765,6 +1765,10 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
             inst.op_type_suffix = if w_field { Some("w") } else { Some("b") };
             inst.w_field = Some(w_field);
         }
+        0xC0..=0xC3 => {
+            println!("Unsupported shift instruction. Is immediate other than 1?");
+            return false;
+        }
         _ => {
             return false;
         }
