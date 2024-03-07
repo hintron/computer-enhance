@@ -99,6 +99,7 @@ pub fn calculate_8086_unaligned_access(
     stack_mem_addr: Option<u16>,
     stack_mem_count: u16,
     double_mem_dest: bool,
+    double_mem_src: bool,
     transfer_width: WidthType,
     transfers: u64,
 ) -> Option<u64> {
@@ -125,9 +126,17 @@ pub fn calculate_8086_unaligned_access(
 
     match mem_addr_src {
         Some(addr) => {
-            estimated_transfers += 1;
+            if double_mem_src {
+                estimated_transfers += 2;
+            } else {
+                estimated_transfers += 1;
+            }
             if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
-                unaligned_accesses += 1;
+                if double_mem_src {
+                    unaligned_accesses += 2;
+                } else {
+                    unaligned_accesses += 1;
+                }
             }
         }
         _ => {}

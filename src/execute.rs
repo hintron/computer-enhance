@@ -212,6 +212,8 @@ pub fn execute(
     // If this instruction has a destination memory address, then marks two
     // transfers instead of one
     let mut double_mem_dest = false;
+    // Same as above, but for the source (xchg)
+    let mut double_mem_src = false;
     // Accumulate a string of register changes as needed, if not covered by
     // new_val + dest_target
     let mut reg_change_str = None;
@@ -352,6 +354,11 @@ pub fn execute(
         | OpCodeType::Shr => double_mem_dest = true,
         _ => {}
     }
+    // Account for implicit double source mem accesses
+    match op_type {
+        OpCodeType::Xchg => double_mem_src = true,
+        _ => {}
+    }
 
     // Figure out destination width, which will dictate how wide the data
     // transfer is for this instruction
@@ -393,6 +400,7 @@ pub fn execute(
         stack_mem_addr,
         stack_mem_count,
         double_mem_dest,
+        double_mem_src,
         transfer_width,
         inst.transfers,
     ) {
