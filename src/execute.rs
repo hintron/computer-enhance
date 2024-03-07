@@ -137,7 +137,7 @@ pub fn init_state(
 #[derive(Eq, PartialEq)]
 enum DestTarget {
     /// Store the result at the given memory address
-    MemAddress(usize),
+    MemAddress(u16),
     /// Store the result in the given register
     RegisterName(RegName),
     /// Store the result in the flags register
@@ -780,7 +780,7 @@ fn stack_push(val: u16, reg_file: &BTreeMap<RegName, u16>, memory: &mut Vec<u8>)
         Some(x) => *x,
         None => 0,
     };
-    store_u16_in_mem(memory, sp_val as usize, val);
+    store_u16_in_mem(memory, sp_val, val);
     println!("Push onto stack: 0x{val:x} at addr 0x{sp_val:x}");
 }
 
@@ -897,7 +897,7 @@ fn get_dest_val(
         }
         (_, Some(address)) => {
             println!("Dest is mem addr!");
-            let dest_target = DestTarget::MemAddress(address as usize);
+            let dest_target = DestTarget::MemAddress(address);
             let dest_val = load_u16_from_mem(&state.memory, address);
             (Some(dest_val), Some(dest_target))
         }
@@ -1051,10 +1051,10 @@ fn load_u16_from_mem(memory: &Vec<u8>, address: u16) -> u16 {
 }
 
 /// Given the memory array and a 16-bit address, return a 16-bit value
-fn store_u16_in_mem(memory: &mut Vec<u8>, address: usize, new_val: u16) {
+fn store_u16_in_mem(memory: &mut Vec<u8>, address: u16, new_val: u16) {
     // Store 16-bit value in little endian order
-    memory[address] = (new_val & 0x00FF) as u8;
-    memory[address + 1] = ((new_val & 0xFF00) >> 8) as u8;
+    memory[address as usize] = (new_val & 0x00FF) as u8;
+    memory[(address + 1) as usize] = ((new_val & 0xFF00) >> 8) as u8;
     println!("Stored 0x{new_val:x} at 0x{address:x}");
 }
 
