@@ -145,6 +145,16 @@ enum DestTarget {
     FlagsReg,
 }
 
+// #[derive(Eq, PartialEq)]
+enum SourceOrigin {
+    /// Source came from the given memory address
+    MemAddress(u16),
+    /// Source came from the given register
+    RegisterName(RegName),
+    /// Source came from an immediate value (see source_val for the value)
+    Immediate,
+}
+
 /// Execute the given instruction and modify the passed in CPU state. Return a
 /// string summarizing the change in state that occurred, and return a bool that
 /// halts CPU execution if it's true.
@@ -336,6 +346,7 @@ pub fn execute(
         | OpCodeType::And
         | OpCodeType::Test
         | OpCodeType::Xor
+        | OpCodeType::Xchg
         | OpCodeType::Shl
         | OpCodeType::Sar
         | OpCodeType::Shr => double_mem_dest = true,
@@ -398,7 +409,8 @@ pub fn execute(
     let (dest_val, dest_val_target) = get_dest_val(inst, state, mem_addr_dst);
     dest_target = dest_val_target;
 
-    let (source_val, source_width) = get_source_val(inst, state, mem_addr_src, transfer_width);
+    let (source_val, source_width, source_origin) =
+        get_source_val(inst, state, mem_addr_src, transfer_width);
 
     // SUB/CMP: The source operand is subtracted from the destination operand,
     // and the result replaces the destination operand.
@@ -651,6 +663,35 @@ pub fn execute(
             // bytes of the dest register to replace
             new_val = Some(match op {
                 OpCodeType::Mov => execute_mov(dest_val, source_val, dest_width, source_width),
+                OpCodeType::Xchg => {
+                    // Generate the new source value
+                    let new_source = execute_mov(source_val, dest_val, source_width, dest_width);
+                    // Generate the new dest value
+                    let new_dest = execute_mov(dest_val, source_val, dest_width, source_width);
+                    println!("new_source: 0x{new_source:x} ({:?})", source_width);
+                    println!("new_dest:   0x{new_dest:x} ({:?})", dest_width);
+                    // Move new_source into source
+                    match source_origin {
+                        Some(SourceOrigin::MemAddress(addr)) => {
+                            println!("Mem xchg src! 0x{addr:x} gets 0x{new_source:x}");
+                            store_u16_in_mem(&mut state.memory, addr, new_source);
+                        }
+                        Some(SourceOrigin::RegisterName(reg_name)) => {
+                            println!("Reg xchg src! {reg_name} gets 0x{new_source:x}");
+                            let old_source =
+                                state.reg_file.insert(reg_name, new_source).unwrap_or(0);
+                            if old_source != new_source {
+                                reg_change_str = Some(format!(
+                                    " {}:0x{:x}->0x{:x}",
+                                    reg_name, old_source, new_source
+                                ));
+                            }
+                        }
+                        _ => unimplemented!("xchg has unsupported source!"),
+                    }
+                    // Move new_dest into into dest
+                    new_dest
+                }
                 op @ (OpCodeType::Add | OpCodeType::Sub | OpCodeType::Cmp) => {
                     let (result, overflowed, carry, aux_carry) =
                         execute_op_arith_flags(dest_val, source_val, dest_width, source_width, op);
@@ -703,6 +744,7 @@ pub fn execute(
             // Some insts should not modify flags
             match op {
                 OpCodeType::Mov
+                | OpCodeType::Xchg
                 | OpCodeType::Push
                 | OpCodeType::Pushf
                 | OpCodeType::Pop
@@ -879,7 +921,7 @@ fn get_source_val(
     state: &CpuStateType,
     mem_addr_src: Option<u16>,
     transfer_width: WidthType,
-) -> (Option<u16>, Option<WidthType>) {
+) -> (Option<u16>, Option<WidthType>, Option<SourceOrigin>) {
     // Get the op's source val either from a source reg or an immediate
     match (
         inst.source_reg,
@@ -890,7 +932,11 @@ fn get_source_val(
         (_, Some(address), _, _) => {
             let source_val = load_u16_from_mem(&state.memory, address);
             let source_width = transfer_width;
-            (Some(source_val), Some(source_width))
+            (
+                Some(source_val),
+                Some(source_width),
+                Some(SourceOrigin::MemAddress(address)),
+            )
         }
         // Handle source reg to dest reg
         (Some(source_reg), _, _, _) => {
@@ -899,18 +945,30 @@ fn get_source_val(
                 Some(x) => *x,
                 None => 0,
             };
-            (Some(source_val), Some(source_reg.width))
+            (
+                Some(source_val),
+                Some(source_reg.width),
+                Some(SourceOrigin::RegisterName(source_reg.name)),
+            )
         }
         (_, _, Some(AddTo::Source), _) => {
             // Use data as an immediate source value
             let source_width = transfer_width;
-            (Some(inst.data_value.unwrap()), Some(source_width))
+            (
+                Some(inst.data_value.unwrap()),
+                Some(source_width),
+                Some(SourceOrigin::Immediate),
+            )
         }
         (_, _, _, Some(source_hardcoded_val)) => {
             // Use the hardcoded source value
-            (Some(source_hardcoded_val), Some(transfer_width))
+            (
+                Some(source_hardcoded_val),
+                Some(transfer_width),
+                Some(SourceOrigin::Immediate),
+            )
         }
-        _ => (None, None),
+        _ => (None, None, None),
     }
 }
 

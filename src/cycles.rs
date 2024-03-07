@@ -25,6 +25,7 @@ pub enum OperandsType {
     RegSeg,
     MemSeg,
     AccImm,
+    AccReg,
     Reg8,
     /// reg16/regptr16
     Reg16,
@@ -620,6 +621,12 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             // NOTE: This is not in the docs, but I believe it is a typo
             inst.transfers = 1;
         }
+        (Some(OpCodeType::Xchg), Some(OperandsType::AccReg)) => inst.clocks_base = 3,
+        (Some(OpCodeType::Xchg), Some(OperandsType::MemReg)) => {
+            inst.clocks_base = 17;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Xchg), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         _ => {}
     }
 }
