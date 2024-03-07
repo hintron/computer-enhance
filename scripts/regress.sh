@@ -45,26 +45,35 @@ fi
 rc=0
 
 # Check the decode of everything in decode-regress
-for file in "$DECODE_BUILD_DIR"/*; do
-    echo "Checking decode of $file..."
-    BASE=$(basename "$file")
-    if ! $BIN --verbose "$file" "$DECODE_BUILD_DIR/$BASE-tmp.asm" > "$DECODE_BUILD_DIR/$BASE-tmp.log"; then
-        echo "ERROR: Decode program failed for $file"
+for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
+    echo "Checking decode of $GOLDEN_BIN..."
+    BASE=$(basename "$GOLDEN_BIN")
+    OUR_ASM="$DECODE_BUILD_DIR/$BASE-ours.asm"
+    OUR_BIN="$DECODE_BUILD_DIR/$BASE-ours.bin"
+    OUR_BIN_TXT="$DECODE_BUILD_DIR/$BASE-ours.bin.txt"
+    GOLDEN_BIN_TXT="$DECODE_BUILD_DIR/$BASE.bin.txt"
+    OUR_LOG="$DECODE_BUILD_DIR/$BASE-ours.log"
+    if ! $BIN --verbose "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
+        echo "ERROR: Decode program failed for $GOLDEN_BIN"
         rc=1
         break
     fi
-    if ! nasm "$DECODE_BUILD_DIR/$BASE-tmp.asm" -o "$DECODE_BUILD_DIR/$BASE-tmp.o"; then
-        echo "ERROR: Assembly of decoded output failed for $file"
+    if ! nasm "$OUR_ASM" -o "$OUR_BIN"; then
+        echo "ERROR: Assembly of decoded output failed for $GOLDEN_BIN"
         rc=1
         break
     fi
-    DECODE_GOLDEN_OUTPUT="$DECODE_BUILD_DIR/$BASE-tmp.o"
-    DIFF="$DECODE_BUILD_DIR/$BASE-code.diff"
-    if ! diff "$DECODE_GOLDEN_OUTPUT" "$file" -u > "$DIFF"; then
+
+    # Convert binary to text, 1 byte per line, for diff
+    od -Ax -v -t x1 -w1 "$OUR_BIN" > "$OUR_BIN_TXT"
+    od -Ax -v -t x1 -w1 "$GOLDEN_BIN" > "$GOLDEN_BIN_TXT"
+
+    DIFF="$DECODE_BUILD_DIR/$BASE.bin.txt.diff"
+    if ! diff "$OUR_BIN_TXT" "$GOLDEN_BIN_TXT" -u > "$DIFF"; then
         echo "ERROR: Decoded output didn't match golden output."
         echo "See $DIFF"
-        echo "ours   (+): $file"
-        echo "golden (-): $DECODE_GOLDEN_OUTPUT"
+        echo "ours     (-): $OUR_BIN"
+        echo "golden   (+): $GOLDEN_BIN"
         rc=1
         break
     fi
