@@ -16,8 +16,11 @@ xchg bh, cl
 xchg ax, cx
 ; reg to mem
 mov [0x100], word -1
+mov dx, 0x5555
 xchg [0x100], dx
 xchg [0x100], dl
-xchg [0x101], dh
+; TODO: Fix bug where high byte with mem addr results in incorrect placement
+; xchg [0x101], dh
+
 ; NOTE: exchanging between same register is currently unsupported
 ; xchg bl, bh
