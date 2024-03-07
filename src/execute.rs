@@ -715,7 +715,7 @@ pub fn execute(
                     new_val_aux_carry = aux_carry;
                     result
                 }
-                op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
+                op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Or | OpCodeType::Xor) => {
                     execute_op(dest_val, source_val, dest_width, source_width, op)
                     // MGH TODO: Logicals always clear OF an CF; SF, ZF, PF same as arith
                 }
@@ -1470,6 +1470,7 @@ fn execute_op(
                     result
                 }
                 OpCodeType::And | OpCodeType::Test => dst & src,
+                OpCodeType::Or => dst | src,
                 OpCodeType::Xor => dst ^ src,
                 OpCodeType::Shl => {
                     let (result, _overflowed) = dst.overflowing_shl(src as u32);
@@ -1515,6 +1516,7 @@ fn execute_op(
                 }
                 OpCodeType::And | OpCodeType::Test => dst_u8 & src_u8,
                 OpCodeType::Xor => dst_u8 ^ src_u8,
+                OpCodeType::Or => dst_u8 | src_u8,
                 OpCodeType::Shl => {
                     let (result, _overflowed) = dst_u8.overflowing_shl(src_u8 as u32);
                     result

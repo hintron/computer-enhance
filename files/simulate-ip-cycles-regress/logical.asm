@@ -42,3 +42,11 @@ mov cl, 15
 shl dx, cl
 sar dx, cl
 shr dx, cl
+
+; Test or
+mov ax, 0x5555
+mov bx, 0xAAAA
+mov cx, 0x00FF
+mov dx, 0xFF00
+or ax, bx
+or cx, dx
