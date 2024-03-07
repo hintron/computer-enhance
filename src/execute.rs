@@ -13,6 +13,7 @@ use crate::decode::{
 };
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
+const MAX_STR_LEN: u16 = 1024;
 
 #[derive(Debug, Default)]
 pub struct CpuStateType {
@@ -222,7 +223,44 @@ pub fn execute(
                 (0x0, _) => unimplemented!("int 0x{int_num:x} (divide by 0)"),
                 (0x10, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (BIOS interrupt)"),
                 (0x1B, _) => unimplemented!("int 0x{int_num:x} function 0x{ah:x} (simptris)"),
-                (0x21, 0x02 | 0x09) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x02) => unimplemented!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x09) => {
+                    // printNewLine() - Print the $-terminated string at address `newline`
+                    let string_start = *state.reg_file.get(&RegName::Dx).unwrap();
+                    let mut string_len = 0;
+                    // Find the terminating $ character
+                    loop {
+                        let data = load_u16_from_mem(&state.memory, string_start + string_len);
+                        if (data & 0xFF) as u8 as char == '$' {
+                            break;
+                        }
+                        string_len += 1;
+                        if ((data & 0xFF00) >> 8) as u8 as char == '$' {
+                            break;
+                        }
+                        string_len += 1;
+
+                        // Prevent running wild
+                        if string_len > MAX_STR_LEN {
+                            unimplemented!("Couldn't find terminating $ in first {MAX_STR_LEN} bytes of string... Bad string?")
+                        }
+                    }
+                    let string_end = (string_start + string_len) as usize;
+
+                    // Get the string to print from memory
+                    println!("emulator $ print: {string_start}..{string_end} ({string_len})");
+                    if string_len > 0 {
+                        let str_slice = &state.memory[string_start as usize..string_end];
+                        let str_to_print = match std::str::from_utf8(str_slice) {
+                            Ok(str_utf8) => str_utf8,
+                            Err(e) => {
+                                effect.push_str(&format!("ERROR: Invalid UTF-8 sequence: {e}"));
+                                return (effect, true);
+                            }
+                        };
+                        println!("PROGRAM: {str_to_print}");
+                    }
+                }
                 (0x21, 0x40) => {
                     // The underlying print 'syscall' for print() and printString()
                     let string_start = *state.reg_file.get(&RegName::Dx).unwrap() as usize;
