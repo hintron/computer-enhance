@@ -25,6 +25,7 @@ pub enum OperandsType {
     RegSeg,
     MemSeg,
     AccImm,
+    AccReg,
     Reg8,
     /// reg16/regptr16
     Reg16,
@@ -98,6 +99,7 @@ pub fn calculate_8086_unaligned_access(
     stack_mem_addr: Option<u16>,
     stack_mem_count: u16,
     double_mem_dest: bool,
+    double_mem_src: bool,
     transfer_width: WidthType,
     transfers: u64,
 ) -> Option<u64> {
@@ -124,9 +126,17 @@ pub fn calculate_8086_unaligned_access(
 
     match mem_addr_src {
         Some(addr) => {
-            estimated_transfers += 1;
+            if double_mem_src {
+                estimated_transfers += 2;
+            } else {
+                estimated_transfers += 1;
+            }
             if (transfer_width == WidthType::Word) && (addr & 0x1 == 1) {
-                unaligned_accesses += 1;
+                if double_mem_src {
+                    unaligned_accesses += 2;
+                } else {
+                    unaligned_accesses += 1;
+                }
             }
         }
         _ => {}
@@ -620,6 +630,16 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             // NOTE: This is not in the docs, but I believe it is a typo
             inst.transfers = 1;
         }
+        // NOTE: Even though the cycle timing docs for xchg show memory as the
+        // destination, in reality, NASM seems to always encode xchg with the
+        // rm field as the source and the reg field as the destination. So
+        // OperandsType will be RegMem, not MemReg.
+        (Some(OpCodeType::Xchg), Some(OperandsType::AccReg)) => inst.clocks_base = 3,
+        (Some(OpCodeType::Xchg), Some(OperandsType::RegMem)) => {
+            inst.clocks_base = 17;
+            inst.transfers = 2;
+        }
+        (Some(OpCodeType::Xchg), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
         _ => {}
     }
 }
