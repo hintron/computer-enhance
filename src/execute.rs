@@ -298,6 +298,7 @@ pub fn execute(
         | OpCodeType::Test
         | OpCodeType::Xor
         | OpCodeType::Shl
+        | OpCodeType::Sar
         | OpCodeType::Shr => double_mem_dest = true,
         _ => {}
     }
@@ -629,7 +630,7 @@ pub fn execute(
                 op @ (OpCodeType::And | OpCodeType::Test | OpCodeType::Xor) => {
                     execute_op(dest_val, source_val, dest_width, source_width, op)
                 }
-                op @ (OpCodeType::Shl | OpCodeType::Shr) => {
+                op @ (OpCodeType::Shl | OpCodeType::Shr | OpCodeType::Sar) => {
                     let (result, bit_shift_cnt) =
                         execute_shift(dest_val, source_val, dest_width, source_width, op);
                     shift_count = Some(bit_shift_cnt);
@@ -1252,6 +1253,7 @@ fn execute_op(
                 OpCodeType::Xor => dst ^ src,
                 OpCodeType::Shl => dst << src,
                 OpCodeType::Shr => dst >> src,
+                OpCodeType::Sar => ((dst as i16) >> src) as u16,
                 _ => unimplemented!(),
             };
             println!(
@@ -1286,6 +1288,7 @@ fn execute_op(
                 OpCodeType::Xor => dst_u8 ^ src_u8,
                 OpCodeType::Shl => dst_u8 << src_u8,
                 OpCodeType::Shr => dst_u8 >> src_u8,
+                OpCodeType::Sar => ((dst as i8) >> src) as u8,
                 _ => unimplemented!(),
             };
 
