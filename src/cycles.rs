@@ -432,6 +432,10 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 51;
             inst.transfers = 5;
         }
+        (Some(OpCodeType::Iret), _) => {
+            inst.clocks_base = 24;
+            inst.transfers = 3;
+        }
         (Some(OpCodeType::Jcxz | OpCodeType::Loopz), _) => {
             inst.clocks_base = 6;
             inst.clocks_jump = Some(12);

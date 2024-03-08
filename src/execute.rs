@@ -323,7 +323,7 @@ pub fn execute(
             (old_sp, new_sp) = decrement_sp(2, &mut state.reg_file);
             stack_mem_addr = new_sp;
         }
-        OpCodeType::Pop | OpCodeType::Popf | OpCodeType::Ret => {
+        OpCodeType::Pop | OpCodeType::Popf | OpCodeType::Ret | OpCodeType::Iret => {
             stack_mem_addr = Some(get_sp(&state.reg_file));
         }
         _ => {}
@@ -335,6 +335,7 @@ pub fn execute(
         | OpCodeType::Pop
         | OpCodeType::Popf
         | OpCodeType::Ret => stack_mem_count = 1,
+        OpCodeType::Iret => stack_mem_count = 3,
         OpCodeType::Int | OpCodeType::Int3 => stack_mem_count = 5,
         _ => {}
     }
@@ -552,6 +553,25 @@ pub fn execute(
                 // Just increment for ret addr
                 _ => increment_sp(2, &mut state.reg_file),
             };
+            jumped = handle_jmp_variants(OpCodeType::Ret, state, None, ret_ip_addr);
+        }
+        OpCodeType::Iret => {
+            // Pop IP
+            let ret_ip_addr = Some(stack_pop(&state.reg_file, &mut state.memory));
+            increment_sp(2, &mut state.reg_file);
+            // Pop CS
+            let cs = stack_pop(&state.reg_file, &mut state.memory);
+            increment_sp(2, &mut state.reg_file);
+            let old_cs = state.reg_file.insert(RegName::Cs, cs).unwrap_or(0);
+            if old_cs != cs {
+                reg_change_str = Some(format!(" {}:0x{:x}->0x{:x}", RegName::Cs, old_cs, cs));
+            }
+            // Pop flags
+            let flags = stack_pop(&state.reg_file, &mut state.memory);
+            increment_sp(2, &mut state.reg_file);
+            state.flags_reg = u16_to_flags(flags);
+            print_flags = true;
+            // Jump to return address
             jumped = handle_jmp_variants(OpCodeType::Ret, state, None, ret_ip_addr);
         }
         OpCodeType::Push => {
@@ -1201,6 +1221,7 @@ fn handle_jmp_variants(
         OpCodeType::Jmp => true,
         OpCodeType::Call => true,
         OpCodeType::Ret => true,
+        OpCodeType::Iret => true,
         OpCodeType::Int => true,
         OpCodeType::Int3 => true,
         x @ _ => unimplemented!("Unimplemented jump variant {x}"),
