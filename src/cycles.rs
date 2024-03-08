@@ -642,7 +642,11 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.transfers = 2;
         }
         (Some(OpCodeType::Xchg), Some(OperandsType::RegReg)) => inst.clocks_base = 3,
-        _ => {}
+        (Some(op), Some(operand_type)) => {
+            unimplemented!("Inst {op} has an unhandled cycle timing case ({operand_type:?})...")
+        }
+        (Some(op), None) => unimplemented!("Inst {op} doesn't have any cycle timing data..."),
+        (None, _) => unreachable!(),
     }
 }
 
