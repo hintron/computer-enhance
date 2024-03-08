@@ -14,7 +14,7 @@ pub mod execute;
 mod tests;
 
 // Imports
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -26,13 +26,15 @@ use execute::MEMORY_SIZE;
 /// expanded to be 1 MB. Return the byte vector as well as the length of the
 /// code, so we know when we run off the end in simple code snippets.
 pub fn file_to_byte_vec(input_path: &Option<String>, exec: bool) -> Result<(Vec<u8>, u64)> {
-    // Make sure required args exist
-    let mut input_file = match input_path {
-        Some(file) => {
-            // Get the instruction stream from a file.
-            File::open(file)?
-        }
-        _ => unreachable!(),
+    // Make input file exists
+    let input_path = match input_path {
+        Some(file) => file,
+        None => bail!("file_to_byte_vec(): input_path is empty!"),
+    };
+    let input_file = File::open(input_path);
+    let mut input_file = match input_file {
+        Err(e) => bail!("Cannot open input program file '{input_path}': {e}"),
+        Ok(file) => file,
     };
 
     let mut inst_stream: Vec<u8> = vec![];
