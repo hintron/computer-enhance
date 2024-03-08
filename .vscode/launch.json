@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "RTOS (release) - computer-enhance simulation",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=computer-enhance",
+                    "--package=computer-enhance"
+                ],
+                "filter": {
+                    "name": "computer-enhance",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "${env:HOME}/code/artoss/labs/lab8/artoss.bin",
+                "rtos-debug.log",
+                "--verbose",
+                "--exec",
+                "--model-cycles",
+                "8086",
+                "--initial-ip",
+                "0x100",
+                "--initial-sp",
+                "0xFFFE"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+    ]
+}
