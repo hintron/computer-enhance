@@ -241,11 +241,6 @@ fn calculate_8088_clocks(inst: &mut InstType) {
 /// have at least one memory transfer.)
 pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
     match (inst.op_type, inst.operands_type) {
-        // TODO: Implement seg reg moves
-        (_, Some(OperandsType::SegReg)) => todo!(),
-        (_, Some(OperandsType::SegMem)) => todo!(),
-        (_, Some(OperandsType::RegSeg)) => todo!(),
-        (_, Some(OperandsType::MemSeg)) => todo!(),
         // Arithmetic and logical instructions with same cycle timing
         (
             Some(
@@ -483,12 +478,15 @@ pub fn calculate_base_clocks_transfers(inst: &mut InstType) {
             inst.clocks_base = 10;
             inst.transfers = 1;
         }
-        (Some(OpCodeType::Mov), Some(OperandsType::RegReg)) => inst.clocks_base = 2,
-        (Some(OpCodeType::Mov), Some(OperandsType::RegMem)) => {
+        (
+            Some(OpCodeType::Mov),
+            Some(OperandsType::RegReg | OperandsType::SegReg | OperandsType::RegSeg),
+        ) => inst.clocks_base = 2,
+        (Some(OpCodeType::Mov), Some(OperandsType::RegMem | OperandsType::SegMem)) => {
             inst.clocks_base = 8;
             inst.transfers = 1;
         }
-        (Some(OpCodeType::Mov), Some(OperandsType::MemReg)) => {
+        (Some(OpCodeType::Mov), Some(OperandsType::MemReg | OperandsType::MemSeg)) => {
             inst.clocks_base = 9;
             inst.transfers = 1;
         }

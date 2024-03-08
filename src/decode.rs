@@ -2058,6 +2058,20 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 Some(true) => inst.dest_reg = Some(sr_reg),
                 _ => unreachable!(),
             };
+            match (mode, inst.d_field) {
+                (ModType::RegisterMode, Some(true)) => {
+                    inst.operands_type = Some(OperandsType::SegReg)
+                }
+                (ModType::RegisterMode, _) => inst.operands_type = Some(OperandsType::RegSeg),
+                (_, Some(true)) => {
+                    inst.operands_type = Some(OperandsType::SegMem);
+                    inst.add_mod_rm_mem_to = Some(AddTo::Source);
+                }
+                (_, _) => {
+                    inst.operands_type = Some(OperandsType::MemSeg);
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
+                }
+            }
             inst.reg_field = Some(sr_reg);
             // We need no byte/word prefix for ModSrRm, since there is always
             // a register source/dest to indicate size
