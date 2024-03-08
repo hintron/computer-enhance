@@ -22,9 +22,10 @@ SIMULATE_8086_BUILD_DIR="$FILE_DIR/build-simulate-8086-regress"
 SIMULATE_8086_SRC_DIR="$FILE_DIR/simulate-8086-regress"
 BIN="$PROJECT_DIR/target/debug/computer-enhance"
 
-CHECK_RTOS="false"
-if [ "$1" == "rtos" ]; then
-    CHECK_RTOS="true"
+# Run the RTOS for 10k instructions by default
+CHECK_RTOS="true"
+if [ "$1" == "nortos" ]; then
+    CHECK_RTOS="false"
 fi
 
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
