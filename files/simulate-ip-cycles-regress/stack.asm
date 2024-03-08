@@ -23,3 +23,13 @@ pushf
 add dx, 1
 popf
 popf
+
+mov dx, 0xAAAA
+push dx
+mov dx, 0xBBBB
+push dx
+mov dx, 0
+pop word [0x100]
+mov dx, [0x100]
+pop word [0x200]
+mov dl, [0x200]

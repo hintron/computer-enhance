@@ -2047,6 +2047,7 @@ fn decode_mod_rm_byte(byte: u8, inst: &mut InstType) {
                 }
                 _ => {
                     inst.operands_type = Some(OperandsType::Mem);
+                    inst.add_mod_rm_mem_to = Some(AddTo::Dest);
                 }
             }
         }
