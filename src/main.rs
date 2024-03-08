@@ -22,7 +22,6 @@ struct ArgsType {
     /// If true, execute the stream. If false, just decode it
     execute: bool,
     help: bool,
-    print: bool,
     verbose: bool,
     /// If true, do NOT calculate and print out changes to the IP register
     /// during execution.
@@ -68,8 +67,6 @@ Options:
             decoding it.
 
 -h|--help : Print this help message.
-
--p|--print : Print out the instructions as decoded/executed.
 
 -v|--verbose : Increase verbosity of print to include debug information.
 
@@ -142,9 +139,6 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-e") || arg.starts_with("--exec") {
         parsed_args.execute = true;
-        Ok(ArgType::NoValue)
-    } else if arg.starts_with("-p") || arg.starts_with("--print") {
-        parsed_args.print = true;
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
         parsed_args.verbose = true;
@@ -259,7 +253,6 @@ fn main() -> Result<()> {
     );
 
     let decode_settings = DecodeSettings {
-        print: args.print,
         verbose: args.verbose,
     };
     let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");

@@ -506,7 +506,6 @@ impl fmt::Display for CpuType {
 
 /// Decode-specific settings
 pub struct DecodeSettings {
-    pub print: bool,
     pub verbose: bool,
 }
 
@@ -674,9 +673,11 @@ pub fn decode_execute(
         // Decode one (possibly multi-byte) instruction at a time
         match decode_single(inst_byte_window, decode_settings.verbose) {
             Some(mut inst) => {
-                if decode_settings.print {
-                    println!("{}", inst.text.as_ref().unwrap());
-                }
+                println!(
+                    "inst: 0x{:04x}: {}",
+                    cpu_state.ip,
+                    inst.text.as_ref().unwrap()
+                );
                 // Execute the instruction
                 let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings);
                 output_text_lines.push(text);
@@ -711,9 +712,7 @@ pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<Ins
         // Decode one (possibly multi-byte) instruction at a time
         match decode_single(inst_byte_window, decode_settings.verbose) {
             Some(inst) => {
-                if decode_settings.print {
-                    println!("{}", inst.text.as_ref().unwrap());
-                }
+                println!("inst: 0x{:04x}: {}", ip, inst.text.as_ref().unwrap());
                 ip = ip + inst.processed_bytes.len();
                 insts.push(inst);
                 // On to the next instruction...
@@ -839,11 +838,6 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
     calculate_execution_values(&mut inst);
 
     let inst_test = build_inst_string(&inst);
-
-    // Print out instruction to log, for debug
-    if debug {
-        println!("inst: {inst_test}");
-    }
 
     inst.text = Some(inst_test);
 
@@ -2620,8 +2614,8 @@ fn get_inst_window(cpu_state_ip: usize, program_bytes: &Vec<u8>) -> Option<&[u8]
     if window_start >= program_len {
         // We are trying to execute outside the program! Exit
         println!(
-            "IP ran off the end of the program: ip: {}; prog len: {}",
-            window_start, program_len
+            "IP ran off the end of the program: ip: {} (0x{:04x}); prog len: {} (0x{:04x})",
+            window_start, window_start, program_len, program_len
         );
         return None;
     }
