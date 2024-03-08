@@ -1272,7 +1272,8 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
         0xA0..=0xA3 => {
             inst.op_type = Some(OpCodeType::Mov);
             let w_field = (byte & 0x1) == 1;
-            let accumulator = Some(RegType{name: RegName::Ax, width: WidthType::Word});
+            let accumulator_width = if w_field { WidthType::Word } else { WidthType::Byte };
+            let accumulator = Some(RegType{name: RegName::Ax, width: accumulator_width});
             inst.mem_access = true;
             match ((byte & 0x2) >> 1) == 1 {
                 false => {
@@ -1287,9 +1288,7 @@ fn decode_first_byte(byte: u8, inst: &mut InstType) -> bool {
                 }
             };
             inst.immediate_bytes.push(ImmBytesType::DataLo);
-            if w_field {
-                inst.immediate_bytes.push(ImmBytesType::DataHi);
-            }
+            inst.immediate_bytes.push(ImmBytesType::DataHi);
             inst.w_field = Some(w_field);
         }
         // mov - Register/memory to segment register
