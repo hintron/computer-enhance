@@ -27,3 +27,6 @@ xchg dl, [0x100]
 
 ; NOTE: exchanging between same register is currently unsupported
 ; xchg bl, bh
+
+nop
+nop

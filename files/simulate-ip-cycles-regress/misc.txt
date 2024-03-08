@@ -20,11 +20,13 @@ mov [0x0100], word 65535 ; Clocks: +16 = 51 (10 + 6ea) | ip:0x10->0x16
 mov dx, 21845 ; Clocks: +4 = 55 | dx:0x0->0x5555 ip:0x16->0x19
 xchg dx, [0x0100] ; Clocks: +23 = 78 (17 + 6ea) | dx:0x5555->0xffff ip:0x19->0x1d
 xchg dl, [0x0100] ; Clocks: +23 = 101 (17 + 6ea) | dx:0xffff->0xff55 ip:0x1d->0x21
+xchg ax, ax ; Clocks: +3 = 104 | ip:0x21->0x22
+xchg ax, ax ; Clocks: +3 = 107 | ip:0x22->0x23
 
 Final registers:
       ax: 0xffff (65535)
       dx: 0xff55 (65365)
-      ip: 0x0021 (33)
+      ip: 0x0023 (35)
 
 **************
 **** 8088 ****
@@ -48,9 +50,11 @@ mov [0x0100], word 65535 ; Clocks: +20 = 55 (10 + 6ea + 4p) | ip:0x10->0x16
 mov dx, 21845 ; Clocks: +4 = 59 | dx:0x0->0x5555 ip:0x16->0x19
 xchg dx, [0x0100] ; Clocks: +31 = 90 (17 + 6ea + 8p) | dx:0x5555->0xffff ip:0x19->0x1d
 xchg dl, [0x0100] ; Clocks: +23 = 113 (17 + 6ea) | dx:0xffff->0xff55 ip:0x1d->0x21
+xchg ax, ax ; Clocks: +3 = 116 | ip:0x21->0x22
+xchg ax, ax ; Clocks: +3 = 119 | ip:0x22->0x23
 
 Final registers:
       ax: 0xffff (65535)
       dx: 0xff55 (65365)
-      ip: 0x0021 (33)
+      ip: 0x0023 (35)
 

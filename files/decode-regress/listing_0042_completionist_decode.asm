@@ -72,6 +72,7 @@ pop ds
 xchg ax, [bp - 1000]
 xchg [bx + 50], bp
 
+; This is equivalent to a nop (0x90)
 xchg ax, ax
 xchg ax, dx
 xchg ax, sp
