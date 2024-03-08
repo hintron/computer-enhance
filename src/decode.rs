@@ -29,7 +29,7 @@
 
 use std::fmt;
 
-use crate::cycles::{calculate_inst_clocks, OperandsType};
+use crate::cycles::OperandsType;
 use crate::execute::{execute, init_state, CpuStateType};
 
 /// The four types of modes in the mod field of "mod r/m" bytes
@@ -841,8 +841,7 @@ fn decode_single(inst_byte_window: &[u8], debug: bool) -> Option<InstType> {
 
     inst.text = Some(inst_test);
 
-    // Now that the inst is fully decoded, calculate clock values
-    calculate_inst_clocks(&mut inst);
+    // Calculate clocks at the beginning of execution
 
     return Some(inst);
 }

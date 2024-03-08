@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::cycles::{
-    calculate_8086_unaligned_access, get_total_clocks, get_total_clocks_str, print_inst_clock_debug,
+    calculate_8086_unaligned_access, calculate_inst_clocks, get_total_clocks, get_total_clocks_str,
+    print_inst_clock_debug,
 };
 use crate::decode::{
     get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
@@ -217,6 +218,9 @@ pub fn execute(
     // Accumulate a string of register changes as needed, if not covered by
     // new_val + dest_target
     let mut reg_change_str = None;
+
+    // Now that the inst is fully decoded, calculate clock values
+    calculate_inst_clocks(inst);
 
     // "While an instruction is executing, IP refers to the next instruction."
     // BYU RTOS Website, 8086InstructionSet.html
