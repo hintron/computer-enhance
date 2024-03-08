@@ -23,9 +23,9 @@
                 "--exec",
                 "--model-cycles",
                 "8086",
-                "--initial-ip",
+                "--ip",
                 "0x100",
-                "--initial-sp",
+                "--sp",
                 "0xFFFE"
             ],
             "cwd": "${workspaceFolder}"
