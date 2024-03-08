@@ -39,6 +39,8 @@ struct ArgsType {
     init_sp: Option<u16>,
     /// If true, graphically display final memory contents in a window
     display_window: bool,
+    /// If specified, exit simulation after this many cycles have elapsed
+    exit_after: Option<u64>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -51,6 +53,8 @@ enum ArgType {
     InitIp,
     /// Get a value for the initial SP.
     InitSp,
+    /// Get a value for exit after.
+    ExitAfter,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -88,6 +92,10 @@ this value.
 
 --display-window : If specified, graphically display final memory contents in a
                    window.
+
+--exit-after <value> : Quit the program after <value> instructions. Useful for
+                       limiting the execution of never-ending programs (like an
+                       RTOS) for regressions.
 ";
 
 fn print_help() {
@@ -98,13 +106,13 @@ fn print_help() {
 fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) -> Result<()> {
     // Parse a numeric value, if needed
     let num_val = match arg_type {
-        ArgType::InitIp | ArgType::InitSp => {
+        ArgType::InitIp | ArgType::InitSp | ArgType::ExitAfter => {
             let val = if arg.starts_with("0x") || arg.starts_with("0X") {
                 println!("Parsing {arg} as hex, skipping initial 0x");
-                u16::from_str_radix(&arg[2..], 16)?
+                u64::from_str_radix(&arg[2..], 16)?
             } else if arg.ends_with("h") || arg.ends_with("H") {
                 println!("Parsing {arg} as hex, skipping last h");
-                u16::from_str_radix(&arg[..arg.len() - 1], 16)?
+                u64::from_str_radix(&arg[..arg.len() - 1], 16)?
             } else {
                 println!("Parsing {arg} as decimal");
                 arg.parse()?
@@ -127,11 +135,15 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
         }
         (ArgType::InitIp, Some(val)) => {
             println!("Initializing IP to {val} ({val:x})");
-            parsed_args.init_ip = Some(val);
+            parsed_args.init_ip = Some(val as u16);
         }
         (ArgType::InitSp, Some(val)) => {
             println!("Initializing SP to {val} ({val:x})");
-            parsed_args.init_sp = Some(val);
+            parsed_args.init_sp = Some(val as u16);
+        }
+        (ArgType::ExitAfter, Some(val)) => {
+            println!("Exiting program after {val} instructions");
+            parsed_args.exit_after = Some(val);
         }
         _ => bail!("Unhandled arg value for {arg_type:?} and {num_val:?}"),
     };
@@ -169,6 +181,8 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
         Ok(ArgType::NoValue)
+    } else if arg.starts_with("--exit-after") {
+        Ok(ArgType::ExitAfter)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -276,6 +290,7 @@ fn main() -> Result<()> {
             stop_on_ret: args.stop_on_ret,
             init_ip: args.init_ip,
             init_sp: args.init_sp,
+            exit_after: args.exit_after,
         };
         let (text_lines, mut cpu_state) = decode_execute(
             program_bytes,

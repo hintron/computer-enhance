@@ -516,6 +516,7 @@ pub struct ExecuteSettings {
     pub no_ip: bool,
     pub cycle_model: Option<CpuType>,
     pub stop_on_ret: bool,
+    pub exit_after: Option<u64>,
 }
 
 /// A struct holding all the decoded data of a given instruction
@@ -652,6 +653,11 @@ pub fn decode_execute(
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state(program_bytes, exec_settings.init_ip, exec_settings.init_sp);
 
+    let (exit_after, exit_after_count) = match exec_settings.exit_after {
+        Some(count) => (true, count),
+        None => (false, 0),
+    };
+
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip
     // decode, use that InstType, and advance the IP. Use the # of
@@ -681,9 +687,15 @@ pub fn decode_execute(
                 // Execute the instruction
                 let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings);
                 output_text_lines.push(text);
+                cpu_state.total_instructions += 1;
                 if halt {
                     break;
                 }
+                if exit_after && cpu_state.total_instructions >= exit_after_count {
+                    println!("Hit instruction limit of {exit_after_count}! Halting...");
+                    break;
+                }
+
                 // On to the next instruction...
             }
             // Done with the instruction stream

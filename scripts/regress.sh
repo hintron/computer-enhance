@@ -256,7 +256,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
     BASE=$(basename "$RTOS_BIN")
     SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
-    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --ip "0x100" --sp "0xFFFE" > "$SIMULATE_LOG_8086"; then
+    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
         echo "ERROR: Decode program failed for $RTOS_BIN"
         rc=1
         break
