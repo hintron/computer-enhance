@@ -41,7 +41,7 @@ struct ArgsType {
     display_window: bool,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 enum ArgType {
     /// This arg is the cycles estimate arg
     Cycles,
@@ -96,18 +96,8 @@ fn print_help() {
 }
 
 fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) -> Result<()> {
-    match arg_type {
-        ArgType::NoValue => unreachable!(),
-        ArgType::Cycles => {
-            parsed_args.cycle_type = if arg == "8086" {
-                Some(CpuType::Intel8086)
-            } else if arg == "8088" {
-                // default to 8086 cycle estimates
-                Some(CpuType::Intel8088)
-            } else {
-                bail!("Unsupported value for -c|--model-cycles: {arg}")
-            }
-        }
+    // Parse a numeric value, if needed
+    let num_val = match arg_type {
         ArgType::InitIp | ArgType::InitSp => {
             let val = if arg.starts_with("0x") || arg.starts_with("0X") {
                 println!("Parsing {arg} as hex, skipping initial 0x");
@@ -119,14 +109,31 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
                 println!("Parsing {arg} as decimal");
                 arg.parse()?
             };
-            if *arg_type == ArgType::InitIp {
-                println!("Initializing IP to {val} ({val:x})");
-                parsed_args.init_ip = Some(val);
+            Some(val)
+        }
+        _ => None,
+    };
+    match (arg_type, num_val) {
+        (ArgType::NoValue, _) => unreachable!(),
+        (ArgType::Cycles, _) => {
+            parsed_args.cycle_type = if arg == "8086" {
+                Some(CpuType::Intel8086)
+            } else if arg == "8088" {
+                // default to 8086 cycle estimates
+                Some(CpuType::Intel8088)
             } else {
-                println!("Initializing SP to {val} ({val:x})");
-                parsed_args.init_sp = Some(val);
+                bail!("Unsupported value for -c|--model-cycles: {arg}")
             }
         }
+        (ArgType::InitIp, Some(val)) => {
+            println!("Initializing IP to {val} ({val:x})");
+            parsed_args.init_ip = Some(val);
+        }
+        (ArgType::InitSp, Some(val)) => {
+            println!("Initializing SP to {val} ({val:x})");
+            parsed_args.init_sp = Some(val);
+        }
+        _ => bail!("Unhandled arg value for {arg_type:?} and {num_val:?}"),
     };
     Ok(())
 }
