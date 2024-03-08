@@ -51,6 +51,7 @@ know how to skip over data.)
 * [Benchmarking in Rust][6]
 * [Profiling in Rust][7]
 * [Using the class reference simulator][8]
+* [Viewing assembly of Rust code][9]
 
 
 [1]: https://www.computerenhance.com/
@@ -61,3 +62,4 @@ know how to skip over data.)
 [6]: ./docs/benchmarking.md
 [7]: ./docs/profiling.md
 [8]: ./docs/reference-simulator.md
+[9]: ./docs/assembly.md
