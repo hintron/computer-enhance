@@ -81,10 +81,10 @@ Options:
                 Useful for running functions without running code that calls
                 into them.
 
--i|--initial-ip <value> : If specified, set the instruction pointer to begin with
+--ip <value> : If specified, set the instruction pointer to begin with
 this value.
 
--s|--initial-sp <value> : If specified, initialize the stack pointer to this value.
+--sp <value> : If specified, initialize the stack pointer to this value.
 
 --display-window : If specified, graphically display final memory contents in a
                    window.
@@ -155,9 +155,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--stop-on-ret") {
         parsed_args.stop_on_ret = true;
         Ok(ArgType::NoValue)
-    } else if arg.starts_with("-i") || arg.starts_with("--initial-ip") {
+    } else if arg.starts_with("--ip") {
         Ok(ArgType::InitIp)
-    } else if arg.starts_with("-s") || arg.starts_with("--initial-sp") {
+    } else if arg.starts_with("--sp") {
         Ok(ArgType::InitSp)
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
