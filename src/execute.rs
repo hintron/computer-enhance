@@ -26,6 +26,8 @@ pub struct CpuStateType {
     flags_reg: FlagsRegType,
     pub memory: Vec<u8>,
     total_cycles: u64,
+    /// The number of instructions processed since the start of the program
+    pub total_instructions: u64,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
