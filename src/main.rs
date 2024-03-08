@@ -84,7 +84,7 @@ Options:
 -i|--initial-ip <value> : If specified, set the instruction pointer to begin with
 this value.
 
--i|--initial-sp <value> : If specified, initialize the stack pointer to this value.
+-s|--initial-sp <value> : If specified, initialize the stack pointer to this value.
 
 --display-window : If specified, graphically display final memory contents in a
                    window.
