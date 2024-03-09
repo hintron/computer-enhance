@@ -17,3 +17,10 @@ criterion = "0.5"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+# For a release build with debug symbols, for debugging.
+# cargo build --profile=release-with-debug
+# https://stackoverflow.com/questions/38803760/how-to-get-a-release-build-with-debugging-information-when-using-cargo
+[profile.release-with-debug]
+inherits = "release"
+debug = true
