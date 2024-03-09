@@ -27,7 +27,9 @@
                 "--ip",
                 "0x100",
                 "--sp",
-                "0xFFFE"
+                "0xFFFE",
+                "--exit-after",
+                "10000"
             ],
             "cwd": "${workspaceFolder}"
         },
