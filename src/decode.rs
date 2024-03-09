@@ -653,11 +653,6 @@ pub fn decode_execute(
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state(program_bytes, exec_settings.init_ip, exec_settings.init_sp);
 
-    let (exit_after, exit_after_count) = match exec_settings.exit_after {
-        Some(count) => (true, count),
-        None => (false, 0),
-    };
-
     // MGH idea: Create a decoded instruction cache. Take the 16-byte window and
     // see if the first n bytes match any decoded instructions. If so, skip
     // decode, use that InstType, and advance the IP. Use the # of
@@ -691,9 +686,14 @@ pub fn decode_execute(
                 if halt {
                     break;
                 }
-                if exit_after && cpu_state.total_instructions >= exit_after_count {
-                    println!("Hit instruction limit of {exit_after_count}! Halting...");
-                    break;
+                match exec_settings.exit_after {
+                    Some(exit_after_count) => {
+                        if cpu_state.total_instructions >= exit_after_count {
+                            println!("Hit instruction limit of {exit_after_count}! Halting...");
+                            break;
+                        }
+                    }
+                    None => {}
                 }
 
                 // On to the next instruction...
