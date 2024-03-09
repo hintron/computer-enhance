@@ -13,22 +13,32 @@ Then, do:
 
 ```shell
 cargo asm \
+--profile=release-with-debug \
 --color \
 --rust \
---intel \
+--att \
 --lib \
 --simplify \
 --everything \
 > everything.lst
 ```
 
+* `--profile=release-with-debug` uses the release-with-debug profile, which
+will hopefully correlate with the build profile we will use for the debugger.
 * `--color` adds ANSI color codes, which makes the output look nice.
 * `--rust` interleaves Rust code in the assembly, so it's easy to see what
 corresponds to what.
-* `--intel` outputs assembly in the Intel syntax.
+* `--att` outputs assembly in the AT&T syntax instead of Intel syntax.
 * `--lib` selects all code that falls under the lib module.
 * `--simplify` removes various non-assembly directives that just clutter things.
 * `--everything` will generate assembly for the entire program.
+
+Other options:
+
+* `--intel` (the default) outputs assembly in the Intel syntax instead of AT&T
+syntax. However, this will make it not match up with the debugger disassembly
+output, so it may be easier to stick  not specify this when trying to match it up with
+the debugger.
 
 You can also change `--lib` for `--bin` to see the executable startup code. See
 `cargo asm --help` for more options.
