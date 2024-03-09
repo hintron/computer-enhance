@@ -4,10 +4,11 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "RTOS (release) - computer-enhance simulation",
+            "name": "RTOS simulator release-with-debug",
             "cargo": {
                 "args": [
                     "build",
+                    "--profile=release-with-debug",
                     "--bin=computer-enhance",
                     "--package=computer-enhance"
                 ],
