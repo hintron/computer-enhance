@@ -79,7 +79,7 @@ pub fn display_memory(memory: &mut Vec<u8>) {
                 let mut buffer = surface.buffer_mut().unwrap();
                 println!("memory_u32 len: {}", memory_u32.len());
                 println!("buffer len: {}", buffer.len());
-                let mem_len = memory_u32.len() as u32;
+                let mem_len = memory_u32.len();
                 // Advance index of 8086 memory separately from surface index
                 let mut mem_index = 0;
                 // Copy contents of memory into buffer here!
@@ -89,7 +89,7 @@ pub fn display_memory(memory: &mut Vec<u8>) {
                     // Only get mem val if we are in correct column and there
                     // are mem bytes still to display
                     let val = if mem_index < mem_len && column < MEM_IMAGE_WIDTH {
-                        let val = memory_u32[mem_index as usize];
+                        let val = memory_u32[mem_index];
                         mem_index += 1;
                         val
                     } else {
