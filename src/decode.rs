@@ -488,8 +488,9 @@ pub enum ModRmDataType {
 /// 8088. The 8086 has a 16-bit bus, while the 8088 has an 8-bit bus. The 8088
 /// was designed to be easier and cheaper to make, but with slightly worse
 /// latencies.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub enum CpuType {
+    #[default]
     Intel8086,
     Intel8088,
 }
@@ -505,11 +506,13 @@ impl fmt::Display for CpuType {
 }
 
 /// Decode-specific settings
+#[derive(Default)]
 pub struct DecodeSettings {
     pub verbose: bool,
 }
 
 /// Execution-specific settings
+#[derive(Default)]
 pub struct ExecuteSettings {
     pub init_ip: Option<u16>,
     pub init_sp: Option<u16>,
