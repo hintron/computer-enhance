@@ -1,18 +1,34 @@
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use computer_enhance::decode::{decode, decode_execute};
+use computer_enhance::decode::{decode, decode_execute, DecodeSettings, ExecuteSettings};
 use computer_enhance::file_to_byte_vec;
 
 fn benchmark_decode(input: &str) -> Result<()> {
-    let inst_stream = file_to_byte_vec(&Some(input.to_string()))?;
-    let _insts = decode(inst_stream, false, false);
+    let decode_settings = DecodeSettings {
+        ..Default::default()
+    };
+
+    let (inst_stream, _) = file_to_byte_vec(&Some(input.to_string()), false)?;
+    let _insts = decode(inst_stream, &decode_settings);
     Ok(())
 }
 
 fn benchmark_decode_execute(input: &str) -> Result<()> {
-    let inst_stream = file_to_byte_vec(&Some(input.to_string()))?;
-    let _output = decode_execute(inst_stream, false, false);
+    let decode_settings = DecodeSettings {
+        ..Default::default()
+    };
+    let execute_settings = ExecuteSettings {
+        ..Default::default()
+    };
+
+    let (inst_stream, program_length) = file_to_byte_vec(&Some(input.to_string()), true)?;
+    let _output = decode_execute(
+        inst_stream,
+        program_length,
+        &decode_settings,
+        &execute_settings,
+    );
     Ok(())
 }
 
