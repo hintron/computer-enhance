@@ -15,6 +15,7 @@ use std::rc::Rc;
 // Third-party imports
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
+use winit::keyboard::NamedKey;
 use winit::window::WindowBuilder;
 
 /// Write the CPU memory array to a file.
@@ -109,6 +110,16 @@ pub fn display_memory(memory: &mut Vec<u8>) {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
+                elwt.exit();
+            }
+            Event::WindowEvent {
+                event:
+                    WindowEvent::KeyboardInput {
+                        event: key_event, ..
+                    },
+                window_id,
+            } if window_id == window.id() && key_event.logical_key == NamedKey::Escape => {
+                println!("Escape key pressed! Exiting...");
                 elwt.exit();
             }
             event => println!("Window event: {event:?}"),
