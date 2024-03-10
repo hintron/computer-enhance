@@ -9,8 +9,8 @@
 # IP register as well as the final IP register state.
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
-FILE_DIR="$PROJECT_DIR/files"
+PROJECT_DIR=$(realpath "$SCRIPT_DIR/../..")
+FILE_DIR="$PROJECT_DIR/emulator/files"
 DECODE_BUILD_DIR="$FILE_DIR/build-decode-regress"
 SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
 SIMULATE_SRC_DIR="$FILE_DIR/simulate-regress"

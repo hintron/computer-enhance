@@ -1,0 +1,20 @@
+[package]
+name = "computer-enhance"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+softbuffer = "0.4.1"
+winit = "0.29.14"
+
+[dev-dependencies]
+# For benchmarking
+criterion = "0.5"
+
+# Disable the standard benchmarking harness, so we can use Criterion
+[[bench]]
+name = "benchmarks"
+harness = false
