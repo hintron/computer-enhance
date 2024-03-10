@@ -39,6 +39,8 @@ struct ArgsType {
     init_sp: Option<u16>,
     /// If true, graphically display final memory contents in a window
     display_window: bool,
+    /// If true, save final memory contents to a file
+    display_file: Option<String>,
     /// If specified, exit simulation after this many cycles have elapsed
     exit_after: Option<u64>,
 }
@@ -55,6 +57,8 @@ enum ArgType {
     InitSp,
     /// Get a value for exit after.
     ExitAfter,
+    /// File to save memory image to
+    DisplayFile,
 }
 
 const USAGE: &str = "Usage: computer-enhance <input> <output> [-h|--help] [OPTIONS]";
@@ -92,6 +96,11 @@ this value.
 
 --display-window : If specified, graphically display final memory contents in a
                    window.
+
+--display-file <file>: If specified, save final memory contents to the given
+                       file. (To view, save the file with the .data extension,
+                       load it into Gimp, set width and height to 64, and change
+                       display format from RGB to RGBA.)
 
 --exit-after <value> : Quit the program after <value> instructions. Useful for
                        limiting the execution of never-ending programs (like an
@@ -145,6 +154,9 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
             println!("Exiting program after {val} instructions");
             parsed_args.exit_after = Some(val);
         }
+        (ArgType::DisplayFile, _) => {
+            parsed_args.display_file = Some(arg);
+        }
         _ => bail!("Unhandled arg value for {arg_type:?} and {num_val:?}"),
     };
     Ok(())
@@ -181,6 +193,8 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
         Ok(ArgType::NoValue)
+    } else if arg.starts_with("--display-file") {
+        Ok(ArgType::DisplayFile)
     } else if arg.starts_with("--exit-after") {
         Ok(ArgType::ExitAfter)
     } else {
@@ -276,7 +290,6 @@ fn main() -> Result<()> {
     let decode_settings = DecodeSettings {
         verbose: args.verbose,
     };
-    let mem_image_output = &(args.output_file.unwrap() + ".mem_image.data");
 
     if args.execute {
         let cycle_lines = print_cycle_header(args.cycle_type);
@@ -307,7 +320,13 @@ fn main() -> Result<()> {
             writeln!(output_file, "{}", line)?;
         }
 
-        memory_to_file(&mut cpu_state.memory, mem_image_output);
+        match args.display_file {
+            Some(file) => {
+                println!("Saving memory image to file {file}...");
+                memory_to_file(&mut cpu_state.memory, &file);
+            }
+            None => {}
+        }
         if args.display_window {
             println!("Graphically displaying memory...");
             display_memory(&mut cpu_state.memory);
