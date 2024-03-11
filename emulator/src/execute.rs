@@ -310,6 +310,9 @@ pub fn execute(
                     // MGH TODO: Return the error code somehow
                     return (effect, true);
                 }
+                // Implement hooks for the snake game
+                (0x21, 0x55) => println!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x56) => println!("int 0x{int_num:x} function 0x{ah:x}"),
                 _ => {}
             }
             // Now that the emulator hook has completed, go to next instruction
