@@ -279,7 +279,7 @@ while [ "$CHECK_SNAKE" == "true" ]; do
     file="$SNAKE_BUILD_DIR/snake"
     echo "Checking simulation of $file..."
     BASE=$(basename "$file")
-    if ! $BIN --exec --verbose --stop-on-int3 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
+    if ! $BIN --exec --verbose --stop-on-int3 --exit-after 10000 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
         echo "ERROR: Simulation failed for $file"
         rc=1
         break
