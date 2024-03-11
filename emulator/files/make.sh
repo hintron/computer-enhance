@@ -39,10 +39,6 @@ for file in "$SRC_DIR_SNAKE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (snake) $new_name"
-
-        # # Delete everything after the first occurrence of int3
-        # sed -i '/int3/q' $file
-
         if ! nasm "$file" -o "$BUILD_DIR_SNAKE/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
