@@ -276,21 +276,12 @@ done
 # Execute the Snake game
 # Use while loop to easily break out
 while [ "$CHECK_SNAKE" == "true" ]; do
-    file="$SNAKE_BUILD_DIR/snake"
-    echo "Checking simulation of $file..."
-    BASE=$(basename "$file")
-    if ! $BIN --exec --verbose --stop-on-int3 --exit-after 10000 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
-        echo "ERROR: Simulation failed for $file"
-        rc=1
-        break
-    fi
-
-    echo "Simulating Snake binary '$RTOS_BIN'..."
-    BASE=$(basename "$RTOS_BIN")
-    SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
-    SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
-    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
-        echo "ERROR: Decode program failed for $RTOS_BIN"
+    SNAKE_BIN="$SNAKE_BUILD_DIR/snake"
+    BASE=$(basename "$SNAKE_BIN")
+    SIMULATE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-simulate.txt"
+    echo "Simulating Snake binary '$SNAKE_BIN'..."
+    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --exec --stop-on-int3 --exit-after 10000 > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
+        echo "ERROR: Simulation failed for $SNAKE_BIN"
         rc=1
         break
     fi
