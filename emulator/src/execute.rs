@@ -28,6 +28,10 @@ pub struct CpuStateType {
     total_cycles: u64,
     /// The number of instructions processed since the start of the program
     pub total_instructions: u64,
+    /// The width of the emulator display buffer
+    display_width: u16,
+    /// The height of the emulator display buffer
+    display_height: u16,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -311,8 +315,16 @@ pub fn execute(
                     return (effect, true);
                 }
                 // Implement hooks for the snake game
-                (0x21, 0x55) => println!("int 0x{int_num:x} function 0x{ah:x}"),
-                (0x21, 0x56) => println!("int 0x{int_num:x} function 0x{ah:x}"),
+                (0x21, 0x55) => {
+                    let width = *state.reg_file.get(&RegName::Bx).unwrap();
+                    let height = *state.reg_file.get(&RegName::Cx).unwrap();
+                    println!("EMULATOR: Setting display buffer to ({width}, {height})");
+                    state.display_width = width;
+                    state.display_height = height;
+                }
+                (0x21, 0x56) => {
+                    println!("EMULATOR: Rendering display buffer!");
+                }
                 _ => {}
             }
             // Now that the emulator hook has completed, go to next instruction
