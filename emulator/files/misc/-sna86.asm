@@ -2,7 +2,7 @@
 ;                              Sna86.
 ;                     An 8086 simulator snake!
 ; -------------------------------------------------------------------
-; MGH: Slightly modified from https://gist.github.com/charlesastaylor/18c7c8005fed9d0af1a3ee2b24fcd724. See also emulator/files/misc/-sna86.asm
+;
 ; Assembly program intended to run in an 8086 simulator with functionaliy equal* to one made for homeworks
 ; up to Part 1 Episode 10 of the Peformance-Aware Programming Series (https://www.computerenhance.com/)
 ; by Casey Muratori. Demo - https://youtu.be/s_S4-QHeFMc.
@@ -11,9 +11,9 @@
 ;   and jmp because conditional jumps have limited range! They are both simple enough to implment if you
 ;   already have the above.
 ; * int is also needed for a couple of things:
-;   - int 0x21 function 0x55 is used to signal the size of the frame buffer to the simulator. Width is put in bx, height
-;     into cx, and the frame buffer location in dx.
-;   - int 0x21 function 0x56 is used for the program to signal it has finished a frame to allow the simulator to draw the
+;   - int 0 is used to signal the size of the frame buffer to the simulator. Width is put in ax, height
+;     into bx.
+;   - int 15h is used for the program to signal it has finished a frame to allow the simulator to draw the
 ;     frame buffer to the screen
 ;
 ; Input is handled via the input "register" at memory address 0xFFFE, with each bit corresponding to an input
@@ -252,20 +252,12 @@ mov ax, [program_size]
 add ax, [frame_buffer_num_bytes]
 mov [snake], ax
 
-; ; Request frame buffer size using int 0
-; mov ax, [screen_size]
-; mov bx, [screen_size]
-; int 0
-; MGH: Request frame buffer size using int 0x21 function 0x55 instead
-mov ah, 0x55
+; Request frame buffer size using int 0
+mov ax, [screen_size]
 mov bx, [screen_size]
-mov cx, [screen_size]
-mov dx, [frame_buffer]
-int 0x21
+int 0
 
-; MGH: My nasm doesn't like !
-; %if !DRAW_SCREEN_EVERY_FRAME
-%if DRAW_SCREEN_EVERY_FRAME == 1
+%if !DRAW_SCREEN_EVERY_FRAME
 ; Draw background
 ; Have to use constant color so that when we are "deleting" snake parts we know what color to use.
 ; @TODO If did want nicer background could load it into memory separate to frame buffer to refer to!
@@ -615,15 +607,12 @@ y_loop_start:
 draw_snake
 %endif
 
-; ; Use int 15 as a hacky way to signal to hosting simualtor to draw frame and sleep till next frame
-; ; There is something about on actualy 8086 used to call int 15h with ah=86h to do micro second sleeps but
-; ; 1) details of it aren't obvious to me but also 2) that would require asm code to keep track of timings!
-; ; mov ah, 86h
-; ; mov cx, micro_seconds
-; int 15h
-; MGH: Use int 0x21 function 0x56 instead
-mov ah, 0x56
-int 0x21
+; Use int 15 as a hacky way to signal to hosting simualtor to draw frame and sleep till next frame
+; There is something about on actualy 8086 used to call int 15h with ah=86h to do micro second sleeps but
+; 1) details of it aren't obvious to me but also 2) that would require asm code to keep track of timings!
+; mov ah, 86h
+; mov cx, micro_seconds
+int 15h
 
 ; @TODO: Clean up handling of menu screen. This is very spaghetti!
 cmp [game_state], word GAME_STATE_PLAY
