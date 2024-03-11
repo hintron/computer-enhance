@@ -38,7 +38,7 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 ///
 /// Run this on files/build-simulate-ip-regress/listing_0054_draw_rectangle
 /// and files/build-simulate-ip-regress/listing_0055_challenge_rectangle
-pub fn display_memory(memory: &mut Vec<u8>, image_width: u32, _image_height: u32) {
+pub fn display_memory(memory: &Vec<u8>, image_width: u32, _image_height: u32) {
     // Image dimensions
     const _MEM_IMAGE_SCALE: u32 = 10;
 
@@ -51,9 +51,8 @@ pub fn display_memory(memory: &mut Vec<u8>, image_width: u32, _image_height: u32
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
 
     // Reinterpret u8 memory vector as a u32 memory slice
-    let memory_u32: &mut [u32] = unsafe {
-        std::slice::from_raw_parts_mut(memory.as_mut_ptr() as *mut u32, memory.len() / 4)
-    };
+    let memory_u32: &[u32] =
+        unsafe { std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory.len() / 4) };
 
     let result = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Wait);
