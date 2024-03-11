@@ -294,6 +294,8 @@ while [ "$CHECK_SNAKE" == "true" ]; do
         rc=1
         break
     fi
+    echo "Finished Snake simulation!"
+    break
 done
 
 
