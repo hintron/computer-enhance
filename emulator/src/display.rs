@@ -38,7 +38,7 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 ///
 /// Run this on files/build-simulate-ip-regress/listing_0054_draw_rectangle
 /// and files/build-simulate-ip-regress/listing_0055_challenge_rectangle
-pub fn display_memory(memory: &Vec<u8>, image_width: u32, _image_height: u32) {
+pub fn display_memory(memory: &Vec<u8>, image_width: u32, image_height: u32) {
     // Image dimensions
     const _MEM_IMAGE_SCALE: u32 = 10;
 
@@ -81,11 +81,15 @@ pub fn display_memory(memory: &Vec<u8>, image_width: u32, _image_height: u32) {
                 let mut mem_index = 0;
                 // Copy contents of memory into buffer here!
                 // MGH TODO: Try branchless programming to remove if
+                let mut row: u32 = 0;
                 for index in 0..(width * height) {
                     let column = index % width;
+                    if column == 0 && index > 0 {
+                        row += 1;
+                    }
                     // Only get mem val if we are in correct column and there
                     // are mem bytes still to display
-                    let val = if mem_index < mem_len && column < image_width {
+                    let val = if mem_index < mem_len && column < image_width && row < image_height {
                         let val = memory_u32[mem_index];
                         mem_index += 1;
                         val
