@@ -87,7 +87,8 @@ bits 16
 ; we can just about get 60fps. Above that not so much. Did some basic measurements and looks like
 ; it's the instruction decode that is the slow part. Thanks Casey ;). Joke obv.
 ; For snake, don't actually need to draw screen everytime, just draw pixels that need to update!
-%define DRAW_SCREEN_EVERY_FRAME 0
+; MGH: Set to 1 so we get an inital frame printed quicker
+%define DRAW_SCREEN_EVERY_FRAME 1
 
 
 ; -------------------------------------------------------------------
@@ -263,9 +264,9 @@ mov cx, [screen_size]
 mov dx, [frame_buffer]
 int 0x21
 
-; MGH: My nasm doesn't like !
+; MGH: My nasm doesn't like `!`, so use `== 0` instead
 ; %if !DRAW_SCREEN_EVERY_FRAME
-%if DRAW_SCREEN_EVERY_FRAME == 1
+%if DRAW_SCREEN_EVERY_FRAME == 0
 ; Draw background
 ; Have to use constant color so that when we are "deleting" snake parts we know what color to use.
 ; @TODO If did want nicer background could load it into memory separate to frame buffer to refer to!
