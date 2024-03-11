@@ -12,7 +12,7 @@
 ;   already have the above.
 ; * int is also needed for a couple of things:
 ;   - int 0x21 function 0x55 is used to signal the size of the frame buffer to the simulator. Width is put in bx, height
-;     into cx.
+;     into cx, and the frame buffer location in dx.
 ;   - int 0x21 function 0x56 is used for the program to signal it has finished a frame to allow the simulator to draw the
 ;     frame buffer to the screen
 ;
@@ -260,6 +260,7 @@ mov [snake], ax
 mov ah, 0x55
 mov bx, [screen_size]
 mov cx, [screen_size]
+mov dx, [frame_buffer]
 int 0x21
 
 ; MGH: My nasm doesn't like !

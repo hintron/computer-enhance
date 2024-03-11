@@ -12,6 +12,7 @@ use crate::decode::{
     get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
     WidthType,
 };
+use crate::display::display_memory;
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
 const MAX_STR_LEN: u16 = 1024;
@@ -28,6 +29,8 @@ pub struct CpuStateType {
     total_cycles: u64,
     /// The number of instructions processed since the start of the program
     pub total_instructions: u64,
+    /// The address of the frame buffer set up by the program
+    frame_buffer: u16,
     /// The width of the emulator display buffer
     display_width: u16,
     /// The height of the emulator display buffer
@@ -318,12 +321,23 @@ pub fn execute(
                 (0x21, 0x55) => {
                     let width = *state.reg_file.get(&RegName::Bx).unwrap();
                     let height = *state.reg_file.get(&RegName::Cx).unwrap();
-                    println!("EMULATOR: Setting display buffer to ({width}, {height})");
+                    let frame_buffer = *state.reg_file.get(&RegName::Dx).unwrap();
+                    println!("EMULATOR: Setting display buffer to 0x{frame_buffer:x} ({width}, {height})");
                     state.display_width = width;
                     state.display_height = height;
+                    state.frame_buffer = frame_buffer;
                 }
                 (0x21, 0x56) => {
-                    println!("EMULATOR: Rendering display buffer!");
+                    println!(
+                        "EMULATOR: Rendering display buffer frame at {}!",
+                        state.frame_buffer
+                    );
+                    // Use the width and height to render to the display
+                    display_memory(
+                        &state.memory[state.frame_buffer as usize..],
+                        state.display_width as u32,
+                        state.display_height as u32,
+                    );
                 }
                 _ => {}
             }
