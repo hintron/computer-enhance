@@ -38,10 +38,8 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 ///
 /// Run this on files/build-simulate-ip-regress/listing_0054_draw_rectangle
 /// and files/build-simulate-ip-regress/listing_0055_challenge_rectangle
-pub fn display_memory(memory: &mut Vec<u8>) {
+pub fn display_memory(memory: &mut Vec<u8>, image_width: u32, _image_height: u32) {
     // Image dimensions
-    const MEM_IMAGE_WIDTH: u32 = 64;
-    const _MEM_IMAGE_HEIGHT: u32 = MEM_IMAGE_WIDTH;
     const _MEM_IMAGE_SCALE: u32 = 10;
 
     let event_loop = EventLoop::new().unwrap();
@@ -88,7 +86,7 @@ pub fn display_memory(memory: &mut Vec<u8>) {
                     let column = index % width;
                     // Only get mem val if we are in correct column and there
                     // are mem bytes still to display
-                    let val = if mem_index < mem_len && column < MEM_IMAGE_WIDTH {
+                    let val = if mem_index < mem_len && column < image_width {
                         let val = memory_u32[mem_index];
                         mem_index += 1;
                         val
