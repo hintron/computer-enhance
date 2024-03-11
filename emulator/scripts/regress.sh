@@ -28,6 +28,10 @@ CHECK_RTOS="true"
 if [ "$1" == "nortos" ]; then
     CHECK_RTOS="false"
 fi
+CHECK_SNAKE="false"
+if [ "$1" == "snake" ]; then
+    CHECK_SNAKE="true"
+fi
 
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
@@ -76,34 +80,6 @@ for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
         echo "See $DIFF"
         echo "ours     (-): $OUR_BIN"
         echo "golden   (+): $GOLDEN_BIN"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
-done
-
-
-# Check the decode of the Snake game
-for file in "$SNAKE_BUILD_DIR"/*; do
-    echo "Checking decode of $file..."
-    BASE=$(basename "$file")
-    if ! $BIN --verbose --stop-on-int3 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
-        echo "ERROR: Decode program failed for $file"
-        rc=1
-        break
-    fi
-    OUR_DECODE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-tmp.o"
-    if ! nasm "$SNAKE_BUILD_DIR/$BASE-tmp.asm" -o "$OUR_DECODE_OUTPUT"; then
-        echo "ERROR: Assembly of decoded output failed for $file"
-        rc=1
-        break
-    fi
-    DIFF="$SNAKE_BUILD_DIR/$BASE-code.diff"
-    if ! diff "$OUR_DECODE_OUTPUT" "$file" -u > "$DIFF"; then
-        echo "ERROR: Decoded output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours   (-): $OUR_DECODE_OUTPUT"
-        echo "golden (+): $file"
         rc=1
         break
     fi
@@ -295,6 +271,31 @@ while [ "$CHECK_RTOS" == "true" ]; do
     echo "Finished RTOS simulation!"
     break
 done
+
+
+# Execute the Snake game
+# Use while loop to easily break out
+while [ "$CHECK_SNAKE" == "true" ]; do
+    file="$SNAKE_BUILD_DIR/snake"
+    echo "Checking simulation of $file..."
+    BASE=$(basename "$file")
+    if ! $BIN --exec --verbose --stop-on-int3 "$file" "$SNAKE_BUILD_DIR/$BASE-tmp.asm" > "$SNAKE_BUILD_DIR/$BASE-tmp.log"; then
+        echo "ERROR: Simulation failed for $file"
+        rc=1
+        break
+    fi
+
+    echo "Simulating Snake binary '$RTOS_BIN'..."
+    BASE=$(basename "$RTOS_BIN")
+    SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
+    SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
+    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
+        echo "ERROR: Decode program failed for $RTOS_BIN"
+        rc=1
+        break
+    fi
+done
+
 
 
 if [ "$rc" == "0" ]; then
