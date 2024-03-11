@@ -329,7 +329,7 @@ fn main() -> Result<()> {
         }
         if args.display_window {
             println!("Graphically displaying memory (64x65)...");
-            display_memory(&cpu_state.memory, 64, 65);
+            display_memory(&cpu_state.memory[..], 64, 65);
             println!("Done graphically displaying memory");
         }
     } else {
