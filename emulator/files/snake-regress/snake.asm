@@ -253,10 +253,6 @@ mov ax, [program_size]
 add ax, [frame_buffer_num_bytes]
 mov [snake], ax
 
-; ; Request frame buffer size using int 0
-; mov ax, [screen_size]
-; mov bx, [screen_size]
-; int 0
 ; MGH: Request frame buffer size using int 0x21 function 0x55 instead
 mov ah, 0x55
 mov bx, [screen_size]
@@ -265,7 +261,6 @@ mov dx, [frame_buffer]
 int 0x21
 
 ; MGH: My nasm doesn't like `!`, so use `== 0` instead
-; %if !DRAW_SCREEN_EVERY_FRAME
 %if DRAW_SCREEN_EVERY_FRAME == 0
 ; Draw background
 ; Have to use constant color so that when we are "deleting" snake parts we know what color to use.
@@ -616,12 +611,9 @@ y_loop_start:
 draw_snake
 %endif
 
-; ; Use int 15 as a hacky way to signal to hosting simualtor to draw frame and sleep till next frame
-; ; There is something about on actualy 8086 used to call int 15h with ah=86h to do micro second sleeps but
-; ; 1) details of it aren't obvious to me but also 2) that would require asm code to keep track of timings!
-; ; mov ah, 86h
-; ; mov cx, micro_seconds
-; int 15h
+; Signal to hosting simualtor to draw frame and sleep till next frame
+; There is something about on actualy 8086 used to call int 15h with ah=86h to do micro second sleeps but
+; 1) details of it aren't obvious to me but also 2) that would require asm code to keep track of timings!
 ; MGH: Use int 0x21 function 0x56 instead
 mov ah, 0x56
 int 0x21
