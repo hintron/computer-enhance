@@ -32,7 +32,8 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
     file.flush().expect("Failed to flush file");
 }
 
-/// Display a 64x64 image from program memory, starting at location 0
+/// Display an image from the given byte slice in a graphical window.
+///
 /// The output image is 4 bytes per pixel (RGBA). softbuffer expects 32 bits (4
 /// bytes) per pixel, and the first byte is all 0's (no alpha channel).
 ///
