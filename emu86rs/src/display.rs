@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::Write;
 use std::num::NonZeroU32;
 use std::rc::Rc;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 use winit::dpi::{PhysicalSize, Size};
 // Third-party imports
@@ -20,6 +21,14 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
 use winit::window::WindowBuilder;
+
+/// This struct contains a u8 byte slice in addition to the width and height
+/// of the image to display from the beginning of that byte slice
+pub struct MemImage {
+    pub bytes: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
 
 /// Write the CPU memory array to a file.
 pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
@@ -35,14 +44,13 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
     file.flush().expect("Failed to flush file");
 }
 
-/// Display an image from the given byte slice in a graphical window.
+/// Create a GPU-less graphics render loop that renders to a softbuffer-based
+/// winit window. The graphics loop has a mpsc channel it polls for incoming
+/// MemImage objects to render.
 ///
 /// The output image is 4 bytes per pixel (RGBA). softbuffer expects 32 bits (4
 /// bytes) per pixel, and the first byte is all 0's (no alpha channel).
-///
-/// Run this on files/build-simulate-ip-regress/listing_0054_draw_rectangle
-/// and files/build-simulate-ip-regress/listing_0055_challenge_rectangle
-pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
+pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
     let window_builder =
@@ -56,20 +64,18 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
     let context = softbuffer::Context::new(window.clone()).unwrap();
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
 
-    let memory_len = memory.len();
-    if memory_len % 4 != 0 {
-        println!("ERROR: Can't display memory: slice is not a multiple of 4!");
-        return;
-    }
-    let memory_u32_len = memory_len / 4;
+    // Start off assuming that we have a working reciever from the emulator code
+    let mut emu_connected = true;
 
-    // Reinterpret u8 memory vector as a u32 memory slice
-    let memory_u32: &[u32] =
-        unsafe { std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory_u32_len) };
+    // Set up splash screen
+    let splash_screen = include_bytes!("splash-512x512.data");
+    let splash_width: u32 = 512;
+    let splash_height: u32 = 512;
 
     // Remember scale state
     let mut scale_req = 0;
     let mut scale_max = 1;
+    let mut mem_image: Option<MemImage> = None;
 
     let result = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
@@ -79,6 +85,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                 event: WindowEvent::RedrawRequested,
                 window_id,
             } if window_id == window.id() => {
+                // Display the current frame buffer/memory image
                 let (width, height) = {
                     let size = window.inner_size();
                     (size.width, size.height)
@@ -89,6 +96,25 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                         NonZeroU32::new(height).unwrap(),
                     )
                     .unwrap();
+
+                let (memory, image_width, image_height) = match &mem_image {
+                    Some(x) => (&x.bytes[..], x.width, x.height),
+                    None => {
+                        println!("Displaying splash screen");
+                        (&splash_screen[..], splash_width, splash_height)
+                    }
+                };
+                let memory_len = memory.len();
+                if memory_len % 4 != 0 {
+                    println!("ERROR: Can't display memory: slice is not a multiple of 4!");
+                    return;
+                }
+                let memory_u32_len = memory_len / 4;
+
+                // Reinterpret u8 memory vector as a u32 memory slice
+                let memory_u32: &[u32] = unsafe {
+                    std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory_u32_len)
+                };
 
                 let mut buffer = surface.buffer_mut().unwrap();
                 println!("memory_u32 len: {}", memory_u32.len());
@@ -198,7 +224,25 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                 }
             }
             Event::NewEvents(StartCause::Poll) => {
-                // println!("Checking for new data to draw...");
+                // Check to see if the emulator sent a new image to display
+                if emu_connected {
+                    match recv_from_emu.try_recv() {
+                        Ok(item) => {
+                            // We got something new to render!
+                            mem_image = Some(item);
+                            window.request_redraw();
+                            // Automatically expand image as big as possible
+                            scale_req = 0;
+                        }
+                        Err(TryRecvError::Empty) => {}
+                        Err(TryRecvError::Disconnected) => {
+                            println!("Graphics loop: Emulation thread apparently finished");
+                            emu_connected = false;
+                            // Don't exit - let user exit, so that there is time to
+                            // see graphical output
+                        }
+                    }
+                }
             }
             _ => {}
         }

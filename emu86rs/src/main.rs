@@ -3,11 +3,12 @@
 use anyhow::{bail, Result};
 use std::env;
 use std::io::Write;
+use std::sync::mpsc;
 
 // Internal imports
 use emu86rs::cycles::print_cycle_header;
 use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
-use emu86rs::display::{display_memory, memory_to_file};
+use emu86rs::display::{graphics_loop, memory_to_file, MemImage};
 use emu86rs::execute::print_final_state;
 use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
@@ -37,7 +38,11 @@ struct ArgsType {
     init_ip: Option<u16>,
     /// The value to initially set the SP register to
     init_sp: Option<u16>,
-    /// If true, graphically display final memory contents in a window
+    /// If true, enable a graphical display to be used for the program.
+    /// The graphical display will take over the main thread, and the decode and
+    /// simulate logic will be moved into a separate thread.
+    /// If the program didn't print anything to the graphical display, then
+    /// print the first 64x65 bytes of memory at the end of execution.
     display_window: bool,
     /// If true, save final memory contents to a file
     display_file: Option<String>,
@@ -280,6 +285,37 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if args.display_window {
+        let (send_to_gfx, recv_from_emu) = mpsc::channel();
+
+        // Move emulation logic into separate thread
+        let emulation_thread = std::thread::spawn(move || {
+            // Don't move send_to_gfx, because we don't want it dropped when
+            // this thread quits in case decode_simulate() finishes before the
+            // graphics loop has a chance to pull anything out of it.
+            match decode_simulate(args, Some(&send_to_gfx)) {
+                Ok(_) => {}
+                Err(e) => println!("ERROR: Emulation thread failed: {e}"),
+            }
+            println!("Exiting emulation thread...")
+        });
+
+        // Sit in graphics loop until user exits!
+        graphics_loop(recv_from_emu);
+        // User has exited graphics loop - let's quit the program
+
+        match emulation_thread.join() {
+            Ok(_) => {}
+            Err(e) => println!("ERROR: Emulation thread failed to join: {e:#?}"),
+        }
+        Ok(())
+    } else {
+        decode_simulate(args, None)
+    }
+}
+
+/// The emulation thread that does decode and/or simulation
+fn decode_simulate(args: ArgsType, send_to_gfx: Option<&mpsc::Sender<MemImage>>) -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
 
@@ -318,6 +354,7 @@ fn main() -> Result<()> {
             program_length,
             &decode_settings,
             &execute_settings,
+            send_to_gfx,
         );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;
@@ -335,10 +372,23 @@ fn main() -> Result<()> {
             }
             None => {}
         }
-        if args.display_window {
-            println!("Graphically displaying memory (64x65)...");
-            display_memory(&cpu_state.memory[..], 64, 65);
-            println!("Done graphically displaying memory");
+        match (args.display_window, &send_to_gfx) {
+            (true, Some(send_to_gfx)) => {
+                println!("Graphically displaying memory (64x65)...");
+                let slice = &cpu_state.memory[..];
+                let mut byte_vec = vec![0; slice.len()];
+                byte_vec.copy_from_slice(slice);
+                match send_to_gfx.send(MemImage {
+                    bytes: byte_vec,
+                    width: 64,
+                    height: 65,
+                }) {
+                    Ok(_) => println!("Sent final memory image to graphics loop"),
+                    Err(e) => println!("ERROR: Failed to send image to graphics loop: {e}"),
+                };
+            }
+            (true, None) => println!("ERROR: Can't display image: No channel to graphics loop"),
+            (false, _) => {}
         }
     } else {
         let insts = decode(program_bytes, &decode_settings);

@@ -281,7 +281,7 @@ while [ "$CHECK_SNAKE" == "true" ]; do
     BASE=$(basename "$SNAKE_BIN")
     SIMULATE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-simulate.txt"
     echo "Simulating Snake binary '$SNAKE_BIN'..."
-    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --exec --stop-on-int3 --exit-after 45000 > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
+    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --exec --stop-on-int3 --exit-after 45000 --display-window > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
         echo "ERROR: Simulation failed for $SNAKE_BIN"
         rc=1
         break
