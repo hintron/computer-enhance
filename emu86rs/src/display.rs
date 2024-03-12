@@ -184,7 +184,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                     println!("Decreasing requested scale to: {scale_req}");
                 }
             }
-            event => println!("Window event: {event:?}"),
+            _ => {}
         }
     });
     match result {
