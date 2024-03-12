@@ -28,6 +28,7 @@ fn benchmark_decode_execute(input: &str) -> Result<()> {
         program_length,
         &decode_settings,
         &execute_settings,
+        None,
     );
     Ok(())
 }
