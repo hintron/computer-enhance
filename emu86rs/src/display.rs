@@ -41,9 +41,6 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 /// Run this on files/build-simulate-ip-regress/listing_0054_draw_rectangle
 /// and files/build-simulate-ip-regress/listing_0055_challenge_rectangle
 pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
-    // Image dimensions
-    const _MEM_IMAGE_SCALE: u32 = 10;
-
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
     let window_builder =
