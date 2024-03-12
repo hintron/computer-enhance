@@ -85,13 +85,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                 // MGH TODO: Try branchless programming to remove if
                 let mut row: u32 = 0;
                 let mut index = 0;
-                // let req_scale = 100;
-                let max_scale = cmp::min(width / image_width, height / image_height);
-                // let scale = cmp::min(req_scale, max_scale);
-                let scale = max_scale;
-                // println!("Requested scale: {req_scale}");
-                // println!("Maximum scale: {max_scale}");
-                println!("scale: {scale}");
+                let scale = cmp::min(width / image_width, height / image_height);
                 let width_scaled = image_width * scale;
                 let height_scaled = image_height * scale;
                 let mut row_repeat = scale;
@@ -102,12 +96,6 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                         if mem_index < mem_len && row_repeat > 1 {
                             // Print the row over again, to scale it vertically
                             row_repeat -= 1;
-                            println!("------------------------");
-                            println!("row_repeat: {row_repeat}");
-                            println!("index: {index}");
-                            println!("mem_len: {mem_len}");
-                            println!("mem_index: {mem_index}");
-                            println!("image_width: {image_width}");
                             mem_index -= image_width as usize;
                         } else {
                             // Reset row repeat
