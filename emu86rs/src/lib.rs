@@ -54,6 +54,20 @@ pub fn file_to_byte_vec(input_path: &Option<String>, exec: bool) -> Result<(Vec<
     Ok((inst_stream, original_program_size))
 }
 
+/// Load an image from a file into a byte vector
+pub fn load_image(file_path: &str) -> Result<Vec<u8>> {
+    // Load up graphical output window and display splash screen
+    let file = File::open(file_path);
+    let mut file = match file {
+        Err(e) => bail!("Cannot open image file '{file_path}': {e}"),
+        Ok(file) => file,
+    };
+
+    let mut byte_vec: Vec<u8> = vec![];
+    file.read_to_end(&mut byte_vec)?;
+    Ok(byte_vec)
+}
+
 /// Takes in an output file path string and returns a File handle
 pub fn get_output_file_from_path(output_path: &Option<String>, overwrite: bool) -> Result<File> {
     let output_file = match output_path {
