@@ -7,6 +7,7 @@
 //! https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps
 //!
 
+use std::cmp;
 use std::fs::File;
 use std::io::Write;
 use std::num::NonZeroU32;
@@ -84,13 +85,19 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                 // MGH TODO: Try branchless programming to remove if
                 let mut row: u32 = 0;
                 let mut index = 0;
-                let scale = 10;
+                // let req_scale = 100;
+                let max_scale = cmp::min(width / image_width, height / image_height);
+                // let scale = cmp::min(req_scale, max_scale);
+                let scale = max_scale;
+                // println!("Requested scale: {req_scale}");
+                // println!("Maximum scale: {max_scale}");
+                println!("scale: {scale}");
                 let width_scaled = image_width * scale;
                 let height_scaled = image_height * scale;
                 let mut row_repeat = scale;
                 while index < (width * height) {
                     let column = index % width;
-                    if column == 0 && index > 0 {
+                    if column == 0 && index > 0 && row < height_scaled {
                         row += 1;
                         if mem_index < mem_len && row_repeat > 1 {
                             // Print the row over again, to scale it vertically
@@ -98,6 +105,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                             println!("------------------------");
                             println!("row_repeat: {row_repeat}");
                             println!("index: {index}");
+                            println!("mem_len: {mem_len}");
                             println!("mem_index: {mem_index}");
                             println!("image_width: {image_width}");
                             mem_index -= image_width as usize;
