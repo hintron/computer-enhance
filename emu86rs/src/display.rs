@@ -7,6 +7,7 @@
 //! https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps
 //!
 
+use std::cmp;
 use std::fs::File;
 use std::io::Write;
 use std::num::NonZeroU32;
@@ -83,17 +84,45 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                 // Copy contents of memory into buffer here!
                 // MGH TODO: Try branchless programming to remove if
                 let mut row: u32 = 0;
-                for index in 0..(width * height) {
+                let mut index = 0;
+                // let req_scale = 100;
+                let max_scale = cmp::min(width / image_width, height / image_height);
+                // let scale = cmp::min(req_scale, max_scale);
+                let scale = max_scale;
+                // println!("Requested scale: {req_scale}");
+                // println!("Maximum scale: {max_scale}");
+                println!("scale: {scale}");
+                let width_scaled = image_width * scale;
+                let height_scaled = image_height * scale;
+                let mut row_repeat = scale;
+                while index < (width * height) {
                     let column = index % width;
-                    if column == 0 && index > 0 {
+                    if column == 0 && index > 0 && row < height_scaled {
                         row += 1;
+                        if mem_index < mem_len && row_repeat > 1 {
+                            // Print the row over again, to scale it vertically
+                            row_repeat -= 1;
+                            println!("------------------------");
+                            println!("row_repeat: {row_repeat}");
+                            println!("index: {index}");
+                            println!("mem_len: {mem_len}");
+                            println!("mem_index: {mem_index}");
+                            println!("image_width: {image_width}");
+                            mem_index -= image_width as usize;
+                        } else {
+                            // Reset row repeat
+                            row_repeat = scale;
+                        }
                     }
                     // Only get mem val if we are in correct column and there
                     // are mem bytes still to display
-                    let val = if mem_index < mem_len && column < image_width && row < image_height {
+                    if mem_index < mem_len && column < width_scaled && row < height_scaled {
                         let val = memory_u32[mem_index];
                         mem_index += 1;
-                        val
+                        for i in 0..scale {
+                            buffer[(index + i) as usize] = val;
+                        }
+                        index += scale;
                     } else {
                         // Fill empty space with design from softbuffer readme
                         let y = index / width;
@@ -101,9 +130,10 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                         let red = x % 255;
                         let green = y % 255;
                         let blue = (x * y) % 255;
-                        blue | (green << 8) | (red << 16)
+                        let val = blue | (green << 8) | (red << 16);
+                        buffer[index as usize] = val;
+                        index += 1;
                     };
-                    buffer[index as usize] = val;
                 }
 
                 buffer.present().unwrap();
