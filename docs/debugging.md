@@ -32,11 +32,11 @@ Now we need to set up CodeLLDB to start a debug session with the
                 "args": [
                     "build",
                     "--profile=release-with-debug",
-                    "--bin=computer-enhance",
-                    "--package=computer-enhance"
+                    "--bin=emu86rs",
+                    "--package=emu86rs"
                 ],
                 "filter": {
-                    "name": "computer-enhance",
+                    "name": "emu86rs",
                     "kind": "bin"
                 }
             },

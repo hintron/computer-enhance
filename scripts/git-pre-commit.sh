@@ -20,7 +20,7 @@ if ! cargo test -q; then
 fi
 
 # Run all rust tests to make sure things succeed
-if ! ./emulator/scripts/regress.sh; then
+if ! ./emu86rs/scripts/regress.sh; then
     echo "Commit ABORTED: Emulator: \`regress.sh\` failed."
     exit 1
 fi

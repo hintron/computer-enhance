@@ -343,16 +343,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "computer-enhance"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "criterion",
- "softbuffer",
- "winit",
-]
-
-[[package]]
 name = "concurrent-queue"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -549,6 +539,16 @@ name = "either"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
+
+[[package]]
+name = "emu86rs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "criterion",
+ "softbuffer",
+ "winit",
+]
 
 [[package]]
 name = "equivalent"

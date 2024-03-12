@@ -5,11 +5,11 @@ use std::env;
 use std::io::Write;
 
 // Internal imports
-use computer_enhance::cycles::print_cycle_header;
-use computer_enhance::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
-use computer_enhance::display::{display_memory, memory_to_file};
-use computer_enhance::execute::print_final_state;
-use computer_enhance::{file_to_byte_vec, get_output_file_from_path};
+use emu86rs::cycles::print_cycle_header;
+use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
+use emu86rs::display::{display_memory, memory_to_file};
+use emu86rs::execute::print_final_state;
+use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]

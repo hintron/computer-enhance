@@ -1,5 +1,5 @@
 [workspace]
-members = ["emulator", "haversine"]
+members = ["emu86rs", "haversine"]
 resolver = "2"
 
 # For a release build with debug symbols, for debugging.

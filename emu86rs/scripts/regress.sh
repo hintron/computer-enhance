@@ -10,7 +10,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/../..")
-FILE_DIR="$PROJECT_DIR/emulator/files"
+FILE_DIR="$PROJECT_DIR/emu86rs/files"
 DECODE_BUILD_DIR="$FILE_DIR/build-decode-regress"
 SNAKE_BUILD_DIR="$FILE_DIR/build-snake-regress"
 SIMULATE_BUILD_DIR="$FILE_DIR/build-simulate-regress"
@@ -21,7 +21,7 @@ SIMULATE_CYCLES_BUILD_DIR="$FILE_DIR/build-simulate-ip-cycles-regress"
 SIMULATE_CYCLES_SRC_DIR="$FILE_DIR/simulate-ip-cycles-regress"
 SIMULATE_8086_BUILD_DIR="$FILE_DIR/build-simulate-8086-regress"
 SIMULATE_8086_SRC_DIR="$FILE_DIR/simulate-8086-regress"
-BIN="$PROJECT_DIR/target/debug/computer-enhance"
+BIN="$PROJECT_DIR/target/debug/emu86rs"
 
 # Run the RTOS for 10k instructions by default
 CHECK_RTOS="true"
