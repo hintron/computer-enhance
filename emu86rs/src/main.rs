@@ -9,7 +9,7 @@ use emu86rs::cycles::print_cycle_header;
 use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
 use emu86rs::display::{display_memory, memory_to_file};
 use emu86rs::execute::print_final_state;
-use emu86rs::{file_to_byte_vec, get_output_file_from_path};
+use emu86rs::{file_to_byte_vec, get_output_file_from_path, load_image};
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
@@ -280,6 +280,32 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    let emulation_thread = std::thread::spawn(move || {
+        match decode_simulate(args) {
+            Ok(_) => {}
+            Err(e) => println!("ERROR: Emulation thread failed: {e}"),
+        }
+        println!("Exiting emulation thread...")
+    });
+
+    // Load up graphical output window and display splash screen
+    match load_image("./emu86rs/gimp/splash-512x512.data") {
+        Ok(splash_screen) => {
+            display_memory(&splash_screen[..], 512, 512);
+        }
+        Err(e) => println!("Failed to load splash screen: {e}"),
+    }
+
+    match emulation_thread.join() {
+        Ok(_) => {}
+        Err(e) => println!("ERROR: Emulation thread failed to join: {e:#?}"),
+    }
+
+    Ok(())
+}
+
+/// The emulation thread that does decode and/or simulation
+fn decode_simulate(args: ArgsType) -> Result<()> {
     println!("Executable: {}", args.first_arg.unwrap());
     // Make sure required args exist
 
