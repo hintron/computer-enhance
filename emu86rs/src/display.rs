@@ -50,9 +50,16 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
     let context = softbuffer::Context::new(window.clone()).unwrap();
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
 
+    let memory_len = memory.len();
+    if memory_len % 4 != 0 {
+        println!("ERROR: Can't display memory: slice is not a multiple of 4!");
+        return;
+    }
+    let memory_u32_len = memory_len / 4;
+
     // Reinterpret u8 memory vector as a u32 memory slice
     let memory_u32: &[u32] =
-        unsafe { std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory.len() / 4) };
+        unsafe { std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory_u32_len) };
 
     // Remember scale state
     let mut scale_req = 0;
