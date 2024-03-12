@@ -14,7 +14,7 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 
 // Third-party imports
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event::{ElementState, Event, KeyEvent, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
@@ -59,7 +59,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
     let mut scale_max = 1;
 
     let result = event_loop.run(move |event, elwt| {
-        elwt.set_control_flow(ControlFlow::Wait);
+        elwt.set_control_flow(ControlFlow::Poll);
 
         match event {
             Event::WindowEvent {
@@ -183,6 +183,9 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
                     window.request_redraw();
                     println!("Decreasing requested scale to: {scale_req}");
                 }
+            }
+            Event::NewEvents(StartCause::Poll) => {
+                // println!("Checking for new data to draw...");
             }
             _ => {}
         }
