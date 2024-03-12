@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::mpsc::Sender;
 
 use crate::cycles::{
     calculate_8086_unaligned_access, calculate_inst_clocks, get_total_clocks, get_total_clocks_str,
@@ -12,7 +13,7 @@ use crate::decode::{
     get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
     WidthType,
 };
-use crate::display::display_memory;
+use crate::display::MemImage;
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
 const MAX_STR_LEN: u16 = 1024;
@@ -175,6 +176,7 @@ pub fn execute(
     inst: &mut InstType,
     state: &mut CpuStateType,
     settings: &ExecuteSettings,
+    send_to_gfx: Option<&Sender<MemImage>>,
 ) -> (String, bool) {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
@@ -332,12 +334,30 @@ pub fn execute(
                         "EMULATOR: Rendering display buffer frame at {}!",
                         state.frame_buffer
                     );
-                    // Use the width and height to render to the display
-                    display_memory(
-                        &state.memory[state.frame_buffer as usize..],
-                        state.display_width as u32,
-                        state.display_height as u32,
-                    );
+
+                    match send_to_gfx {
+                        Some(tx) => {
+                            // Copy the frame buffer bytes into a new vector and
+                            // send that vector to the graphics thread to render
+                            // MGH TODO: Is there no other way than to clone?
+                            // Can we do double buffering and just pass a
+                            // reference to the frame that is ready to render?
+                            let mut copied_bytes = vec![];
+                            copied_bytes
+                                .clone_from_slice(&state.memory[state.frame_buffer as usize..]);
+                            match tx.send(MemImage {
+                                bytes: copied_bytes,
+                                width: state.display_width as u32,
+                                height: state.display_height as u32,
+                            }) {
+                                Ok(_) => println!("Sent image to graphics loop"),
+                                Err(e) => {
+                                    println!("ERROR: Failed to send image to graphics loop: {e}")
+                                }
+                            };
+                        }
+                        None => println!("ERROR: No graphics thread was set up"),
+                    }
                 }
                 _ => {}
             }
