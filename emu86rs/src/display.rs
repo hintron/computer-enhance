@@ -77,6 +77,8 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
     let mut scale_max = 1;
     let mut mem_image: Option<MemImage> = None;
 
+    let mut image_counter = 0;
+
     let result = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
 
@@ -172,6 +174,17 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
                         index += 1;
                     };
                 }
+
+                // Save off a screenshot of the buffer on each render, for debugging
+                let screenshot_name = format!("graphics_loop_img{image_counter}.data");
+                println!("Saving screenshot: {screenshot_name}");
+                let buffer_u8: &[u8] = unsafe {
+                    std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len())
+                };
+                let mut debug = vec![0; buffer_u8.len()];
+                debug.clone_from_slice(buffer_u8);
+                memory_to_file(&debug, &screenshot_name);
+                image_counter += 1;
 
                 buffer.present().unwrap();
             }
