@@ -342,9 +342,9 @@ pub fn execute(
                             // MGH TODO: Is there no other way than to clone?
                             // Can we do double buffering and just pass a
                             // reference to the frame that is ready to render?
-                            let mut copied_bytes = vec![];
-                            copied_bytes
-                                .clone_from_slice(&state.memory[state.frame_buffer as usize..]);
+                            let slice = &state.memory[state.frame_buffer as usize..];
+                            let mut copied_bytes = vec![0; slice.len()];
+                            copied_bytes.clone_from_slice(slice);
                             match tx.send(MemImage {
                                 bytes: copied_bytes,
                                 width: state.display_width as u32,
