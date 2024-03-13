@@ -25,8 +25,9 @@ echo "Building benchmarks..."
     exit 1
 fi
 
+echo "Running 'cargo test'..."
 # Run all rust tests to make sure things succeed
-if ! cargo test -q; then
+if ! cargo test -q > /dev/null; then
     echo "Commit ABORTED: \`cargo test\` failed."
     exit 1
 fi
