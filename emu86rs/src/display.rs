@@ -46,7 +46,7 @@ pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
     let window_builder = WindowBuilder::new()
-        .with_title("Memory Display - Computer Enhance Simulator")
+        .with_title("Emu86rs")
         .with_inner_size(Size::Physical(PhysicalSize {
             width: 1024,
             height: 1024,
