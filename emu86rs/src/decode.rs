@@ -28,8 +28,10 @@
 //! and AL/A -> AL/AX.
 
 use std::fmt;
+use std::sync::mpsc::Sender;
 
 use crate::cycles::OperandsType;
+use crate::display::MemImage;
 use crate::execute::{execute, init_state, CpuStateType};
 
 /// The four types of modes in the mod field of "mod r/m" bytes
@@ -653,6 +655,7 @@ pub fn decode_execute(
     program_length: u64,
     decode_settings: &DecodeSettings,
     exec_settings: &ExecuteSettings,
+    send_to_gfx: Option<&Sender<MemImage>>,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state(program_bytes, exec_settings.init_ip, exec_settings.init_sp);
@@ -689,7 +692,7 @@ pub fn decode_execute(
                     inst.text.as_ref().unwrap()
                 );
                 // Execute the instruction
-                let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings);
+                let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings, send_to_gfx);
                 output_text_lines.push(text);
                 cpu_state.total_instructions += 1;
                 if halt {
