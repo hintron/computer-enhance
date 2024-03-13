@@ -9,7 +9,7 @@ use emu86rs::cycles::print_cycle_header;
 use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
 use emu86rs::display::{display_memory, memory_to_file};
 use emu86rs::execute::print_final_state;
-use emu86rs::{file_to_byte_vec, get_output_file_from_path, load_image};
+use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
@@ -289,12 +289,8 @@ fn main() -> Result<()> {
     });
 
     // Load up graphical output window and display splash screen
-    match load_image("./emu86rs/gimp/splash-512x512.data") {
-        Ok(splash_screen) => {
-            display_memory(&splash_screen[..], 512, 512);
-        }
-        Err(e) => println!("Failed to load splash screen: {e}"),
-    }
+    let splash_screen = include_bytes!("splash-512x512.data");
+    display_memory(&splash_screen[..], 512, 512);
 
     match emulation_thread.join() {
         Ok(_) => {}
