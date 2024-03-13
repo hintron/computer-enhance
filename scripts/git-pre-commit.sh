@@ -34,7 +34,7 @@ fi
 
 echo "Running regressions..."
 # Run all rust tests to make sure things succeed
-if ! ./emu86rs/scripts/regress.sh > /dev/null; then
+if ! ./emu86rs/scripts/regress.sh >& /dev/null; then
     echo "Commit ABORTED: Emulator: \`regress.sh\` failed."
     REPO=$(git rev-parse --show-toplevel)
     echo "Please run $REPO/emu86rs/scripts/regress.sh"
