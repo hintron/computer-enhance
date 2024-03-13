@@ -14,11 +14,13 @@ if ! cargo fmt -- --check > /dev/null; then
 fi
 
 # Build the project and build the benchmarks
-if !cargo build -q; then
+echo "Building source code..."
+if ! cargo build -q; then
     echo "Commit ABORTED: \`cargo build\` failed."
     exit 1
 fi
-if !cargo build --bench benchmarks -q; then
+if ! cargo build --bench benchmarks -q; then
+echo "Building benchmarks..."
     echo "Commit ABORTED: \`cargo build --bench benchmarks\` failed."
     exit 1
 fi
