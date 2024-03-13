@@ -45,12 +45,13 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 pub fn display_memory(memory: &[u8], image_width: u32, image_height: u32) {
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
-    let window_builder = WindowBuilder::new()
-        .with_title("Emu86rs")
-        .with_inner_size(Size::Physical(PhysicalSize {
-            width: 1024,
-            height: 1024,
-        }));
+    let window_builder =
+        WindowBuilder::new()
+            .with_title("Emu86rs")
+            .with_inner_size(Size::Physical(PhysicalSize {
+                width: 1024,
+                height: 1024,
+            }));
     let window = Rc::new(window_builder.build(&event_loop).unwrap());
     let context = softbuffer::Context::new(window.clone()).unwrap();
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
