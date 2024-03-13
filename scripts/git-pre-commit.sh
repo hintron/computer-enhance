@@ -32,8 +32,11 @@ if ! cargo test -q > /dev/null; then
     exit 1
 fi
 
+echo "Running regressions..."
 # Run all rust tests to make sure things succeed
-if ! ./emu86rs/scripts/regress.sh; then
+if ! ./emu86rs/scripts/regress.sh >& regress.log; then
     echo "Commit ABORTED: Emulator: \`regress.sh\` failed."
+    echo "Please see regress.log or rerun regressions with $REPO/emu86rs/scripts/regress.sh"
     exit 1
 fi
+rm regress.log

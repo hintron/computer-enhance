@@ -44,7 +44,8 @@ if ! "$FILE_DIR/make.sh"; then
 fi
 
 cd "$SCRIPT_DIR" || exit
-if ! cargo build; then
+echo "Building emulator source code..."
+if ! cargo build -q; then
     exit 1
 fi
 
