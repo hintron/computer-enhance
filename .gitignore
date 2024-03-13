@@ -1,6 +1,9 @@
 target/
 build/
 build-*/
+temp/
+tmp/
+*.log
 
 # IDEs
 .idea/
