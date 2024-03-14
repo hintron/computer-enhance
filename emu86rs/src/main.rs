@@ -8,7 +8,7 @@ use std::sync::mpsc;
 // Internal imports
 use emu86rs::cycles::print_cycle_header;
 use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
-use emu86rs::display::{graphics_loop, memory_to_file, MemImage};
+use emu86rs::display::{graphics_loop, memory_to_file, ImageFormat, MemImage};
 use emu86rs::execute::print_final_state;
 use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
@@ -382,6 +382,7 @@ fn decode_simulate(args: ArgsType, send_to_gfx: Option<&mpsc::Sender<MemImage>>)
                     bytes: byte_vec,
                     width: 64,
                     height: 65,
+                    format: ImageFormat::DataAlpha,
                 }) {
                     Ok(_) => println!("Sent final memory image to graphics loop"),
                     Err(e) => println!("ERROR: Failed to send image to graphics loop: {e}"),
