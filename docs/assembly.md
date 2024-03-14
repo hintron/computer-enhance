@@ -13,6 +13,7 @@ Then, do:
 
 ```shell
 cargo asm \
+-p emu86rs \
 --profile=release-with-debug \
 --color \
 --rust \
@@ -23,6 +24,7 @@ cargo asm \
 > everything.lst
 ```
 
+* `-p emu86rs` selects the emulator package
 * `--profile=release-with-debug` uses the release-with-debug profile, which
 will hopefully correlate with the build profile we will use for the debugger.
 * `--color` adds ANSI color codes, which makes the output look nice.
