@@ -133,13 +133,15 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
                                 memory_u32
                             }
                             ImageFormat::DataAlpha => {
+                                image_vec_u8 = take(&mut x.bytes);
                                 // Massage input bytes into a softbuffer copy
-                                image_vec_u32 = data_to_softbuffer(&x.bytes[..], true);
+                                image_vec_u32 = data_to_softbuffer(&image_vec_u8[..], true);
                                 &image_vec_u32[..]
                             }
                             ImageFormat::Data => {
+                                image_vec_u8 = take(&mut x.bytes);
                                 // Massage input bytes into a softbuffer copy
-                                image_vec_u32 = data_to_softbuffer(&x.bytes[..], false);
+                                image_vec_u32 = data_to_softbuffer(&image_vec_u8[..], false);
                                 &image_vec_u32[..]
                             }
                         };
@@ -212,12 +214,8 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
                 // Save off a screenshot of the buffer on each render, for debugging
                 let screenshot_name = format!("graphics_loop_img{image_counter}.data");
                 println!("Saving screenshot: {screenshot_name}");
-                let buffer_u8: &[u8] = unsafe {
-                    std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len())
-                };
-                let mut debug = vec![0; buffer_u8.len()];
-                debug.clone_from_slice(buffer_u8);
-                memory_to_file(&debug, &screenshot_name);
+                let screenshot_data = softbuffer_to_data(&buffer[..], true);
+                memory_to_file(&screenshot_data, &screenshot_name);
                 image_counter += 1;
 
                 buffer.present().unwrap();
