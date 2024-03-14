@@ -28,6 +28,7 @@
                 "0x100",
                 "--sp",
                 "0xFFFE",
+                "--display-window",
                 "--exit-after",
                 "10000"
             ],
