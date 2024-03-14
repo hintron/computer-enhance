@@ -7,4 +7,8 @@ resolver = "2"
 # https://stackoverflow.com/questions/38803760/how-to-get-a-release-build-with-debugging-information-when-using-cargo
 [profile.release-with-debug]
 inherits = "release"
+# Force compiler to emit -Ccodegen-units=1 so that it matches what cargo asm
+# This will help make VSCode LLDB disassembly match cargo asm
+# https://github.com/hintron/computer-enhance/issues/35#issuecomment-1997284190
+codegen-units = 1
 debug = true
