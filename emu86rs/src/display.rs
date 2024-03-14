@@ -305,3 +305,33 @@ pub fn data_to_softbuffer(data_image: &[u8], alpha_channel: bool) -> Vec<u32> {
     softbuffer_image
 }
 
+/// Create a softbuffer-compatible image
+/// softbuffer interprets pixels as a u32 of form
+/// 00000000RRRRRRRRGGGGGGGGBBBBBBBB, B being the LSB. So the R and B are
+/// inverse of RGBA .data files, where R would be the LSB if mapped to a u32.
+pub fn create_rgb_sb_image(red: u8, green: u8, blue: u8, width: u64, height: u64) -> Vec<u32> {
+    let mut image: Vec<u32> = vec![];
+    for _i in 0..width * height {
+        // softbuffer interprets pixels as a u32 with 0RGB, B being the LSB
+        // So the R and B are inverse of RGBA .data files, where R would be the
+        // LSB if mapped to a u32.
+        let pixel = ((red as u32) << 16) | ((green as u32) << 8) | (blue as u32);
+        image.push(pixel);
+    }
+    image
+}
+
+/// Create an all-red 512x512 pixel image, immediately usable for softbuffer.
+pub fn create_red_sb_image() -> Vec<u32> {
+    create_rgb_sb_image(0xff, 0, 0, 512, 512)
+}
+
+/// Create an all-green 512x512 pixel image, immediately usable for softbuffer.
+pub fn create_green_sb_image() -> Vec<u32> {
+    create_rgb_sb_image(0, 0xff, 0, 512, 512)
+}
+
+/// Create an all-blue 512x512 pixel image, immediately usable for softbuffer.
+pub fn create_blue_sb_image() -> Vec<u32> {
+    create_rgb_sb_image(0, 0, 0xff, 512, 512)
+}
