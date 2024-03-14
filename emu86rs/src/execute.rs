@@ -13,7 +13,7 @@ use crate::decode::{
     get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
     WidthType,
 };
-use crate::display::MemImage;
+use crate::display::{ImageFormat, MemImage};
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
 const MAX_STR_LEN: u16 = 1024;
@@ -349,6 +349,8 @@ pub fn execute(
                                 bytes: copied_bytes,
                                 width: state.display_width as u32,
                                 height: state.display_height as u32,
+                                // The asm already does BGRA format - 4-byte pixels
+                                format: ImageFormat::SoftBuffer,
                             }) {
                                 Ok(_) => println!("Sent image to graphics loop"),
                                 Err(e) => {

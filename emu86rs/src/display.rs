@@ -10,6 +10,7 @@
 use std::cmp;
 use std::fs::File;
 use std::io::Write;
+use std::mem::take;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -22,12 +23,25 @@ use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
 use winit::window::WindowBuilder;
 
+/// How the image format lays out the data in bytes
+pub enum ImageFormat {
+    /// `RGBA` - 0: RR, 1: GG, 2: BB, 3: AA
+    DataAlpha,
+    /// `RGB` - 0: RR, 1: GG, 2: BB
+    Data,
+    /// `BGRA` - 0: BB, 1: GG, 2: RR, 3: AA
+    /// This matches the SoftBuffer format, where it's a vector of u32s with
+    /// the format of `0b00000000RRRRRRRRGGGGGGGGBBBBBBBB`.
+    SoftBuffer,
+}
+
 /// This struct contains a u8 byte slice in addition to the width and height
 /// of the image to display from the beginning of that byte slice
 pub struct MemImage {
     pub bytes: Vec<u8>,
     pub width: u32,
     pub height: u32,
+    pub format: ImageFormat,
 }
 
 /// Write the CPU memory array to a file.
@@ -68,7 +82,7 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
     let mut emu_connected = true;
 
     // Set up splash screen
-    let splash_screen = include_bytes!("splash-512x512.data");
+    let splash_screen = data_to_softbuffer(include_bytes!("splash-512x512.data"), true);
     let splash_width: u32 = 512;
     let splash_height: u32 = 512;
 
@@ -97,23 +111,43 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
                     )
                     .unwrap();
 
-                let (memory, image_width, image_height) = match &mem_image {
-                    Some(x) => (&x.bytes[..], x.width, x.height),
+                // Forward declare these to live long enough for slice
+                let image_vec_u32: Vec<u32>;
+                let image_vec_u8: Vec<u8>;
+
+                let (memory_u32, image_width, image_height) = match &mut mem_image {
+                    Some(x) => {
+                        let image_vec = match x.format {
+                            ImageFormat::SoftBuffer => {
+                                // Use take to move bytes out of mem_image
+                                image_vec_u8 = take(&mut x.bytes);
+                                // Reinterpret u8 memory vector as a u32 memory slice
+                                let memory_u32: &[u32] = unsafe {
+                                    std::slice::from_raw_parts(
+                                        image_vec_u8.as_ptr() as *const u32,
+                                        image_vec_u8.len() / 4,
+                                    )
+                                };
+                                memory_u32
+                            }
+                            ImageFormat::DataAlpha => {
+                                // Massage input bytes into a softbuffer copy
+                                image_vec_u32 = data_to_softbuffer(&x.bytes[..], true);
+                                &image_vec_u32[..]
+                            }
+                            ImageFormat::Data => {
+                                // Massage input bytes into a softbuffer copy
+                                image_vec_u32 = data_to_softbuffer(&x.bytes[..], false);
+                                &image_vec_u32[..]
+                            }
+                        };
+
+                        (&image_vec[..], x.width, x.height)
+                    }
                     None => {
                         println!("Displaying splash screen");
                         (&splash_screen[..], splash_width, splash_height)
                     }
-                };
-                let memory_len = memory.len();
-                if memory_len % 4 != 0 {
-                    println!("ERROR: Can't display memory: slice is not a multiple of 4!");
-                    return;
-                }
-                let memory_u32_len = memory_len / 4;
-
-                // Reinterpret u8 memory vector as a u32 memory slice
-                let memory_u32: &[u32] = unsafe {
-                    std::slice::from_raw_parts(memory.as_ptr() as *const u32, memory_u32_len)
                 };
 
                 let mut buffer = surface.buffer_mut().unwrap();
