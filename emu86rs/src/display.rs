@@ -252,3 +252,21 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
         Err(e) => eprintln!("ERROR: {e:?}"),
     }
 }
+
+/// Convert a .data image (with or without the alpha channel) into a
+/// softbuffer-compatible image.
+/// .data: RGB(A); softbuffer: BGR0
+/// softbuffer interprets pixels as a u32 of form
+/// 00000000RRRRRRRRGGGGGGGGBBBBBBBB, B being the LSB. So the R and B are
+/// inverse of RGBA .data files, where R would be the LSB if mapped to a u32.
+pub fn data_to_softbuffer(data_image: &[u8], alpha_channel: bool) -> Vec<u32> {
+    let mut softbuffer_image: Vec<u32> = vec![];
+    let chunk_size = if alpha_channel { 4 } else { 3 };
+
+    for byte in data_image.chunks(chunk_size) {
+        // Alpha channel gets discarded
+        let pixel = ((byte[0] as u32) << 16) | ((byte[1] as u32) << 8) | (byte[2] as u32);
+        softbuffer_image.push(pixel);
+    }
+    softbuffer_image
+}
