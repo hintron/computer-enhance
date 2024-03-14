@@ -304,3 +304,26 @@ pub fn data_to_softbuffer(data_image: &[u8], alpha_channel: bool) -> Vec<u32> {
     }
     softbuffer_image
 }
+
+/// Convert a softbuffer image into a .data image (with optional alpha channel).
+/// .data: RGB(A); softbuffer: BGR0
+/// softbuffer interprets pixels as a u32 of form
+/// 00000000RRRRRRRRGGGGGGGGBBBBBBBB, B being the LSB. So the R and B are
+/// inverse of RGBA .data files, where R would be the LSB if mapped to a u32.
+pub fn softbuffer_to_data(softbuffer_image: &[u32], alpha_channel: bool) -> Vec<u8> {
+    let mut data_image: Vec<u8> = vec![];
+
+    for pixel in softbuffer_image {
+        // Set R
+        data_image.push((*pixel >> 16) as u8);
+        // Set G
+        data_image.push((*pixel >> 8) as u8);
+        // Set B
+        data_image.push(*pixel as u8);
+        if alpha_channel {
+            // Set A. Since softbuffer images have no alpha, set to 100%
+            data_image.push(0xFF);
+        }
+    }
+    data_image
+}
