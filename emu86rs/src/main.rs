@@ -7,10 +7,13 @@ use std::sync::mpsc;
 
 // Internal imports
 use emu86rs::cycles::print_cycle_header;
-use emu86rs::decode::{decode, decode_execute, CpuType, DecodeSettings, ExecuteSettings};
+use emu86rs::decode::{decode, decode_execute, CpuType};
 use emu86rs::display::{graphics_loop, memory_to_file, ImageFormat, MemImage};
 use emu86rs::execute::print_final_state;
-use emu86rs::{file_to_byte_vec, get_output_file_from_path};
+use emu86rs::{
+    file_to_byte_vec, get_output_file_from_path, DecodeSettings, ExecuteSettings, GraphicsSettings,
+    MainSettings,
+};
 
 /// A custom struct holding parsed command line arguments
 #[derive(Default)]
@@ -292,7 +295,35 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let screenshots = args.screenshots;
+    let main_settings = MainSettings {
+        first_arg: args.first_arg,
+        input_file: args.input_file,
+        output_file: args.output_file,
+        execute: args.execute,
+        overwrite: args.overwrite,
+        cycle_type: args.cycle_type,
+        no_ip: args.no_ip,
+        display_file: args.display_file,
+        display_window: args.display_window,
+    };
+
+    let decode_settings = DecodeSettings {
+        verbose: args.verbose,
+        stop_on_int3: args.stop_on_int3,
+    };
+
+    let execute_settings = ExecuteSettings {
+        no_ip: args.no_ip,
+        cycle_model: args.cycle_type,
+        stop_on_ret: args.stop_on_ret,
+        init_ip: args.init_ip,
+        init_sp: args.init_sp,
+        exit_after: args.exit_after,
+    };
+
+    let gfx_settings = GraphicsSettings {
+        screenshots: args.screenshots,
+    };
 
     if args.display_window {
         let (send_to_gfx, recv_from_emu) = mpsc::channel();
@@ -302,7 +333,12 @@ fn main() -> Result<()> {
             // Don't move send_to_gfx, because we don't want it dropped when
             // this thread quits in case decode_simulate() finishes before the
             // graphics loop has a chance to pull anything out of it.
-            match decode_simulate(args, Some(&send_to_gfx)) {
+            match decode_simulate(
+                main_settings,
+                decode_settings,
+                execute_settings,
+                Some(&send_to_gfx),
+            ) {
                 Ok(_) => {}
                 Err(e) => println!("ERROR: Emulation thread failed: {e}"),
             }
@@ -310,7 +346,7 @@ fn main() -> Result<()> {
         });
 
         // Sit in graphics loop until user exits!
-        graphics_loop(recv_from_emu, screenshots);
+        graphics_loop(recv_from_emu, gfx_settings);
         // User has exited graphics loop - let's quit the program
 
         match emulation_thread.join() {
@@ -319,45 +355,39 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        decode_simulate(args, None)
+        decode_simulate(main_settings, decode_settings, execute_settings, None)
     }
 }
 
 /// The emulation thread that does decode and/or simulation
-fn decode_simulate(args: ArgsType, send_to_gfx: Option<&mpsc::Sender<MemImage>>) -> Result<()> {
-    println!("Executable: {}", args.first_arg.unwrap());
+fn decode_simulate(
+    main_settings: MainSettings,
+    decode_settings: DecodeSettings,
+    execute_settings: ExecuteSettings,
+    send_to_gfx: Option<&mpsc::Sender<MemImage>>,
+) -> Result<()> {
     // Make sure required args exist
+    println!("Executable: {}", main_settings.first_arg.unwrap());
 
-    let (program_bytes, program_length) = file_to_byte_vec(&args.input_file, args.execute)?;
-    let mut output_file = get_output_file_from_path(&args.output_file, args.overwrite)?;
+    let (program_bytes, program_length) =
+        file_to_byte_vec(&main_settings.input_file, main_settings.execute)?;
+    let mut output_file =
+        get_output_file_from_path(&main_settings.output_file, main_settings.overwrite)?;
     println!(
         "Decoding instructions from file '{}'...",
-        args.input_file.unwrap()
+        main_settings.input_file.unwrap()
     );
     println!(
         "Outputting decoded assembly to file '{}'...",
-        args.output_file.as_ref().unwrap()
+        main_settings.output_file.as_ref().unwrap()
     );
 
-    let decode_settings = DecodeSettings {
-        verbose: args.verbose,
-        stop_on_int3: args.stop_on_int3,
-    };
-
-    if args.execute {
-        let cycle_lines = print_cycle_header(args.cycle_type);
+    if main_settings.execute {
+        let cycle_lines = print_cycle_header(main_settings.cycle_type);
         for line in cycle_lines {
             writeln!(output_file, "{}", line)?;
         }
 
-        let execute_settings = ExecuteSettings {
-            no_ip: args.no_ip,
-            cycle_model: args.cycle_type,
-            stop_on_ret: args.stop_on_ret,
-            init_ip: args.init_ip,
-            init_sp: args.init_sp,
-            exit_after: args.exit_after,
-        };
         let (text_lines, mut cpu_state) = decode_execute(
             program_bytes,
             program_length,
@@ -369,19 +399,19 @@ fn decode_simulate(args: ArgsType, send_to_gfx: Option<&mpsc::Sender<MemImage>>)
             writeln!(output_file, "{}", line)?;
         }
 
-        let final_state_lines = print_final_state(&cpu_state, args.no_ip);
+        let final_state_lines = print_final_state(&cpu_state, main_settings.no_ip);
         for line in &final_state_lines {
             writeln!(output_file, "{}", line)?;
         }
 
-        match args.display_file {
+        match main_settings.display_file {
             Some(file) => {
                 println!("Saving memory image to file {file}...");
                 memory_to_file(&mut cpu_state.memory, &file);
             }
             None => {}
         }
-        match (args.display_window, &send_to_gfx) {
+        match (main_settings.display_window, &send_to_gfx) {
             (true, Some(send_to_gfx)) => {
                 println!("Graphically displaying memory (64x65)...");
                 let slice = &cpu_state.memory[..];

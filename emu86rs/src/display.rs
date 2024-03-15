@@ -23,6 +23,8 @@ use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
 use winit::window::WindowBuilder;
 
+use crate::GraphicsSettings;
+
 /// How the image format lays out the data in bytes
 pub enum ImageFormat {
     /// `RGBA` - 0: RR, 1: GG, 2: BB, 3: AA
@@ -64,7 +66,7 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 ///
 /// The output image is 4 bytes per pixel (RGBA). softbuffer expects 32 bits (4
 /// bytes) per pixel, and the first byte is all 0's (no alpha channel).
-pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, screenshots: bool) {
+pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSettings) {
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
     let window_builder =
@@ -211,7 +213,7 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, screenshots: bool) {
                     };
                 }
 
-                if screenshots {
+                if gfx_settings.screenshots {
                     // Save off a screenshot of the buffer on each render, for debugging
                     let screenshot_name = format!("graphics_loop_img{image_counter}.data");
                     println!("Saving screenshot: {screenshot_name}");

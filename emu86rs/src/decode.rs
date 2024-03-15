@@ -33,6 +33,7 @@ use std::sync::mpsc::Sender;
 use crate::cycles::OperandsType;
 use crate::display::MemImage;
 use crate::execute::{execute, init_state, CpuStateType};
+use crate::{DecodeSettings, ExecuteSettings};
 
 /// The four types of modes in the mod field of "mod r/m" bytes
 #[derive(Copy, Clone, Debug)]
@@ -505,24 +506,6 @@ impl fmt::Display for CpuType {
         }
         Ok(())
     }
-}
-
-/// Decode-specific settings
-#[derive(Default)]
-pub struct DecodeSettings {
-    pub verbose: bool,
-    pub stop_on_int3: bool,
-}
-
-/// Execution-specific settings
-#[derive(Default)]
-pub struct ExecuteSettings {
-    pub init_ip: Option<u16>,
-    pub init_sp: Option<u16>,
-    pub no_ip: bool,
-    pub cycle_model: Option<CpuType>,
-    pub stop_on_ret: bool,
-    pub exit_after: Option<u64>,
 }
 
 /// A struct holding all the decoded data of a given instruction

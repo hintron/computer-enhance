@@ -1,5 +1,6 @@
 // Internal imports
-use crate::decode::{decode, DecodeSettings};
+use crate::decode::decode;
+use crate::DecodeSettings;
 
 #[test]
 fn test_mov_reg_reg() {

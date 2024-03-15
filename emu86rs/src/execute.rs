@@ -10,10 +10,10 @@ use crate::cycles::{
     print_inst_clock_debug,
 };
 use crate::decode::{
-    get_ip_absolute, AddTo, ExecuteSettings, InstType, ModRmDataType, OpCodeType, RegName,
-    WidthType,
+    get_ip_absolute, AddTo, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
 };
 use crate::display::{ImageFormat, MemImage};
+use crate::ExecuteSettings;
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
 const MAX_STR_LEN: u16 = 1024;
