@@ -50,6 +50,8 @@ struct ArgsType {
     exit_after: Option<u64>,
     /// If true, exit the decoder when an int3 is encountered.
     stop_on_int3: bool,
+    /// If true, save a screenshot of each rendered frame to a file, for debug.
+    screenshots: bool,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -114,6 +116,8 @@ this value.
                        RTOS) for regressions.
 
 --stop-on-int3 : If specified, exit the decoder when an int3 is encountered.
+--screenshots : If specified, save screenshots of each rendered frame to a
+                file.
 ";
 
 fn print_help() {
@@ -209,6 +213,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
     } else if arg.starts_with("--stop-on-int3") {
         parsed_args.stop_on_int3 = true;
         Ok(ArgType::NoValue)
+    } else if arg.starts_with("--screenshots") {
+        parsed_args.screenshots = true;
+        Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
     }
@@ -285,6 +292,8 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    let screenshots = args.screenshots;
+
     if args.display_window {
         let (send_to_gfx, recv_from_emu) = mpsc::channel();
 
@@ -301,7 +310,7 @@ fn main() -> Result<()> {
         });
 
         // Sit in graphics loop until user exits!
-        graphics_loop(recv_from_emu);
+        graphics_loop(recv_from_emu, screenshots);
         // User has exited graphics loop - let's quit the program
 
         match emulation_thread.join() {
