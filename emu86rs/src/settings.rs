@@ -316,3 +316,49 @@ pub fn parse_args() -> Result<ArgsType> {
 
     Ok(parsed_args)
 }
+
+/// Split up ArgsType into various settings structs
+pub fn args_to_settings(
+    args: ArgsType,
+) -> (
+    MainSettings,
+    DecodeSettings,
+    ExecuteSettings,
+    GraphicsSettings,
+) {
+    let main_settings = MainSettings {
+        first_arg: args.first_arg,
+        input_file: args.input_file,
+        output_file: args.output_file,
+        execute: args.execute,
+        overwrite: args.overwrite,
+        cycle_type: args.cycle_type,
+        no_ip: args.no_ip,
+        display_file: args.display_file,
+        display_window: args.display_window,
+    };
+
+    let decode_settings = DecodeSettings {
+        verbose: args.verbose,
+        stop_on_int3: args.stop_on_int3,
+    };
+
+    let execute_settings = ExecuteSettings {
+        no_ip: args.no_ip,
+        cycle_model: args.cycle_type,
+        stop_on_ret: args.stop_on_ret,
+        init_ip: args.init_ip,
+        init_sp: args.init_sp,
+        exit_after: args.exit_after,
+    };
+
+    let gfx_settings = GraphicsSettings {
+        screenshots: args.screenshots,
+    };
+    (
+        main_settings,
+        decode_settings,
+        execute_settings,
+        gfx_settings,
+    )
+}

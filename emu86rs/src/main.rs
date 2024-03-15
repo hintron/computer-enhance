@@ -11,7 +11,7 @@ use emu86rs::decode::{decode, decode_execute};
 use emu86rs::display::{graphics_loop, memory_to_file, ImageFormat, MemImage};
 use emu86rs::execute::print_final_state;
 use emu86rs::settings::{
-    parse_args, print_help, DecodeSettings, ExecuteSettings, GraphicsSettings, MainSettings,
+    args_to_settings, parse_args, print_help, DecodeSettings, ExecuteSettings, MainSettings,
 };
 use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
@@ -25,37 +25,9 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let main_settings = MainSettings {
-        first_arg: args.first_arg,
-        input_file: args.input_file,
-        output_file: args.output_file,
-        execute: args.execute,
-        overwrite: args.overwrite,
-        cycle_type: args.cycle_type,
-        no_ip: args.no_ip,
-        display_file: args.display_file,
-        display_window: args.display_window,
-    };
+    let (main_settings, decode_settings, execute_settings, gfx_settings) = args_to_settings(args);
 
-    let decode_settings = DecodeSettings {
-        verbose: args.verbose,
-        stop_on_int3: args.stop_on_int3,
-    };
-
-    let execute_settings = ExecuteSettings {
-        no_ip: args.no_ip,
-        cycle_model: args.cycle_type,
-        stop_on_ret: args.stop_on_ret,
-        init_ip: args.init_ip,
-        init_sp: args.init_sp,
-        exit_after: args.exit_after,
-    };
-
-    let gfx_settings = GraphicsSettings {
-        screenshots: args.screenshots,
-    };
-
-    if args.display_window {
+    if main_settings.display_window {
         let (send_to_gfx, recv_from_emu) = mpsc::channel();
 
         // Move emulation logic into separate thread
