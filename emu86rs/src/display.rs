@@ -293,7 +293,7 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>) {
         }
     });
     match result {
-        Ok(x) => println!("Finished displaying memory : {x:?}"),
+        Ok(x) => println!("Finished graphical display loop: {x:?}"),
         Err(e) => eprintln!("ERROR: {e:?}"),
     }
 }
