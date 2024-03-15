@@ -2,7 +2,8 @@ use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use emu86rs::decode::{decode, decode_execute};
-use emu86rs::{file_to_byte_vec, DecodeSettings, ExecuteSettings};
+use emu86rs::file_to_byte_vec;
+use emu86rs::settings::{DecodeSettings, ExecuteSettings};
 
 fn benchmark_decode(input: &str) -> Result<()> {
     let decode_settings = DecodeSettings {

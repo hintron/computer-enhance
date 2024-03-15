@@ -23,7 +23,7 @@ use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
 use winit::window::WindowBuilder;
 
-use crate::GraphicsSettings;
+use crate::settings::GraphicsSettings;
 
 /// How the image format lays out the data in bytes
 pub enum ImageFormat {

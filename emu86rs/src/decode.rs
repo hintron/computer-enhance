@@ -33,7 +33,7 @@ use std::sync::mpsc::Sender;
 use crate::cycles::OperandsType;
 use crate::display::MemImage;
 use crate::execute::{execute, init_state, CpuStateType};
-use crate::{DecodeSettings, ExecuteSettings};
+use crate::settings::{DecodeSettings, ExecuteSettings};
 
 /// The four types of modes in the mod field of "mod r/m" bytes
 #[derive(Copy, Clone, Debug)]

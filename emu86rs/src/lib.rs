@@ -10,6 +10,7 @@ pub mod cycles;
 pub mod decode;
 pub mod display;
 pub mod execute;
+pub mod settings;
 #[cfg(test)]
 mod tests;
 
@@ -19,46 +20,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
 
-use decode::CpuType;
 use execute::MEMORY_SIZE;
-
-/// Top-level settings
-#[derive(Default)]
-pub struct MainSettings {
-    pub first_arg: Option<String>,
-    pub input_file: Option<String>,
-    pub output_file: Option<String>,
-    pub execute: bool,
-    pub overwrite: bool,
-    pub cycle_type: Option<CpuType>,
-    pub no_ip: bool,
-    pub display_file: Option<String>,
-    pub display_window: bool,
-}
-
-/// Decode-specific settings
-#[derive(Default)]
-pub struct DecodeSettings {
-    pub verbose: bool,
-    pub stop_on_int3: bool,
-}
-
-/// Execution-specific settings
-#[derive(Default)]
-pub struct ExecuteSettings {
-    pub init_ip: Option<u16>,
-    pub init_sp: Option<u16>,
-    pub no_ip: bool,
-    pub cycle_model: Option<CpuType>,
-    pub stop_on_ret: bool,
-    pub exit_after: Option<u64>,
-}
-
-/// Execution-specific settings
-#[derive(Default)]
-pub struct GraphicsSettings {
-    pub screenshots: bool,
-}
 
 /// Takes in a file path string and returns a byte vector containing the
 /// entire contents of the file. If we are executing, the byte vector is

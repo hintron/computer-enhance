@@ -13,7 +13,7 @@ use crate::decode::{
     get_ip_absolute, AddTo, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
 };
 use crate::display::{ImageFormat, MemImage};
-use crate::ExecuteSettings;
+use crate::settings::ExecuteSettings;
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
 const MAX_STR_LEN: u16 = 1024;
