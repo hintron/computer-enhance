@@ -23,6 +23,13 @@ SIMULATE_8086_BUILD_DIR="$FILE_DIR/build-simulate-8086-regress"
 SIMULATE_8086_SRC_DIR="$FILE_DIR/simulate-8086-regress"
 BIN="$PROJECT_DIR/target/debug/emu86rs"
 
+if [[ -z "${WINDIR}" ]]; then
+    WINDOWS="false"
+else
+    # This is probably Git Bash
+    WINDOWS="true"
+fi
+
 # Run the RTOS for 10k instructions by default
 CHECK_RTOS="true"
 if [ "$1" == "nortos" ]; then
@@ -38,9 +45,14 @@ echo "Date: $DATE"
 
 # Build everything in decode-regress and simulate-regress
 cd "$FILE_DIR" || exit
-"$FILE_DIR/clean.sh"
-if ! "$FILE_DIR/make.sh"; then
-    exit 1
+
+if [ "$WINDOWS" == "true" ]; then
+    echo "WARNING: Windows: Skipping rebuild of assembly files..."
+else 
+    "$FILE_DIR/clean.sh"
+    if ! "$FILE_DIR/make.sh"; then
+        exit 1
+    fi
 fi
 
 cd "$SCRIPT_DIR" || exit
@@ -65,6 +77,13 @@ for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
         rc=1
         break
     fi
+
+    # Only do the NASM double-check if not on Windows
+    if [ "$WINDOWS" == "true" ]; then
+        echo "WARNING: Windows detected; Skipping NASM assembly of decoded output..."
+        break
+    fi
+
     if ! nasm "$OUR_ASM" -o "$OUR_BIN"; then
         echo "ERROR: Assembly of decoded output failed for $GOLDEN_BIN"
         rc=1
@@ -243,11 +262,16 @@ while [ "$CHECK_RTOS" == "true" ]; do
     RTOS_BIN="$RTOS_BUILD_DIR/artoss.bin"
 
     cd "$RTOS_DIR" || exit
-    make clean
-    if ! make; then
-        echo "ERROR: Failed to build RTOS"
-        rc=1
-        break
+
+    if [ "$WINDOWS" == "true" ]; then
+        echo "WARNING: Windows: Skipping rebuild of RTOS..."
+    else 
+        make clean
+        if ! make; then
+            echo "ERROR: Failed to build RTOS"
+            rc=1
+            break
+        fi
     fi
     cd "$FILE_DIR" || exit
 
