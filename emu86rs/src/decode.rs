@@ -29,6 +29,7 @@
 
 use std::fmt;
 use std::sync::mpsc::Sender;
+use std::time::Instant;
 
 use crate::cycles::OperandsType;
 use crate::display::MemImage;
@@ -662,6 +663,8 @@ pub fn decode_execute(
             println!("IP surpassed original program length. Halting CPU.");
             break;
         }
+
+        let time_inst_decode_start = Instant::now();
         let inst_byte_window = match get_inst_window(cpu_state.ip as usize, &cpu_state.memory) {
             Some(x) => x,
             None => break,
@@ -669,13 +672,23 @@ pub fn decode_execute(
         // Decode one (possibly multi-byte) instruction at a time
         match decode_single(inst_byte_window, decode_settings) {
             Some(mut inst) => {
+                let time_inst_decode_end = Instant::now();
+                let duration_decode = time_inst_decode_end.duration_since(time_inst_decode_start);
                 println!(
                     "inst: 0x{:04x}: {}",
                     cpu_state.ip,
                     inst.text.as_ref().unwrap()
                 );
                 // Execute the instruction
+                let time_inst_execute_start = Instant::now();
                 let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings, send_to_gfx);
+                let time_inst_execute_end = Instant::now();
+                let duration_exec = time_inst_execute_end.duration_since(time_inst_execute_start);
+                println!(
+                    "decode: {} ns; execute: {} ns",
+                    duration_decode.as_nanos(),
+                    duration_exec.as_nanos()
+                );
                 output_text_lines.push(text);
                 cpu_state.total_instructions += 1;
                 if halt {
@@ -711,10 +724,19 @@ pub fn decode(inst_stream: Vec<u8>, decode_settings: &DecodeSettings) -> Vec<Ins
             Some(x) => x,
             None => break,
         };
+
+        let time_inst_decode_start = Instant::now();
         // Decode one (possibly multi-byte) instruction at a time
         match decode_single(inst_byte_window, decode_settings) {
             Some(inst) => {
-                println!("inst: 0x{:04x}: {}", ip, inst.text.as_ref().unwrap());
+                let time_inst_decode_end = Instant::now();
+                let duration = time_inst_decode_end.duration_since(time_inst_decode_start);
+                println!(
+                    "inst: 0x{:04x}: {} ({} ns)",
+                    ip,
+                    inst.text.as_ref().unwrap(),
+                    duration.as_nanos()
+                );
                 ip = ip + inst.processed_bytes.len();
                 insts.push(inst);
                 // On to the next instruction...

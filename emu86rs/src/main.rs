@@ -4,6 +4,7 @@
 use anyhow::Result;
 use std::io::Write;
 use std::sync::mpsc;
+use std::time::Instant;
 
 // Internal imports
 use emu86rs::cycles::print_cycle_header;
@@ -16,6 +17,8 @@ use emu86rs::settings::{
 use emu86rs::{file_to_byte_vec, get_output_file_from_path};
 
 fn main() -> Result<()> {
+    let time_program_started = Instant::now();
+
     // Parse args. Fail if incorrect args are given
     let args = parse_args()?;
 
@@ -26,8 +29,9 @@ fn main() -> Result<()> {
     }
 
     let (main_settings, decode_settings, execute_settings, gfx_settings) = args_to_settings(args);
+    let time_args_parsed = Instant::now();
 
-    if main_settings.display_window {
+    let result = if main_settings.display_window {
         let (send_to_gfx, recv_from_emu) = mpsc::channel();
 
         // Move emulation logic into separate thread
@@ -58,7 +62,22 @@ fn main() -> Result<()> {
         Ok(())
     } else {
         decode_simulate(main_settings, decode_settings, execute_settings, None)
-    }
+    };
+
+    let time_program_ended = Instant::now();
+    let duration_program = time_program_ended.duration_since(time_program_started);
+    let duration_arg_parse = time_args_parsed.duration_since(time_program_started);
+
+    println!(
+        "Program execution time: {} ms",
+        duration_program.as_millis()
+    );
+    println!(
+        "(Arg parse execution time: {} us)",
+        duration_arg_parse.as_micros()
+    );
+
+    result
 }
 
 /// The emulation thread that does decode and/or simulation

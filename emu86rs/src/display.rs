@@ -14,6 +14,7 @@ use std::mem::take;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
+use std::time::Instant;
 
 use winit::dpi::{PhysicalSize, Size};
 // Third-party imports
@@ -95,6 +96,9 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
 
     let mut image_counter = 0;
 
+    // Track how long it takes to render a given frame
+    let mut time_frame_received = None;
+
     let result = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
 
@@ -103,6 +107,8 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                 event: WindowEvent::RedrawRequested,
                 window_id,
             } if window_id == window.id() => {
+                let time_redraw_start = Instant::now();
+
                 // Display the current frame buffer/memory image
                 let (width, height) = {
                     let size = window.inner_size();
@@ -222,7 +228,26 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     image_counter += 1;
                 }
 
+                let time_presented = Instant::now();
                 buffer.present().unwrap();
+                let time_frame_rendered = Instant::now();
+                match (time_frame_received, time_frame_rendered) {
+                    (Some(start), end) => {
+                        let duration_frame_rendered = end.duration_since(start);
+                        let duration_redraw_start = time_redraw_start.duration_since(start);
+                        let duration_presented = time_presented.duration_since(time_redraw_start);
+                        let duration_softbuffer =
+                            time_frame_rendered.duration_since(time_presented);
+                        println!(
+                            "Frame rendered in {} ms ({}us + {}us + {}us)",
+                            duration_frame_rendered.as_millis(),
+                            duration_redraw_start.as_micros(),
+                            duration_presented.as_micros(),
+                            duration_softbuffer.as_micros()
+                        );
+                    }
+                    _ => {}
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -278,6 +303,8 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     match recv_from_emu.try_recv() {
                         Ok(item) => {
                             // We got something new to render!
+                            time_frame_received = Some(Instant::now());
+
                             mem_image = Some(item);
                             window.request_redraw();
                             // Automatically expand image as big as possible
