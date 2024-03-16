@@ -86,7 +86,7 @@ for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
     OUR_BIN_TXT="$DECODE_BUILD_DIR/$BASE-ours.bin.txt"
     GOLDEN_BIN_TXT="$DECODE_BUILD_DIR/$BASE.bin.txt"
     OUR_LOG="$DECODE_BUILD_DIR/$BASE-ours.log"
-    if ! $BIN --verbose "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
+    if ! $BIN --verbose --decode "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
         echo "ERROR: Decode program failed for $GOLDEN_BIN"
         rc=1
         break
@@ -123,7 +123,7 @@ for file in "$SIMULATE_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG="$SIMULATE_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --no-ip > "$SIMULATE_LOG"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --no-ip > "$SIMULATE_LOG"; then
         echo "ERROR: Simulation of program failed for $file"
         rc=1
         break
@@ -152,7 +152,7 @@ for file in "$SIMULATE_IP_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec > "$SIMULATE_LOG"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose > "$SIMULATE_LOG"; then
         echo "ERROR: Simulation of program failed for $file"
         rc=1
         break
@@ -182,7 +182,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
         echo "ERROR: 8086 simulation of program failed for $file"
         rc=1
         break
@@ -190,7 +190,7 @@ for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
     # Append 8088 simulation results to 8086 simulation results
     echo "Checking simulation (w/ 8088 cycles) of $file..."
     SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
         echo "ERROR: 8088 simulation of program failed for $file"
         rc=1
         break
@@ -217,7 +217,7 @@ for file in "$SIMULATE_8086_BUILD_DIR"/*; do
     BASE=$(basename "$file")
     SIMULATE_OUTPUT="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
+    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
         echo "ERROR: 8086 simulation of program failed for $file"
         rc=1
         break
@@ -289,7 +289,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
     BASE=$(basename "$RTOS_BIN")
     SIMULATE_OUTPUT="$RTOS_BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$RTOS_BUILD_DIR/$BASE-tmp.log"
-    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --exec --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
+    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
         echo "ERROR: Decode program failed for $RTOS_BIN"
         rc=1
         break
@@ -307,7 +307,7 @@ while [ "$CHECK_SNAKE" == "true" ]; do
     BASE=$(basename "$SNAKE_BIN")
     SIMULATE_OUTPUT="$SNAKE_BUILD_DIR/$BASE-simulate.txt"
     echo "Simulating Snake binary '$SNAKE_BIN'..."
-    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --exec --stop-on-int3 --exit-after 45000 --display-window > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
+    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --stop-on-int3 --exit-after 45000 --display-window > "$SNAKE_BUILD_DIR/$BASE-simulate.log"; then
         echo "ERROR: Simulation failed for $SNAKE_BIN"
         rc=1
         break

@@ -15,7 +15,7 @@ pub struct MainSettings {
     pub first_arg: Option<String>,
     pub input_file: Option<String>,
     pub output_file: Option<String>,
-    pub execute: bool,
+    pub decode: bool,
     pub overwrite: bool,
     pub cycle_type: Option<CpuType>,
     pub no_ip: bool,
@@ -55,8 +55,8 @@ pub struct ArgsType {
     pub input_file: Option<String>,
     /// The File object to output decoded assembly to
     pub output_file: Option<String>,
-    /// If true, execute the stream. If false, just decode it
-    pub execute: bool,
+    /// If true, just decode the stream. If false (default), decode and execute
+    pub decode: bool,
     pub help: bool,
     pub verbose: bool,
     /// If true, do NOT calculate and print out changes to the IP register
@@ -111,12 +111,11 @@ The Computer Enhance 8086 Decoder and Simulator
 
 Required Parameters:
 <input> : The input binary file containing 8086 binary code.
-<output> : The output file to print decoded assembly to.
+<output> : The output file.
 
 Options:
 
--e|--exec : If specified, simulate the input instruction stream in addition to
-            decoding it.
+-d|--decode : If specified, only decode the program, and don't execute it.
 
 -h|--help : Print this help message.
 
@@ -213,8 +212,8 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
 fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
-    if arg.starts_with("-e") || arg.starts_with("--exec") {
-        parsed_args.execute = true;
+    if arg.starts_with("-d") || arg.starts_with("--dec") {
+        parsed_args.decode = true;
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
         parsed_args.verbose = true;
@@ -335,7 +334,7 @@ pub fn args_to_settings(
         first_arg: args.first_arg,
         input_file: args.input_file,
         output_file: args.output_file,
-        execute: args.execute,
+        decode: args.decode,
         overwrite: args.overwrite,
         cycle_type: args.cycle_type,
         no_ip: args.no_ip,

@@ -91,7 +91,7 @@ fn decode_simulate(
     println!("Executable: {}", main_settings.first_arg.unwrap());
 
     let (program_bytes, program_length) =
-        file_to_byte_vec(&main_settings.input_file, main_settings.execute)?;
+        file_to_byte_vec(&main_settings.input_file, !main_settings.decode)?;
     let mut output_file =
         get_output_file_from_path(&main_settings.output_file, main_settings.overwrite)?;
     println!(
@@ -103,7 +103,16 @@ fn decode_simulate(
         main_settings.output_file.as_ref().unwrap()
     );
 
-    if main_settings.execute {
+    if main_settings.decode {
+        // Decode only
+        let insts = decode(program_bytes, &decode_settings);
+        // Print out instructions to the output file
+        writeln!(output_file, "bits 16")?;
+        for inst in insts {
+            writeln!(output_file, "{}", inst.text.unwrap())?;
+        }
+    } else {
+        // Decode *and* execute
         let cycle_lines = print_cycle_header(main_settings.cycle_type);
         for line in cycle_lines {
             writeln!(output_file, "{}", line)?;
@@ -150,13 +159,6 @@ fn decode_simulate(
             }
             (true, None) => println!("ERROR: Can't display image: No channel to graphics loop"),
             (false, _) => {}
-        }
-    } else {
-        let insts = decode(program_bytes, &decode_settings);
-        // Print out instructions to the output file
-        writeln!(output_file, "bits 16")?;
-        for inst in insts {
-            writeln!(output_file, "{}", inst.text.unwrap())?;
         }
     };
 
