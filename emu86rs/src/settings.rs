@@ -213,10 +213,7 @@ fn parse_arg_value(arg: String, arg_type: &ArgType, parsed_args: &mut ArgsType) 
 /// Take a given arg and parse it as an optional argument. Modify parsed_args.
 /// Return true if the next argument is a value for this argument.
 fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
-    if arg.starts_with("-h") || arg.starts_with("--help") {
-        parsed_args.help = true;
-        Ok(ArgType::NoValue)
-    } else if arg.starts_with("-e") || arg.starts_with("--exec") {
+    if arg.starts_with("-e") || arg.starts_with("--exec") {
         parsed_args.execute = true;
         Ok(ArgType::NoValue)
     } else if arg.starts_with("-v") || arg.starts_with("--verbose") {
@@ -280,6 +277,14 @@ pub fn parse_args() -> Result<ArgsType> {
     let mut parsed_args = ArgsType {
         ..Default::default()
     };
+
+    // Do a quick scan for -h/--help before processing any other args
+    for arg in &args[1..] {
+        if arg.starts_with("-h") || arg.starts_with("--help") {
+            parsed_args.help = true;
+            return Ok(parsed_args);
+        }
+    }
 
     let mut get_arg_value = ArgType::NoValue;
     // Now parse args, excluding the first arg
