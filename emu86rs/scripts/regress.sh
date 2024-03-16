@@ -23,18 +23,44 @@ SIMULATE_8086_BUILD_DIR="$FILE_DIR/build-simulate-8086-regress"
 SIMULATE_8086_SRC_DIR="$FILE_DIR/simulate-8086-regress"
 BIN="$PROJECT_DIR/target/debug/emu86rs"
 
-# Run the RTOS for 10k instructions by default
-CHECK_RTOS="true"
-if [ "$1" == "nortos" ]; then
-    CHECK_RTOS="false"
-fi
-CHECK_SNAKE="false"
-if [ "$1" == "snake" ]; then
-    CHECK_SNAKE="true"
-fi
-
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
+
+function help_msg() {
+    echo ""
+    echo "regress.sh [OPTIONS]"
+    echo ""
+    echo "Run regressions for emu86rs."
+    echo ""
+    echo "Options:"
+    echo " --no-rtos          Don't run the RTOS regression."
+    echo " --snake            Run the Snake game regression."
+    echo ""
+}
+
+CHECK_RTOS="true"
+CHECK_SNAKE="false"
+
+while [[ $# -gt 0 ]]; do
+case $1 in
+    -h | --help)
+        help_msg
+        exit
+        ;;
+    --no-rtos)
+        shift
+        CHECK_RTOS="false"
+        ;;
+    --snake)
+        shift
+        CHECK_SNAKE="true"
+        ;;
+    *)
+        echo "ERROR: Unknown arg '$1'"
+        exit 1
+        ;;
+    esac
+done
 
 # Build everything in decode-regress and simulate-regress
 cd "$FILE_DIR" || exit
