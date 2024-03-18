@@ -38,6 +38,7 @@ function help_msg() {
     echo ""
 }
 
+CHECK_REGULAR="true"
 CHECK_RTOS="true"
 CHECK_SNAKE="false"
 
@@ -47,12 +48,17 @@ case $1 in
         help_msg
         exit
         ;;
+    --rtos)
+        shift
+        CHECK_REGULAR="false"
+        ;;
     --no-rtos)
         shift
         CHECK_RTOS="false"
         ;;
     --snake)
         shift
+        CHECK_REGULAR="false"
         CHECK_SNAKE="true"
         ;;
     *)
@@ -77,164 +83,165 @@ fi
 
 rc=0
 
-# Check the decode of everything in decode-regress
-for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
-    echo "Checking decode of $GOLDEN_BIN..."
-    BASE=$(basename "$GOLDEN_BIN")
-    OUR_ASM="$DECODE_BUILD_DIR/$BASE-ours.asm"
-    OUR_BIN="$DECODE_BUILD_DIR/$BASE-ours.bin"
-    OUR_BIN_TXT="$DECODE_BUILD_DIR/$BASE-ours.bin.txt"
-    GOLDEN_BIN_TXT="$DECODE_BUILD_DIR/$BASE.bin.txt"
-    OUR_LOG="$DECODE_BUILD_DIR/$BASE-ours.log"
-    if ! $BIN --verbose --decode "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
-        echo "ERROR: Decode program failed for $GOLDEN_BIN"
-        rc=1
-        break
-    fi
-    if ! nasm "$OUR_ASM" -o "$OUR_BIN"; then
-        echo "ERROR: Assembly of decoded output failed for $GOLDEN_BIN"
-        rc=1
-        break
-    fi
+if [ "$CHECK_REGULAR" == "true" ]; then
+    # Check the decode of everything in decode-regress
+    for GOLDEN_BIN in "$DECODE_BUILD_DIR"/*; do
+        echo "Checking decode of $GOLDEN_BIN..."
+        BASE=$(basename "$GOLDEN_BIN")
+        OUR_ASM="$DECODE_BUILD_DIR/$BASE-ours.asm"
+        OUR_BIN="$DECODE_BUILD_DIR/$BASE-ours.bin"
+        OUR_BIN_TXT="$DECODE_BUILD_DIR/$BASE-ours.bin.txt"
+        GOLDEN_BIN_TXT="$DECODE_BUILD_DIR/$BASE.bin.txt"
+        OUR_LOG="$DECODE_BUILD_DIR/$BASE-ours.log"
+        if ! $BIN --verbose --decode "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
+            echo "ERROR: Decode program failed for $GOLDEN_BIN"
+            rc=1
+            break
+        fi
+        if ! nasm "$OUR_ASM" -o "$OUR_BIN"; then
+            echo "ERROR: Assembly of decoded output failed for $GOLDEN_BIN"
+            rc=1
+            break
+        fi
 
-    # Convert binary to text, 1 byte per line, for diff
-    od -Ax -v -t x1 -w1 "$OUR_BIN" > "$OUR_BIN_TXT"
-    od -Ax -v -t x1 -w1 "$GOLDEN_BIN" > "$GOLDEN_BIN_TXT"
+        # Convert binary to text, 1 byte per line, for diff
+        od -Ax -v -t x1 -w1 "$OUR_BIN" > "$OUR_BIN_TXT"
+        od -Ax -v -t x1 -w1 "$GOLDEN_BIN" > "$GOLDEN_BIN_TXT"
 
-    DIFF="$DECODE_BUILD_DIR/$BASE.bin.txt.diff"
-    if ! diff "$OUR_BIN_TXT" "$GOLDEN_BIN_TXT" -u > "$DIFF"; then
-        echo "ERROR: Decoded output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours     (-): $OUR_BIN"
-        echo "golden   (+): $GOLDEN_BIN"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
-done
-
-
-# Check the decode and simulation of everything in simulate-regress, but without
-# checking the IP register.
-for file in "$SIMULATE_BUILD_DIR"/*; do
-    # If the glob found nothing, it will be treated as a file, so skip it 
-    if [ ! -e "$file" ]; then continue; fi
-    echo "Checking simulation (w/o IP) of $file..."
-    BASE=$(basename "$file")
-    SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
-    SIMULATE_LOG="$SIMULATE_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --no-ip > "$SIMULATE_LOG"; then
-        echo "ERROR: Simulation of program failed for $file"
-        rc=1
-        break
-    fi
-    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_BUILD_DIR/$BASE-simulate.diff"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
-        echo "ERROR: Simulation output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours   (+): $SIMULATE_OUTPUT"
-        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
-
-done
+        DIFF="$DECODE_BUILD_DIR/$BASE.bin.txt.diff"
+        if ! diff "$OUR_BIN_TXT" "$GOLDEN_BIN_TXT" -u > "$DIFF"; then
+            echo "ERROR: Decoded output didn't match golden output."
+            echo "See $DIFF"
+            echo "ours     (-): $OUR_BIN"
+            echo "golden   (+): $GOLDEN_BIN"
+            rc=1
+            break
+        fi
+        rm "$DIFF"
+    done
 
 
-# Check the decode and simulation of everything in simulate-ip-regress,
-# INCLUDING the IP register
-for file in "$SIMULATE_IP_BUILD_DIR"/*; do
-    # If the glob found nothing, it will be treated as a file, so skip it 
-    if [ ! -e "$file" ]; then continue; fi
-    echo "Checking simulation of $file..."
-    BASE=$(basename "$file")
-    SIMULATE_OUTPUT="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.txt"
-    SIMULATE_LOG="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose > "$SIMULATE_LOG"; then
-        echo "ERROR: Simulation of program failed for $file"
-        rc=1
-        break
-    fi
-    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_IP_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.diff"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
-        echo "ERROR: Simulation output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours   (+): $SIMULATE_OUTPUT"
-        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
+    # Check the decode and simulation of everything in simulate-regress, but without
+    # checking the IP register.
+    for file in "$SIMULATE_BUILD_DIR"/*; do
+        # If the glob found nothing, it will be treated as a file, so skip it 
+        if [ ! -e "$file" ]; then continue; fi
+        echo "Checking simulation (w/o IP) of $file..."
+        BASE=$(basename "$file")
+        SIMULATE_OUTPUT="$SIMULATE_BUILD_DIR/$BASE-simulate.txt"
+        SIMULATE_LOG="$SIMULATE_BUILD_DIR/$BASE-simulate.log"
+        if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --no-ip > "$SIMULATE_LOG"; then
+            echo "ERROR: Simulation of program failed for $file"
+            rc=1
+            break
+        fi
+        SIMULATE_GOLDEN_OUTPUT="$SIMULATE_SRC_DIR/$BASE.txt"
+        DIFF="$SIMULATE_BUILD_DIR/$BASE-simulate.diff"
+        if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+            echo "ERROR: Simulation output didn't match golden output."
+            echo "See $DIFF"
+            echo "ours   (+): $SIMULATE_OUTPUT"
+            echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+            rc=1
+            break
+        fi
+        rm "$DIFF"
 
-done
+    done
 
-# Check the decode and simulation of everything in simulate-ip-cycles-regress,
-# including the IP register AND cycle estimates. Run each file twice - once for
-# 8086 cycle estimates, and once for 8088 cycle estimates. Combine both those
-# runs into a single output txt file, and compare with the golden txt file.
-for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
-    # If the glob found nothing, it will be treated as a file, so skip it 
-    if [ ! -e "$file" ]; then continue; fi
-    echo "Checking simulation (w/ 8086 cycles) of $file..."
-    BASE=$(basename "$file")
-    SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
-    SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
-        echo "ERROR: 8086 simulation of program failed for $file"
-        rc=1
-        break
-    fi
-    # Append 8088 simulation results to 8086 simulation results
-    echo "Checking simulation (w/ 8088 cycles) of $file..."
-    SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
-        echo "ERROR: 8088 simulation of program failed for $file"
-        rc=1
-        break
-    fi
-    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_CYCLES_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.diff"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
-        echo "ERROR: 8086/8088 Simulation output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours   (+): $SIMULATE_OUTPUT"
-        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
-done
 
-# Check the decode and simulation of everything in simulate-ip-cycles-regress,
-# including the IP register AND cycle estimates, but ONLY FOR 8086. 
-for file in "$SIMULATE_8086_BUILD_DIR"/*; do
-    # If the glob found nothing, it will be treated as a file, so skip it 
-    if [ ! -e "$file" ]; then continue; fi
-    echo "Checking simulation w/ 8086 cycles of $file..."
-    BASE=$(basename "$file")
-    SIMULATE_OUTPUT="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.txt"
-    SIMULATE_LOG_8086="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.log"
-    if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
-        echo "ERROR: 8086 simulation of program failed for $file"
-        rc=1
-        break
-    fi
-    SIMULATE_GOLDEN_OUTPUT="$SIMULATE_8086_SRC_DIR/$BASE.txt"
-    DIFF="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.diff"
-    if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
-        echo "ERROR: 8086 Simulation output didn't match golden output."
-        echo "See $DIFF"
-        echo "ours   (+): $SIMULATE_OUTPUT"
-        echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
-        rc=1
-        break
-    fi
-    rm "$DIFF"
-done
+    # Check the decode and simulation of everything in simulate-ip-regress,
+    # INCLUDING the IP register
+    for file in "$SIMULATE_IP_BUILD_DIR"/*; do
+        # If the glob found nothing, it will be treated as a file, so skip it 
+        if [ ! -e "$file" ]; then continue; fi
+        echo "Checking simulation of $file..."
+        BASE=$(basename "$file")
+        SIMULATE_OUTPUT="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.txt"
+        SIMULATE_LOG="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.log"
+        if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose > "$SIMULATE_LOG"; then
+            echo "ERROR: Simulation of program failed for $file"
+            rc=1
+            break
+        fi
+        SIMULATE_GOLDEN_OUTPUT="$SIMULATE_IP_SRC_DIR/$BASE.txt"
+        DIFF="$SIMULATE_IP_BUILD_DIR/$BASE-simulate.diff"
+        if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+            echo "ERROR: Simulation output didn't match golden output."
+            echo "See $DIFF"
+            echo "ours   (+): $SIMULATE_OUTPUT"
+            echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+            rc=1
+            break
+        fi
+        rm "$DIFF"
 
+    done
+
+    # Check the decode and simulation of everything in simulate-ip-cycles-regress,
+    # including the IP register AND cycle estimates. Run each file twice - once for
+    # 8086 cycle estimates, and once for 8088 cycle estimates. Combine both those
+    # runs into a single output txt file, and compare with the golden txt file.
+    for file in "$SIMULATE_CYCLES_BUILD_DIR"/*; do
+        # If the glob found nothing, it will be treated as a file, so skip it 
+        if [ ! -e "$file" ]; then continue; fi
+        echo "Checking simulation (w/ 8086 cycles) of $file..."
+        BASE=$(basename "$file")
+        SIMULATE_OUTPUT="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.txt"
+        SIMULATE_LOG_8086="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8086.log"
+        if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
+            echo "ERROR: 8086 simulation of program failed for $file"
+            rc=1
+            break
+        fi
+        # Append 8088 simulation results to 8086 simulation results
+        echo "Checking simulation (w/ 8088 cycles) of $file..."
+        SIMULATE_LOG_8088="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate-8088.log"
+        if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
+            echo "ERROR: 8088 simulation of program failed for $file"
+            rc=1
+            break
+        fi
+        SIMULATE_GOLDEN_OUTPUT="$SIMULATE_CYCLES_SRC_DIR/$BASE.txt"
+        DIFF="$SIMULATE_CYCLES_BUILD_DIR/$BASE-simulate.diff"
+        if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+            echo "ERROR: 8086/8088 Simulation output didn't match golden output."
+            echo "See $DIFF"
+            echo "ours   (+): $SIMULATE_OUTPUT"
+            echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+            rc=1
+            break
+        fi
+        rm "$DIFF"
+    done
+
+    # Check the decode and simulation of everything in simulate-ip-cycles-regress,
+    # including the IP register AND cycle estimates, but ONLY FOR 8086. 
+    for file in "$SIMULATE_8086_BUILD_DIR"/*; do
+        # If the glob found nothing, it will be treated as a file, so skip it 
+        if [ ! -e "$file" ]; then continue; fi
+        echo "Checking simulation w/ 8086 cycles of $file..."
+        BASE=$(basename "$file")
+        SIMULATE_OUTPUT="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.txt"
+        SIMULATE_LOG_8086="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.log"
+        if ! $BIN "$file" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
+            echo "ERROR: 8086 simulation of program failed for $file"
+            rc=1
+            break
+        fi
+        SIMULATE_GOLDEN_OUTPUT="$SIMULATE_8086_SRC_DIR/$BASE.txt"
+        DIFF="$SIMULATE_8086_BUILD_DIR/$BASE-simulate.diff"
+        if ! diff "$SIMULATE_GOLDEN_OUTPUT" "$SIMULATE_OUTPUT" -u > "$DIFF"; then
+            echo "ERROR: 8086 Simulation output didn't match golden output."
+            echo "See $DIFF"
+            echo "ours   (+): $SIMULATE_OUTPUT"
+            echo "golden (-): $SIMULATE_GOLDEN_OUTPUT"
+            rc=1
+            break
+        fi
+        rm "$DIFF"
+    done
+fi
 
 # TODO: Assemble individual files, not final rtos file
 # TODO: In handlers_simptris.s, there is:
