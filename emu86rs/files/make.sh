@@ -20,7 +20,6 @@ command -v nasm &> /dev/null
 if [ $? == 0 ]; then
     nasm -v &> /dev/null
     if [ $? == 0 ]; then
-        echo "NASM found"
         HAS_NASM="true"
     fi
 fi
