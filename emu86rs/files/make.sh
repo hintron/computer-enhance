@@ -14,6 +14,21 @@ SRC_DIR_SIMULATE_CYCLES="$SCRIPT_DIR/simulate-ip-cycles-regress"
 BUILD_DIR_SIMULATE_8086="$SCRIPT_DIR/build-simulate-8086-regress"
 SRC_DIR_SIMULATE_8086="$SCRIPT_DIR/simulate-8086-regress"
 
+# See if nasm exists on the system
+HAS_NASM="false"
+command -v nasm &> /dev/null
+if [ $? == 0 ]; then
+    nasm -v &> /dev/null
+    if [ $? == 0 ]; then
+        HAS_NASM="true"
+    fi
+fi
+
+if [ "$HAS_NASM" != true ]; then
+    echo "NASM wasn't found... Can't build assembly files"
+    exit 1
+fi
+
 cd "$SCRIPT_DIR" || exit
 mkdir -p "$BUILD_DIR_DECODE"
 mkdir -p "$BUILD_DIR_SNAKE"
