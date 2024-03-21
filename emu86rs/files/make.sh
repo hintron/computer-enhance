@@ -5,6 +5,15 @@ BUILD_DIR_DECODE="$SCRIPT_DIR/build-decode-regress"
 SRC_DIR_DECODE="$SCRIPT_DIR/decode-regress"
 BUILD_DIR_SNAKE="$SCRIPT_DIR/build-snake-regress"
 SRC_DIR_SNAKE="$SCRIPT_DIR/snake-regress"
+BUILD_DIR_RTOS="$SCRIPT_DIR/build-rtos-regress"
+if [ -d "$HOME/code/425_artoss/" ]; then
+    SRC_DIR_RTOS="$HOME/code/425_artoss/"
+elif [ -d "$HOME/code/artoss/" ]; then
+    SRC_DIR_RTOS="$HOME/code/artoss/"
+else
+    echo "WARNING: Unable to find RTOS dir! Can't build RTOS"
+    SRC_DIR_RTOS=""
+fi
 BUILD_DIR_SIMULATE="$SCRIPT_DIR/build-simulate-regress"
 SRC_DIR_SIMULATE="$SCRIPT_DIR/simulate-regress"
 BUILD_DIR_SIMULATE_IP="$SCRIPT_DIR/build-simulate-ip-regress"
@@ -32,6 +41,7 @@ fi
 cd "$SCRIPT_DIR" || exit
 mkdir -p "$BUILD_DIR_DECODE"
 mkdir -p "$BUILD_DIR_SNAKE"
+mkdir -p "$BUILD_DIR_RTOS"
 mkdir -p "$BUILD_DIR_SIMULATE"
 mkdir -p "$BUILD_DIR_SIMULATE_IP"
 mkdir -p "$BUILD_DIR_SIMULATE_CYCLES"
@@ -107,3 +117,26 @@ for file in "$SRC_DIR_SIMULATE_8086"/*.asm; do
         fi
     fi
 done
+
+# Build RTOS, if possible
+if [ "$SRC_DIR_RTOS" != "" ]; then
+    RTOS_DIR="$SRC_DIR_RTOS/labs/lab8"
+    RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
+    RTOS_BIN="$BUILD_DIR_RTOS/artoss.bin"
+
+    echo "Assembling RTOS..."
+
+    cd "$RTOS_DIR" || exit
+    make clean
+    if ! make; then
+        echo "ERROR: Failed to build RTOS"
+        exit 1
+    fi
+    cd "$SCRIPT_DIR" || exit
+
+    if [ ! -f "$RTOS_BIN_ORIG" ]; then
+        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN_ORIG'"
+        exit 1
+    fi
+    cp "$RTOS_BIN_ORIG" "$RTOS_BIN"
+fi

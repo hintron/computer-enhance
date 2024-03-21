@@ -280,40 +280,6 @@ fi
 while [ "$CHECK_RTOS" == "true" ]; do
     RTOS_BUILD_DIR="$FILE_DIR/build-rtos-regress"
     RTOS_BIN="$RTOS_BUILD_DIR/artoss.bin"
-    # Build RTOS, if possible
-    if [ "$HAS_NASM" == "true" ]; then
-        if [ -d "$HOME/code/425_artoss/" ]; then
-            RTOS_REPO="$HOME/code/425_artoss/"
-        elif [ -d "$HOME/code/artoss/" ]; then
-            RTOS_REPO="$HOME/code/artoss/"
-        else
-            echo "ERROR: Unable to find RTOS dir!"
-            rc=1
-            break
-        fi
-        RTOS_DIR="$RTOS_REPO/labs/lab8"
-        RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
-        # Clear out stale builds
-        if [ -d "$RTOS_BUILD_DIR" ]; then
-            rm -rf  "$RTOS_BUILD_DIR"
-        fi
-        mkdir -p "$RTOS_BUILD_DIR"
-        cd "$RTOS_DIR" || exit
-        make clean
-        if ! make; then
-            echo "ERROR: Failed to build RTOS"
-            rc=1
-            break
-        fi
-        cd "$FILE_DIR" || exit
-
-        if [ ! -f "$RTOS_BIN_ORIG" ]; then
-            echo "ERROR: Could not find RTOS binary file '$RTOS_BIN_ORIG'"
-            rc=1
-            break
-        fi
-        cp "$RTOS_BIN_ORIG" "$RTOS_BIN"
-    fi
 
     if [ ! -f "$RTOS_BIN" ]; then
         echo "ERROR: Could not find RTOS binary file '$RTOS_BIN'"
