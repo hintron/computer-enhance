@@ -18,7 +18,7 @@ SRC_DIR_SIMULATE="$FILE_DIR/simulate-regress"
 SRC_DIR_SIMULATE_IP="$FILE_DIR/simulate-ip-regress"
 SRC_DIR_SIMULATE_CYCLES="$FILE_DIR/simulate-ip-cycles-regress"
 SRC_DIR_SIMULATE_8086="$FILE_DIR/simulate-8086-regress"
-BIN="$PROJECT_DIR/target/debug/emu86rs"
+EMU86RS_BIN="$PROJECT_DIR/target/debug/emu86rs"
 
 DATE=$(date +"%Y-%m-%d at %H:%M:%S")
 echo "Date: $DATE"
@@ -114,7 +114,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         OUR_BIN_TXT="$BUILD_DIR/$BASE-ours.bin.txt"
         GOLDEN_BIN_TXT="$BUILD_DIR/$BASE.bin.txt"
         OUR_LOG="$BUILD_DIR/$BASE-ours.log"
-        if ! $BIN --verbose --decode "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
+        if ! $EMU86RS_BIN --verbose --decode "$GOLDEN_BIN" "$OUR_ASM" > "$OUR_LOG"; then
             echo "ERROR: Decode program failed for $GOLDEN_BIN"
             rc=1
             break
@@ -160,7 +160,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         echo "Checking simulation (w/o IP) of $PROGRAM..."
         SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
         SIMULATE_LOG="$BUILD_DIR/$BASE-simulate.log"
-        if ! $BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --no-ip > "$SIMULATE_LOG"; then
+        if ! $EMU86RS_BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --no-ip > "$SIMULATE_LOG"; then
             echo "ERROR: Simulation of program failed for $PROGRAM"
             rc=1
             break
@@ -191,7 +191,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         echo "Checking simulation of $PROGRAM..."
         SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
         SIMULATE_LOG="$BUILD_DIR/$BASE-simulate.log"
-        if ! $BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose > "$SIMULATE_LOG"; then
+        if ! $EMU86RS_BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose > "$SIMULATE_LOG"; then
             echo "ERROR: Simulation of program failed for $PROGRAM"
             rc=1
             break
@@ -223,7 +223,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         echo "Checking simulation (w/ 8086 cycles) of $PROGRAM..."
         SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
         SIMULATE_LOG_8086="$BUILD_DIR/$BASE-simulate-8086.log"
-        if ! $BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
+        if ! $EMU86RS_BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 > "$SIMULATE_LOG_8086"; then
             echo "ERROR: 8086 simulation of program failed for $PROGRAM"
             rc=1
             break
@@ -231,7 +231,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         # Append 8088 simulation results to 8086 simulation results
         echo "Checking simulation (w/ 8088 cycles) of $PROGRAM..."
         SIMULATE_LOG_8088="$BUILD_DIR/$BASE-simulate-8088.log"
-        if ! $BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
+        if ! $EMU86RS_BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8088 > "$SIMULATE_LOG_8088"; then
             echo "ERROR: 8088 simulation of program failed for $PROGRAM"
             rc=1
             break
@@ -260,7 +260,7 @@ if [ "$CHECK_REGULAR" == "true" ]; then
         echo "Checking simulation w/ 8086 cycles of $PROGRAM..."
         SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
         SIMULATE_LOG_8086="$BUILD_DIR/$BASE-simulate.log"
-        if ! $BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
+        if ! $EMU86RS_BIN "$PROGRAM" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --stop-on-ret > "$SIMULATE_LOG_8086"; then
             echo "ERROR: 8086 simulation of program failed for $PROGRAM"
             rc=1
             break
@@ -302,7 +302,7 @@ while [ "$CHECK_RTOS" == "true" ]; do
     BASE=$(basename "$RTOS_BIN")
     SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
     SIMULATE_LOG_8086="$BUILD_DIR/$BASE-tmp.log"
-    if ! $BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
+    if ! $EMU86RS_BIN "$RTOS_BIN" "$SIMULATE_OUTPUT" --verbose --model-cycles 8086 --ip "0x100" --sp "0xFFFE" --exit-after 10000 > "$SIMULATE_LOG_8086"; then
         echo "ERROR: Decode program failed for $RTOS_BIN"
         rc=1
         break
@@ -318,7 +318,7 @@ while [ "$CHECK_SNAKE" == "true" ]; do
     BASE=$(basename "$SNAKE_BIN")
     SIMULATE_OUTPUT="$BUILD_DIR/$BASE-simulate.txt"
     echo "Simulating Snake binary '$SNAKE_BIN'..."
-    if ! $BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --stop-on-int3 --exit-after 45000 --display-window > "$BUILD_DIR/$BASE-simulate.log"; then
+    if ! $EMU86RS_BIN "$SNAKE_BIN" "$SIMULATE_OUTPUT" --verbose --stop-on-int3 --exit-after 45000 --display-window > "$BUILD_DIR/$BASE-simulate.log"; then
         echo "ERROR: Simulation failed for $SNAKE_BIN"
         rc=1
         break
