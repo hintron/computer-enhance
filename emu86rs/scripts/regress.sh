@@ -68,10 +68,10 @@ case $1 in
     esac
 done
 
-# Build everything in decode-regress and simulate-regress
-cd "$FILE_DIR" || exit
-"$FILE_DIR/clean.sh"
-if ! "$FILE_DIR/make.sh"; then
+# Building all the binaries will have happened in advance on a machine with NASM
+# installed
+if ! "$SCRIPT_DIR/rebuild.sh" ; then
+    echo "Rebuild failed"
     exit 1
 fi
 
