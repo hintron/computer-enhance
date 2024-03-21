@@ -1,11 +1,10 @@
 #!/bin/bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-BUILD_DIR_DECODE="$SCRIPT_DIR/build-decode-regress"
+BIN_86_DIR="$SCRIPT_DIR/bin86"
+BUILD_DIR="$SCRIPT_DIR/build"
 SRC_DIR_DECODE="$SCRIPT_DIR/decode-regress"
-BUILD_DIR_SNAKE="$SCRIPT_DIR/build-snake-regress"
 SRC_DIR_SNAKE="$SCRIPT_DIR/snake-regress"
-BUILD_DIR_RTOS="$SCRIPT_DIR/build-rtos-regress"
 if [ -d "$HOME/code/425_artoss/" ]; then
     SRC_DIR_RTOS="$HOME/code/425_artoss/"
 elif [ -d "$HOME/code/artoss/" ]; then
@@ -14,13 +13,9 @@ else
     echo "WARNING: Unable to find RTOS dir! Can't build RTOS"
     SRC_DIR_RTOS=""
 fi
-BUILD_DIR_SIMULATE="$SCRIPT_DIR/build-simulate-regress"
 SRC_DIR_SIMULATE="$SCRIPT_DIR/simulate-regress"
-BUILD_DIR_SIMULATE_IP="$SCRIPT_DIR/build-simulate-ip-regress"
 SRC_DIR_SIMULATE_IP="$SCRIPT_DIR/simulate-ip-regress"
-BUILD_DIR_SIMULATE_CYCLES="$SCRIPT_DIR/build-simulate-ip-cycles-regress"
 SRC_DIR_SIMULATE_CYCLES="$SCRIPT_DIR/simulate-ip-cycles-regress"
-BUILD_DIR_SIMULATE_8086="$SCRIPT_DIR/build-simulate-8086-regress"
 SRC_DIR_SIMULATE_8086="$SCRIPT_DIR/simulate-8086-regress"
 
 # See if nasm exists on the system
@@ -39,20 +34,15 @@ if [ "$HAS_NASM" != true ]; then
 fi
 
 cd "$SCRIPT_DIR" || exit
-mkdir -p "$BUILD_DIR_DECODE"
-mkdir -p "$BUILD_DIR_SNAKE"
-mkdir -p "$BUILD_DIR_RTOS"
-mkdir -p "$BUILD_DIR_SIMULATE"
-mkdir -p "$BUILD_DIR_SIMULATE_IP"
-mkdir -p "$BUILD_DIR_SIMULATE_CYCLES"
-mkdir -p "$BUILD_DIR_SIMULATE_8086"
+mkdir -p "$BIN_86_DIR"
+mkdir -p "$BUILD_DIR"
 
 # Build each decode asm file with nasm
 for file in "$SRC_DIR_DECODE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (decode) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_DECODE/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -64,7 +54,7 @@ for file in "$SRC_DIR_SNAKE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (snake) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_SNAKE/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -76,7 +66,7 @@ for file in "$SRC_DIR_SIMULATE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/o IP) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_SIMULATE/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -88,7 +78,7 @@ for file in "$SRC_DIR_SIMULATE_IP"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_SIMULATE_IP/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -100,7 +90,7 @@ for file in "$SRC_DIR_SIMULATE_CYCLES"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP and cycle estimates) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_SIMULATE_CYCLES/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -111,7 +101,7 @@ for file in "$SRC_DIR_SIMULATE_8086"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP and 8086 cycle estimates) $new_name"
-        if ! nasm "$file" -o "$BUILD_DIR_SIMULATE_8086/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -122,7 +112,7 @@ done
 if [ "$SRC_DIR_RTOS" != "" ]; then
     RTOS_DIR="$SRC_DIR_RTOS/labs/lab8"
     RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
-    RTOS_BIN="$BUILD_DIR_RTOS/artoss.bin"
+    RTOS_BIN="$BIN_86_DIR/artoss.bin"
 
     echo "Assembling RTOS..."
 
