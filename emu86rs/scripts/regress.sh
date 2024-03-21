@@ -33,8 +33,9 @@ function help_msg() {
     echo "Run regressions for emu86rs."
     echo ""
     echo "Options:"
-    echo " --no-rtos          Don't run the RTOS regression."
-    echo " --snake            Run the Snake game regression."
+    echo " --no-rtos          Don't run the RTOS regression (RTOS run by default)."
+    echo " --rtos             Run only the RTOS regression."
+    echo " --snake            Run only the Snake game regression."
     echo ""
 }
 
@@ -59,6 +60,7 @@ case $1 in
     --snake)
         shift
         CHECK_REGULAR="false"
+        CHECK_RTOS="false"
         CHECK_SNAKE="true"
         ;;
     *)
