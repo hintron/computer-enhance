@@ -296,8 +296,6 @@ while [ "$CHECK_RTOS" == "true" ]; do
         rc=1
         break
     fi
-
-    echo "Finished RTOS simulation!"
     break
 done
 
