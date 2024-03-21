@@ -127,8 +127,8 @@ if [ "$SRC_DIR_RTOS" != "" ]; then
     echo "Assembling RTOS..."
 
     cd "$RTOS_DIR" || exit
-    make clean
-    if ! make; then
+    make clean > /dev/null
+    if ! make > /dev/null; then
         echo "ERROR: Failed to build RTOS"
         exit 1
     fi
