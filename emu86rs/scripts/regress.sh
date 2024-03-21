@@ -70,11 +70,25 @@ case $1 in
     esac
 done
 
-# Building all the binaries will have happened in advance on a machine with NASM
-# installed
-if ! "$SCRIPT_DIR/rebuild.sh" ; then
-    echo "Rebuild failed"
-    exit 1
+# See if nasm exists on the system
+HAS_NASM="false"
+command -v nasm &> /dev/null
+if [ $? == 0 ]; then
+    nasm -v &> /dev/null
+    if [ $? == 0 ]; then
+        echo "NASM found"
+        HAS_NASM="true"
+    fi
+fi
+
+# Machines with nasm will rebuild everything by default, to make sure the
+# binaries change as the assembly changes. Machines without nasm will use the
+# binaries committed to the repo.
+if [ "$HAS_NASM" == "true" ]; then
+    if ! "$SCRIPT_DIR/rebuild.sh" ; then
+        echo "Rebuild failed"
+        exit 1
+    fi
 fi
 
 cd "$SCRIPT_DIR" || exit
@@ -100,6 +114,13 @@ if [ "$CHECK_REGULAR" == "true" ]; then
             rc=1
             break
         fi
+
+        # Skip reassembly check of decoded program, since we don't have nasm
+        if [ "$HAS_NASM" != "true" ]; then
+            echo "NOTE: No nasm, so skipping reassembly check..."
+            continue
+        fi
+
         if ! nasm "$OUR_ASM" -o "$OUR_BIN"; then
             echo "ERROR: Assembly of decoded output failed for $GOLDEN_BIN"
             rc=1
@@ -257,42 +278,48 @@ fi
 
 # Use while loop to easily break out
 while [ "$CHECK_RTOS" == "true" ]; do
-    # Try decoding my ECEn 425 RTOS
-    if [ -d "$HOME/code/425_artoss/" ]; then
-        RTOS_REPO="$HOME/code/425_artoss/"
-    elif [ -d "$HOME/code/artoss/" ]; then
-        RTOS_REPO="$HOME/code/artoss/"
-    else
-        echo "ERROR: Unable to find RTOS dir!"
-        rc=1
-        break
-    fi
-    RTOS_DIR="$RTOS_REPO/labs/lab8"
-    RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
     RTOS_BUILD_DIR="$FILE_DIR/build-rtos-regress"
-    # Clear out stale builds
-    if [ -d "$RTOS_BUILD_DIR" ]; then
-        rm -rf  "$RTOS_BUILD_DIR"
-    fi
-    mkdir -p "$RTOS_BUILD_DIR"
     RTOS_BIN="$RTOS_BUILD_DIR/artoss.bin"
+    # Build RTOS, if possible
+    if [ "$HAS_NASM" == "true" ]; then
+        if [ -d "$HOME/code/425_artoss/" ]; then
+            RTOS_REPO="$HOME/code/425_artoss/"
+        elif [ -d "$HOME/code/artoss/" ]; then
+            RTOS_REPO="$HOME/code/artoss/"
+        else
+            echo "ERROR: Unable to find RTOS dir!"
+            rc=1
+            break
+        fi
+        RTOS_DIR="$RTOS_REPO/labs/lab8"
+        RTOS_BIN_ORIG="$RTOS_DIR/artoss.bin"
+        # Clear out stale builds
+        if [ -d "$RTOS_BUILD_DIR" ]; then
+            rm -rf  "$RTOS_BUILD_DIR"
+        fi
+        mkdir -p "$RTOS_BUILD_DIR"
+        cd "$RTOS_DIR" || exit
+        make clean
+        if ! make; then
+            echo "ERROR: Failed to build RTOS"
+            rc=1
+            break
+        fi
+        cd "$FILE_DIR" || exit
 
-    cd "$RTOS_DIR" || exit
-    make clean
-    if ! make; then
-        echo "ERROR: Failed to build RTOS"
+        if [ ! -f "$RTOS_BIN_ORIG" ]; then
+            echo "ERROR: Could not find RTOS binary file '$RTOS_BIN_ORIG'"
+            rc=1
+            break
+        fi
+        cp "$RTOS_BIN_ORIG" "$RTOS_BIN"
+    fi
+
+    if [ ! -f "$RTOS_BIN" ]; then
+        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN'"
         rc=1
         break
     fi
-    cd "$FILE_DIR" || exit
-
-    if [ ! -f "$RTOS_BIN_ORIG" ]; then
-        echo "ERROR: Could not find RTOS binary file '$RTOS_BIN_ORIG'"
-        rc=1
-        break
-    fi
-
-    cp "$RTOS_BIN_ORIG" "$RTOS_BIN"
 
     echo "Simulating RTOS binary '$RTOS_BIN'..."
     BASE=$(basename "$RTOS_BIN")
