@@ -36,16 +36,12 @@ fn benchmark_decode_execute(input: &str) -> Result<()> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Decode-only of listing 42", |b| {
-        b.iter(|| {
-            benchmark_decode(black_box(
-                "files/bench-data/listing_0042_completionist_decode",
-            ))
-        })
+        b.iter(|| benchmark_decode(black_box("files/bin86/listing_0042_completionist_decode")))
     });
     c.bench_function("Decode-and-simulate of listing 45", |b| {
         b.iter(|| {
             benchmark_decode_execute(black_box(
-                "files/bench-data/listing_0045_challenge_register_movs",
+                "files/bin86/listing_0045_challenge_register_movs",
             ))
         })
     });
