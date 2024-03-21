@@ -86,6 +86,11 @@ if [ "$HAS_NASM" == "true" ]; then
         echo "Rebuild failed"
         exit 1
     fi
+else
+    "$FILE_DIR/clean.sh"
+    # Make sure build dir exists, so we can output into it, but empty, so we
+    # don't append to existing files
+    mkdir -p "$BUILD_DIR"
 fi
 
 cd "$SCRIPT_DIR" || exit
