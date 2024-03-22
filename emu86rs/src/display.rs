@@ -225,7 +225,7 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     };
                 }
 
-                draw_glyph(&mut buffer, width, &font);
+                draw_fps(&mut buffer, width, &font);
 
                 if gfx_settings.screenshots {
                     // Save off a screenshot of the buffer on each render, for debugging
@@ -409,7 +409,7 @@ pub fn create_blue_sb_image() -> Vec<u32> {
     create_rgb_sb_image(0, 0, 0xff, 512, 512)
 }
 
-fn draw_glyph(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &FontRef) {
+fn draw_fps(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &FontRef) {
     let spacing = 35;
     let font_color = 0x00FF11FF;
     let bg_color = 0x00111111;
