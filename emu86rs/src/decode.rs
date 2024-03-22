@@ -28,12 +28,13 @@
 //! and AL/A -> AL/AX.
 
 use std::fmt;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use crate::cycles::OperandsType;
 use crate::display::MemImage;
 use crate::execute::{execute, init_state, CpuStateType};
+use crate::interrupts::InterruptType;
 use crate::settings::{DecodeSettings, ExecuteSettings};
 
 /// The four types of modes in the mod field of "mod r/m" bytes
@@ -640,6 +641,7 @@ pub fn decode_execute(
     decode_settings: &DecodeSettings,
     exec_settings: &ExecuteSettings,
     send_to_gfx: Option<&Sender<MemImage>>,
+    recv_from_gfx: Option<&Receiver<InterruptType>>,
 ) -> (Vec<String>, CpuStateType) {
     let mut output_text_lines = vec![];
     let mut cpu_state = init_state(program_bytes, exec_settings.init_ip, exec_settings.init_sp);
@@ -681,7 +683,13 @@ pub fn decode_execute(
                 );
                 // Execute the instruction
                 let time_inst_execute_start = Instant::now();
-                let (text, halt) = execute(&mut inst, &mut cpu_state, exec_settings, send_to_gfx);
+                let (text, halt) = execute(
+                    &mut inst,
+                    &mut cpu_state,
+                    exec_settings,
+                    send_to_gfx,
+                    recv_from_gfx,
+                );
                 let time_inst_execute_end = Instant::now();
                 let duration_exec = time_inst_execute_end.duration_since(time_inst_execute_start);
                 println!(

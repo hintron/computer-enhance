@@ -14,7 +14,7 @@ use std::io::Write;
 use std::mem::take;
 use std::num::NonZeroU32;
 use std::rc::Rc;
-use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::Instant;
 
 // Third-party imports
@@ -28,6 +28,7 @@ use winit::keyboard::NamedKey;
 use winit::window::Window;
 use winit::window::WindowBuilder;
 
+use crate::interrupts::InterruptType;
 // Internal imports
 use crate::settings::GraphicsSettings;
 
@@ -81,7 +82,11 @@ pub fn memory_to_file(memory: &Vec<u8>, output_file: &str) {
 ///
 /// The output image is 4 bytes per pixel (RGBA). softbuffer expects 32 bits (4
 /// bytes) per pixel, and the first byte is all 0's (no alpha channel).
-pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSettings) {
+pub fn graphics_loop(
+    recv_from_emu: Receiver<MemImage>,
+    send_to_emu: Sender<InterruptType>,
+    gfx_settings: GraphicsSettings,
+) {
     let event_loop = EventLoop::new().unwrap();
     // Customize properties of the window
     let window_builder =
@@ -319,6 +324,41 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                             increase_scale = true;
                         } else if char.starts_with("-") {
                             decrease_scale = true;
+                        } else if char.starts_with("w") {
+                            match send_to_emu.send(InterruptType::SnakeUp) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("ERROR: Failed to send SnakeUp interrupt: {e}")
+                                }
+                            };
+                        } else if char.starts_with("s") {
+                            match send_to_emu.send(InterruptType::SnakeDown) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("ERROR: Failed to send SnakeDown interrupt: {e}")
+                                }
+                            };
+                        } else if char.starts_with("a") {
+                            match send_to_emu.send(InterruptType::SnakeLeft) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("ERROR: Failed to send SnakeLeft interrupt: {e}")
+                                }
+                            };
+                        } else if char.starts_with("d") {
+                            match send_to_emu.send(InterruptType::SnakeRight) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("ERROR: Failed to send SnakeRight interrupt: {e}")
+                                }
+                            };
+                        } else if char.starts_with("m") {
+                            match send_to_emu.send(InterruptType::SnakeMenu) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("ERROR: Failed to send SnakeMenu interrupt: {e}")
+                                }
+                            };
                         }
                     }
                     other => println!("{other:#?}"),
