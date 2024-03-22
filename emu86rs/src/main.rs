@@ -2,6 +2,7 @@
 
 // External imports
 use anyhow::Result;
+use emu86rs::interrupts::InterruptType;
 use std::io::Write;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -33,6 +34,7 @@ fn main() -> Result<()> {
 
     let result = if main_settings.display_window {
         let (send_to_gfx, recv_from_emu) = mpsc::channel();
+        let (send_to_emu, recv_from_gfx) = mpsc::channel();
 
         // Move emulation logic into separate thread
         let emulation_thread = std::thread::spawn(move || {
@@ -44,6 +46,7 @@ fn main() -> Result<()> {
                 decode_settings,
                 execute_settings,
                 Some(&send_to_gfx),
+                Some(&recv_from_gfx),
             ) {
                 Ok(_) => {}
                 Err(e) => println!("ERROR: Emulation thread failed: {e}"),
@@ -52,7 +55,7 @@ fn main() -> Result<()> {
         });
 
         // Sit in graphics loop until user exits!
-        graphics_loop(recv_from_emu, gfx_settings);
+        graphics_loop(recv_from_emu, send_to_emu, gfx_settings);
         // User has exited graphics loop - let's quit the program
 
         match emulation_thread.join() {
@@ -61,7 +64,7 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        decode_simulate(main_settings, decode_settings, execute_settings, None)
+        decode_simulate(main_settings, decode_settings, execute_settings, None, None)
     };
 
     let time_program_ended = Instant::now();
@@ -86,6 +89,7 @@ fn decode_simulate(
     decode_settings: DecodeSettings,
     execute_settings: ExecuteSettings,
     send_to_gfx: Option<&mpsc::Sender<MemImage>>,
+    recv_from_gfx: Option<&mpsc::Receiver<InterruptType>>,
 ) -> Result<()> {
     // Make sure required args exist
     println!("Executable: {}", main_settings.first_arg.unwrap());
@@ -124,6 +128,7 @@ fn decode_simulate(
             &decode_settings,
             &execute_settings,
             send_to_gfx,
+            recv_from_gfx,
         );
         for line in text_lines {
             writeln!(output_file, "{}", line)?;

@@ -10,6 +10,7 @@ pub mod cycles;
 pub mod decode;
 pub mod display;
 pub mod execute;
+pub mod interrupts;
 pub mod settings;
 #[cfg(test)]
 mod tests;

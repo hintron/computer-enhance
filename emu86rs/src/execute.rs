@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
 use crate::cycles::{
     calculate_8086_unaligned_access, calculate_inst_clocks, get_total_clocks, get_total_clocks_str,
@@ -13,6 +13,7 @@ use crate::decode::{
     get_ip_absolute, AddTo, InstType, ModRmDataType, OpCodeType, RegName, WidthType,
 };
 use crate::display::{ImageFormat, MemImage};
+use crate::interrupts::InterruptType;
 use crate::settings::ExecuteSettings;
 
 pub const MEMORY_SIZE: usize = 1024 * 1024;
@@ -177,6 +178,7 @@ pub fn execute(
     state: &mut CpuStateType,
     settings: &ExecuteSettings,
     send_to_gfx: Option<&Sender<MemImage>>,
+    recv_from_gfx: Option<&Receiver<InterruptType>>,
 ) -> (String, bool) {
     let mut effect = "".to_string();
     let op_type = match inst.op_type {
@@ -239,6 +241,23 @@ pub fn execute(
     // points to the next instruction.
     advance_ip_reg(inst, state);
 
+    // Check for interrupts
+    match recv_from_gfx {
+        Some(recv_from_gfx) => match recv_from_gfx.try_recv() {
+            Ok(item) => match item {
+                InterruptType::SnakeUp => println!("SnakeUp"),
+                InterruptType::SnakeDown => println!("SnakeDown"),
+                InterruptType::SnakeLeft => println!("SnakeLeft"),
+                InterruptType::SnakeRight => println!("SnakeRight"),
+                InterruptType::SnakeMenu => println!("SnakeMenu"),
+            },
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) => {
+                println!("Channel endpoint recv_from_gfx has disconnected");
+            }
+        },
+        _ => {}
+    }
     // Handle emulator hooks before doing any "real" instructions
     match (op_type, inst.data_value) {
         (OpCodeType::Int, Some(int_num @ (0x0 | 0x10 | 0x1B | 0x21))) => {

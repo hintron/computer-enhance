@@ -30,6 +30,7 @@ fn benchmark_decode_execute(input: &str) -> Result<()> {
         &decode_settings,
         &execute_settings,
         None,
+        None,
     );
     Ok(())
 }
