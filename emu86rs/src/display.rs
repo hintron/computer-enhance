@@ -18,7 +18,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Instant;
 
 // Third-party imports
-use ab_glyph::{point, Font, FontRef};
+use ab_glyph::{point, Font, FontRef, ScaleFont};
 use softbuffer::Buffer;
 use winit::dpi::{PhysicalSize, Size};
 use winit::event::{ElementState, Event, KeyEvent, StartCause, WindowEvent};
@@ -30,6 +30,15 @@ use winit::window::WindowBuilder;
 
 // Internal imports
 use crate::settings::GraphicsSettings;
+
+const FONT_BYTES: &[u8] = include_bytes!("../fonts/JetBrainsMono-Regular-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/KodeMono-Regular-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/HackRegular-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/Instruction-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/NaturalMonoRegular-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/Inconsolata-Regular-ascii.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/Excluded.ttf");
+// const FONT_BYTES: &[u8] = include_bytes!("../fonts/Excludeditalic.ttf");
 
 /// How the image format lays out the data in bytes
 pub enum ImageFormat {
@@ -85,11 +94,10 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
     let window = Rc::new(window_builder.build(&event_loop).unwrap());
     let context = softbuffer::Context::new(window.clone()).unwrap();
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
-    let font =
-        match FontRef::try_from_slice(include_bytes!("../fonts/JetBrainsMono-Regular-ascii.ttf")) {
-            Ok(x) => x,
-            Err(e) => panic!("ERROR: Could not load font: {e}"),
-        };
+    let font = match FontRef::try_from_slice(FONT_BYTES) {
+        Ok(x) => x,
+        Err(e) => panic!("ERROR: Could not load font: {e}"),
+    };
 
     // Start off assuming that we have a working reciever from the emulator code
     let mut emu_connected = true;
@@ -108,6 +116,9 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
 
     // Track how long it takes to render a given frame
     let mut time_frame_received = None;
+
+    let mut frames_per_second = None;
+    let mut time_last_frame_rendered: Option<Instant> = None;
 
     let result = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
@@ -229,7 +240,7 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     };
                 }
 
-                draw_fps(&mut buffer, width, &font);
+                draw_fps(&mut buffer, width, &font, frames_per_second);
 
                 if gfx_settings.screenshots {
                     // Save off a screenshot of the buffer on each render, for debugging
@@ -260,6 +271,18 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     }
                     _ => {}
                 }
+
+                // Calculate frames per second (FPS)
+                match time_last_frame_rendered {
+                    Some(time_last_frame_rendered) => {
+                        let frame_render_delta = time_last_frame_rendered.elapsed();
+                        // Set FPS as 1 frame per time delta
+                        frames_per_second = Some(1.0 / frame_render_delta.as_secs_f64());
+                    }
+                    // This is the first frame - no time delta to work with
+                    None => {}
+                }
+                time_last_frame_rendered = Some(time_frame_rendered);
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -414,29 +437,52 @@ pub fn create_blue_sb_image() -> Vec<u32> {
 }
 
 /// Draw an FPS counter overlay
-fn draw_fps(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &FontRef) {
+fn draw_fps(
+    buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>,
+    width: u32,
+    font: &FontRef,
+    frames_per_second: Option<f64>,
+) {
     let font_color = 0x00FF11FF;
     let bg_color = 0x00111111;
     let font_scale = 100.0;
-
     let mut glyphs = vec![];
-    glyphs.push(
-        font.glyph_id('F')
-            .with_scale_and_position(font_scale, point(0.0, 0.0)),
-    );
-    glyphs.push(
-        font.glyph_id('P')
-            .with_scale_and_position(font_scale, point(30.0, 10.0)),
-    );
-    glyphs.push(
-        font.glyph_id('S')
-            .with_scale_and_position(font_scale, point(65.0, 20.0)),
-    );
+
+    // Create the string to draw
+    let mut fps_str = "FPS:".to_string();
+    match frames_per_second {
+        Some(frames_per_second) => fps_str.push_str(&format!("{:.1}", frames_per_second)),
+        None => fps_str.push_str("Not Measured"),
+    }
+
+    // Create glyphs for each character
+    for digit in fps_str.chars() {
+        glyphs.push(
+            font.glyph_id(digit)
+                .with_scale_and_position(font_scale, point(0.0, 0.0)),
+        );
+    }
+
+    // Get height of font, so we know how far down to move things like periods
+    let font_height = font.as_scaled(font_scale).height();
+
+    // Draw the character glyphs
+    let mut x_offset = 0;
+    let x_spacing = 0.0;
+
+    // MGH TODO: Figure out how to draw on the top right of the screen
     for glyph in glyphs {
-        let x_offset = glyph.position.x as u32;
-        let y_offset = glyph.position.y as u32;
         match font.outline_glyph(glyph) {
             Some(outline) => {
+                let bounding_box = outline.px_bounds();
+                let glyph_width = bounding_box.width();
+                let glyph_height = bounding_box.height();
+                // MGH TODO: Need to figure out how to get rid of extra space above
+                let y_offset = if glyph_height < font_height {
+                    (font_height - glyph_height) as u32
+                } else {
+                    0
+                };
                 outline.draw(|x, y, c| {
                     /* draw pixel `(x, y)` with coverage: `c` */
                     let index = (x + x_offset + ((y + y_offset) * width)) as usize;
@@ -448,6 +494,8 @@ fn draw_fps(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &
                         buffer[index] = bg_color + y * 2;
                     }
                 });
+                // Make sure the next glyph is spaced after this one
+                x_offset += (glyph_width + x_spacing) as u32;
             }
             _ => {}
         }
