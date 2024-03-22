@@ -244,13 +244,32 @@ pub fn execute(
     // Check for interrupts
     match recv_from_gfx {
         Some(recv_from_gfx) => match recv_from_gfx.try_recv() {
-            Ok(item) => match item {
-                InterruptType::SnakeUp => println!("SnakeUp"),
-                InterruptType::SnakeDown => println!("SnakeDown"),
-                InterruptType::SnakeLeft => println!("SnakeLeft"),
-                InterruptType::SnakeRight => println!("SnakeRight"),
-                InterruptType::SnakeMenu => println!("SnakeMenu"),
-            },
+            Ok(item) => {
+                let new_ctrl_reg = match item {
+                    InterruptType::SnakeUp => {
+                        println!("SnakeUp");
+                        0b00001
+                    }
+                    InterruptType::SnakeDown => {
+                        println!("SnakeDown");
+                        0b00010
+                    }
+                    InterruptType::SnakeLeft => {
+                        println!("SnakeLeft");
+                        0b00100
+                    }
+                    InterruptType::SnakeRight => {
+                        println!("SnakeRight");
+                        0b01000
+                    }
+                    InterruptType::SnakeMenu => {
+                        println!("SnakeMenu");
+                        0b10000
+                    }
+                };
+                // Store the new control register value at 0xFFFE
+                store_u16_in_mem(&mut state.memory, 0xFFFE, new_ctrl_reg);
+            }
             Err(TryRecvError::Empty) => {}
             Err(TryRecvError::Disconnected) => {
                 println!("Channel endpoint recv_from_gfx has disconnected");
@@ -258,6 +277,7 @@ pub fn execute(
         },
         _ => {}
     }
+
     // Handle emulator hooks before doing any "real" instructions
     match (op_type, inst.data_value) {
         (OpCodeType::Int, Some(int_num @ (0x0 | 0x10 | 0x1B | 0x21))) => {
