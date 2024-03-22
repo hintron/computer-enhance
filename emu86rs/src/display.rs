@@ -7,7 +7,7 @@
 //! https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps
 //!
 
-use ab_glyph::{point, Font, FontRef};
+// Standard library imports
 use std::cmp;
 use std::fs::File;
 use std::io::Write;
@@ -16,9 +16,11 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Instant;
-use winit::dpi::{PhysicalSize, Size};
+
 // Third-party imports
+use ab_glyph::{point, Font, FontRef};
 use softbuffer::Buffer;
+use winit::dpi::{PhysicalSize, Size};
 use winit::event::{ElementState, Event, KeyEvent, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::Key;
@@ -26,6 +28,7 @@ use winit::keyboard::NamedKey;
 use winit::window::Window;
 use winit::window::WindowBuilder;
 
+// Internal imports
 use crate::settings::GraphicsSettings;
 
 /// How the image format lays out the data in bytes
