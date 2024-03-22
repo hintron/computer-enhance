@@ -409,65 +409,41 @@ pub fn create_blue_sb_image() -> Vec<u32> {
     create_rgb_sb_image(0, 0, 0xff, 512, 512)
 }
 
+/// Draw an FPS counter overlay
 fn draw_fps(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &FontRef) {
-    let spacing = 35;
     let font_color = 0x00FF11FF;
     let bg_color = 0x00111111;
+    let font_scale = 100.0;
 
-    // TODO: Put into vec and loop
-    // TODO: Use point location as offsets
-    let f_glyph = font
-        .glyph_id('F')
-        .with_scale_and_position(100.0, point(0.0, 0.0));
-    let p_glyph = font
-        .glyph_id('P')
-        .with_scale_and_position(100.0, point(0.0, 25.0));
-    let s_glyph = font
-        .glyph_id('S')
-        .with_scale_and_position(100.0, point(0.0, 50.0));
-
-    match font.outline_glyph(f_glyph) {
-        Some(outline) => {
-            outline.draw(|x, y, c| {
-                /* draw pixel `(x, y)` with coverage: `c` */
-                let index = (x + (y * width)) as usize;
-                if c > 0.1 {
-                    buffer[index] = font_color;
-                } else {
-                    buffer[index] = bg_color;
-                }
-            });
+    let mut glyphs = vec![];
+    glyphs.push(
+        font.glyph_id('F')
+            .with_scale_and_position(font_scale, point(0.0, 0.0)),
+    );
+    glyphs.push(
+        font.glyph_id('P')
+            .with_scale_and_position(font_scale, point(30.0, 10.0)),
+    );
+    glyphs.push(
+        font.glyph_id('S')
+            .with_scale_and_position(font_scale, point(65.0, 20.0)),
+    );
+    for glyph in glyphs {
+        let x_offset = glyph.position.x as u32;
+        let y_offset = glyph.position.y as u32;
+        match font.outline_glyph(glyph) {
+            Some(outline) => {
+                outline.draw(|x, y, c| {
+                    /* draw pixel `(x, y)` with coverage: `c` */
+                    let index = (x + x_offset + ((y + y_offset) * width)) as usize;
+                    if c > 0.1 {
+                        buffer[index] = font_color;
+                    } else {
+                        buffer[index] = bg_color;
+                    }
+                });
+            }
+            _ => {}
         }
-        _ => {}
-    }
-
-    match font.outline_glyph(p_glyph) {
-        Some(outline) => {
-            outline.draw(|x, y, c| {
-                /* draw pixel `(x, y)` with coverage: `c` */
-                let index = (x + (y * width) + spacing) as usize;
-                if c > 0.1 {
-                    buffer[index] = font_color;
-                } else {
-                    buffer[index] = bg_color;
-                }
-            });
-        }
-        _ => {}
-    }
-
-    match font.outline_glyph(s_glyph) {
-        Some(outline) => {
-            outline.draw(|x, y, c| {
-                /* draw pixel `(x, y)` with coverage: `c` */
-                let index = (x + (y * width) + (2 * spacing)) as usize;
-                if c > 0.1 {
-                    buffer[index] = font_color;
-                } else {
-                    buffer[index] = bg_color;
-                }
-            });
-        }
-        _ => {}
     }
 }
