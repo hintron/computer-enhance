@@ -7,6 +7,7 @@
 //! https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps
 //!
 
+use ab_glyph::{point, Font, FontRef};
 use std::cmp;
 use std::fs::File;
 use std::io::Write;
@@ -15,13 +16,14 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Instant;
-
 use winit::dpi::{PhysicalSize, Size};
 // Third-party imports
+use softbuffer::Buffer;
 use winit::event::{ElementState, Event, KeyEvent, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
+use winit::window::Window;
 use winit::window::WindowBuilder;
 
 use crate::settings::GraphicsSettings;
@@ -80,6 +82,10 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
     let window = Rc::new(window_builder.build(&event_loop).unwrap());
     let context = softbuffer::Context::new(window.clone()).unwrap();
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
+    let font = match FontRef::try_from_slice(include_bytes!("../fonts/JetBrainsMono-Regular-ascii.ttf")) {
+        Ok(x) => x,
+        Err(e) => panic!("ERROR: Could not load font: {e}"),
+    };
 
     // Start off assuming that we have a working reciever from the emulator code
     let mut emu_connected = true;
@@ -218,6 +224,8 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                         index += 1;
                     };
                 }
+
+                draw_glyph(&mut buffer, width, &font);
 
                 if gfx_settings.screenshots {
                     // Save off a screenshot of the buffer on each render, for debugging
@@ -399,4 +407,67 @@ pub fn create_green_sb_image() -> Vec<u32> {
 /// Create an all-blue 512x512 pixel image, immediately usable for softbuffer.
 pub fn create_blue_sb_image() -> Vec<u32> {
     create_rgb_sb_image(0, 0, 0xff, 512, 512)
+}
+
+fn draw_glyph(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &FontRef) {
+    let spacing = 35;
+    let font_color = 0x00FF11FF;
+    let bg_color = 0x00111111;
+
+    // TODO: Put into vec and loop
+    // TODO: Use point location as offsets
+    let f_glyph = font
+        .glyph_id('F')
+        .with_scale_and_position(100.0, point(0.0, 0.0));
+    let p_glyph = font
+        .glyph_id('P')
+        .with_scale_and_position(100.0, point(0.0, 25.0));
+    let s_glyph = font
+        .glyph_id('S')
+        .with_scale_and_position(100.0, point(0.0, 50.0));
+
+    match font.outline_glyph(f_glyph) {
+        Some(outline) => {
+            outline.draw(|x, y, c| {
+                /* draw pixel `(x, y)` with coverage: `c` */
+                let index = (x + (y * width)) as usize;
+                if c > 0.1 {
+                    buffer[index] = font_color;
+                } else {
+                    buffer[index] = bg_color;
+                }
+            });
+        }
+        _ => {}
+    }
+
+    match font.outline_glyph(p_glyph) {
+        Some(outline) => {
+            outline.draw(|x, y, c| {
+                /* draw pixel `(x, y)` with coverage: `c` */
+                let index = (x + (y * width) + spacing) as usize;
+                if c > 0.1 {
+                    buffer[index] = font_color;
+                } else {
+                    buffer[index] = bg_color;
+                }
+            });
+        }
+        _ => {}
+    }
+
+    match font.outline_glyph(s_glyph) {
+        Some(outline) => {
+            outline.draw(|x, y, c| {
+                /* draw pixel `(x, y)` with coverage: `c` */
+                let index = (x + (y * width) + (2 * spacing)) as usize;
+                if c > 0.1 {
+                    buffer[index] = font_color;
+                } else {
+                    buffer[index] = bg_color;
+                }
+            });
+        }
+        _ => {}
+    }
 }
