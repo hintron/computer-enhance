@@ -45,6 +45,7 @@ pub struct ExecuteSettings {
 #[derive(Default)]
 pub struct GraphicsSettings {
     pub screenshots: bool,
+    pub fps: bool,
 }
 
 /// A custom struct holding parsed command line arguments
@@ -87,6 +88,8 @@ pub struct ArgsType {
     pub stop_on_int3: bool,
     /// If true, save a screenshot of each rendered frame to a file, for debug.
     pub screenshots: bool,
+    /// If true, display a frames per second (fps) graphical overlay.
+    pub fps: bool,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -151,8 +154,8 @@ this value.
 
 --stop-on-int3 : If specified, exit the decoder when an int3 is encountered.
 --screenshots : If specified, save screenshots of each rendered frame to a
-                file.
-";
+file.
+--fps : If specified, display a frames per second graphical overlay.";
 
 pub fn print_help() {
     println!("{USAGE}");
@@ -246,6 +249,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::NoValue)
     } else if arg.starts_with("--screenshots") {
         parsed_args.screenshots = true;
+        Ok(ArgType::NoValue)
+    } else if arg.starts_with("--fps") {
+        parsed_args.fps = true;
         Ok(ArgType::NoValue)
     } else {
         bail!("Unexpected optional arg '{arg}'\n{USAGE}");
@@ -358,6 +364,7 @@ pub fn args_to_settings(
 
     let gfx_settings = GraphicsSettings {
         screenshots: args.screenshots,
+        fps: args.fps,
     };
     (
         main_settings,

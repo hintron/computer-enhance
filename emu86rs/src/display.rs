@@ -240,7 +240,9 @@ pub fn graphics_loop(recv_from_emu: Receiver<MemImage>, gfx_settings: GraphicsSe
                     };
                 }
 
-                draw_fps(&mut buffer, width, &font, frames_per_second);
+                if gfx_settings.fps {
+                    draw_fps(&mut buffer, width, &font, frames_per_second);
+                }
 
                 if gfx_settings.screenshots {
                     // Save off a screenshot of the buffer on each render, for debugging
