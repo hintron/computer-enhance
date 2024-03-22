@@ -437,9 +437,9 @@ fn draw_fps(buffer: &mut Buffer<'_, Rc<Window>, Rc<Window>>, width: u32, font: &
                     /* draw pixel `(x, y)` with coverage: `c` */
                     let index = (x + x_offset + ((y + y_offset) * width)) as usize;
                     if c > 0.1 {
-                        buffer[index] = font_color;
+                        buffer[index] = font_color - y * 3;
                     } else {
-                        buffer[index] = bg_color;
+                        buffer[index] = bg_color + y * 2;
                     }
                 });
             }
