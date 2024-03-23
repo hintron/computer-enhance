@@ -599,6 +599,8 @@ pub fn execute(
             // NOTE: We do NOT modify flags when modifying cs in loops
             if cx != 0 {
                 jumped = handle_jmp_variants(jump_op, state, inst.ip_inc, inst.ip_abs);
+            } else {
+                println!("loop: finished");
             }
         }
         OpCodeType::Call => {
