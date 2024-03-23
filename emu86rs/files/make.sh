@@ -3,6 +3,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BIN_86_DIR="$SCRIPT_DIR/bin86"
 BUILD_DIR="$SCRIPT_DIR/build"
+MISC_DIR="$SCRIPT_DIR/misc"
 SRC_DIR_DECODE="$SCRIPT_DIR/decode-regress"
 SRC_DIR_SNAKE="$SCRIPT_DIR/snake-regress"
 if [ -d "$HOME/code/425_artoss/" ]; then
@@ -42,7 +43,7 @@ for file in "$SRC_DIR_DECODE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (decode) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$BUILD_DIR/${new_name}.lst"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -54,7 +55,7 @@ for file in "$SRC_DIR_SNAKE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (snake) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$MISC_DIR/${new_name}.lst" ; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -66,7 +67,7 @@ for file in "$SRC_DIR_SIMULATE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/o IP) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$BUILD_DIR/${new_name}.lst"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -78,7 +79,7 @@ for file in "$SRC_DIR_SIMULATE_IP"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$BUILD_DIR/${new_name}.lst"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -90,7 +91,7 @@ for file in "$SRC_DIR_SIMULATE_CYCLES"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP and cycle estimates) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$BUILD_DIR/${new_name}.lst"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
@@ -101,7 +102,7 @@ for file in "$SRC_DIR_SIMULATE_8086"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (simulate w/ IP and 8086 cycle estimates) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name"; then
+        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$BUILD_DIR/${new_name}.lst"; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
