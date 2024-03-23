@@ -55,7 +55,7 @@ for file in "$SRC_DIR_SNAKE"/*.asm; do
     if [ -f "$file" ]; then
         new_name=$(basename "${file%.*}")
         echo "Assembling (snake) $new_name"
-        if ! nasm "$file" -o "$BIN_86_DIR/$new_name" -l "$MISC_DIR/${new_name}.lst" ; then
+        if ! nasm "$file" -DUSE_TITLE_SCREEN -I "$SRC_DIR_SNAKE" -o "$BIN_86_DIR/$new_name" -l "$MISC_DIR/${new_name}.lst" ; then
             echo "ERROR: nasm failed!"
             exit 1
         fi
