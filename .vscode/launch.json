@@ -18,10 +18,9 @@
                 }
             },
             "args": [
-                "${env:HOME}/code/artoss/labs/lab8/artoss.bin",
+                "${workspaceFolder}/emu86rs/files/bin86/artoss.bin",
                 "rtos-debug.log",
                 "--verbose",
-                "--exec",
                 "--model-cycles",
                 "8086",
                 "--ip",
@@ -51,13 +50,10 @@
                 }
             },
             "args": [
-                "${workspaceFolder}/emu86rs/files/build-snake-regress/snake",
+                "${workspaceFolder}/emu86rs/files/bin86/snake",
                 "snake-debug.log",
-                "--verbose",
-                "--exec",
                 "--display-window",
-                "--exit-after",
-                "50000",
+                "--stop-on-int3",
             ],
             "cwd": "${workspaceFolder}"
         },
