@@ -1,0 +1,1169 @@
+ LINE  | ADDRESS  | HEX DUMP                  | ASSEMBLY
+-------|----------|---------------------------|----------------------------
+     1 |          |                           | ; -------------------------------------------------------------------
+     2 |          |                           | ;                              Sna86.
+     3 |          |                           | ;                     An 8086 simulator snake!
+     4 |          |                           | ; -------------------------------------------------------------------
+     5 |          |                           | ; MGH: Slightly modified from https://gist.github.com/charlesastaylor/18c7c8005fed9d0af1a3ee2b24fcd724. See also emulator/files/misc/-sna86.asm
+     6 |          |                           | ; Assembly program intended to run in an 8086 simulator with functionaliy equal* to one made for homeworks
+     7 |          |                           | ; up to Part 1 Episode 10 of the Peformance-Aware Programming Series (https://www.computerenhance.com/)
+     8 |          |                           | ; by Casey Muratori. Demo - https://youtu.be/s_S4-QHeFMc.
+     9 |          |                           | ;
+    10 |          |                           | ; * mov, add, sub, cmp, je and jne was the target instructions. However I also added loop for convenience,
+    11 |          |                           | ;   and jmp because conditional jumps have limited range! They are both simple enough to implment if you
+    12 |          |                           | ;   already have the above.
+    13 |          |                           | ; * int is also needed for a couple of things:
+    14 |          |                           | ;   - int 0x21 function 0x55 is used to signal the size of the frame buffer to the simulator. Width is put in bx, height
+    15 |          |                           | ;     into cx, and the frame buffer location in dx.
+    16 |          |                           | ;   - int 0x21 function 0x56 is used for the program to signal it has finished a frame to allow the simulator to draw the
+    17 |          |                           | ;     frame buffer to the screen
+    18 |          |                           | ;
+    19 |          |                           | ; Input is handled via the input "register" at memory address 0xFFFE, with each bit corresponding to an input
+    20 |          |                           | ; button. Starting from the low bit the buttons are: Up, Down, Left, Right, Menu. Ie the low bit is used for
+    21 |          |                           | ; the up button, the 5th bit is used for the menu button, and the top 3 bits are unused.
+    22 |          |                           | ;
+    23 |          |                           | ; Compiled with `nasm sna86.asm`. Or `nasm sna86.asm -DUSE_TITLE_SCREEN` to use the fancy title screen!
+    24 |          |                           | ;
+    25 |          |                           | ; Memory Layout:
+    26 |          |                           | ; [0x0000]                Program
+    27 |          |                           | ;                           Code
+    28 |          |                           | ;                           Data
+    29 |          |                           | ; [0x0000 + program_size] FrameBuffer
+    30 |          |                           | ;                           u8 frame_buffer[frame_buffer_num_bytes]
+    31 |          |                           | ; [¯\_(ツ)_/¯]             Snake
+    32 |          |                           | ;                           u16 length
+    33 |          |                           | ;                           u16 head
+    34 |          |                           | ;                           // x, y coordinates stores as u16s. ie XXYYXXYYXXYYXX
+    35 |          |                           | ;                           // These could be u8s. But simulator doesnt handle lots of u8 things. so u16 easier for now
+    36 |          |                           | ;                           u16 *parts 
+    37 |          |                           | ;
+    38 |          |                           | ; NOTE(Charles): <label> resb/resw <num_bytes/words>, can be used to reserve space in binary! eg:
+    39 |          |                           | ; scratch resb 256 ; create 256 byte scratch space.
+    40 |          |                           | ;
+    41 |          |                           | ; @TODO
+    42 |          |                           | ; - Display the score! 
+    43 |          |                           | ; - Seed the rng with some interrupt to get start value
+    44 |          |                           | ; - Speed up menu transition with by adding interrupt to specifiy frame pointer. Then flip screens.
+    45 |          |                           | ; - sometimes on eating an apple the new one can spawn in such a way that to gets eaten right away
+    46 |          |                           | ;   and you get stuck with no apples?
+    47 |          |                           | 
+    48 |          |                           | ; NOTE(Charles): SI, DI and the segment registers are not currently used, so my simulator is configured to
+    49 |          |                           | ; use these for deubgging. It will print the contents of SI, DI each frame. And, if any segment registers
+    50 |          |                           | ; are set, it will print out the word at that address in memory.
+    51 |          |                           | 
+    52 |          |                           | bits 16
+    53 |          |                           | 
+    54 |          |                           | %define MEMORY_SCRATCH 0xFF00
+    55 |          |                           | %define REGISTER_INPUT 0xFFFE
+    56 |          |                           | 
+    57 |          |                           | %define INPUT_UP    0x01
+    58 |          |                           | %define INPUT_DOWN  0x02
+    59 |          |                           | %define INPUT_LEFT  0x04
+    60 |          |                           | %define INPUT_RIGHT 0x08
+    61 |          |                           | %define INPUT_MENU  0x10
+    62 |          |                           | 
+    63 |          |                           | %define GAME_STATE_MENU 0
+    64 |          |                           | %define GAME_STATE_PLAY 1
+    65 |          |                           | 
+    66 |          |                           | %define SCREEN_SIZE 64
+    67 |          |                           | ; @TODO Setting this to 100 giffs big bug! Must be overwriting something somewhere. Pls fix.
+    68 |          |                           | %define screen_color 30
+    69 |          |                           | %define SCREEN_RGB screen_color, screen_color, screen_color
+    70 |          |                           | ; Result of the input register mapping. This is probably bad!
+    71 |          |                           | %define Direction_up    1
+    72 |          |                           | %define Direction_down  2
+    73 |          |                           | %define Direction_left  4
+    74 |          |                           | %define Direction_right 8
+    75 |          |                           | 
+    76 |          |                           | %define SNAKE_START_LENGTH 25
+    77 |          |                           | %define SNAKE_R 100
+    78 |          |                           | %define SNAKE_G 220
+    79 |          |                           | %define SNAKE_B 100
+    80 |          |                           | %define SNAKE_RGB SNAKE_R, SNAKE_G, SNAKE_B
+    81 |          |                           | %define APPLE_R 250
+    82 |          |                           | %define APPLE_G 100
+    83 |          |                           | %define APPLE_B 100
+    84 |          |                           | %define APPLE_RGB APPLE_R, APPLE_G, APPLE_B
+    85 |          |                           | 
+    86 |          |                           | ; Simulator maxes out at some number of instructions per frame. Not measured number but at 32x32
+    87 |          |                           | ; we can just about get 60fps. Above that not so much. Did some basic measurements and looks like
+    88 |          |                           | ; it's the instruction decode that is the slow part. Thanks Casey ;). Joke obv.
+    89 |          |                           | ; For snake, don't actually need to draw screen everytime, just draw pixels that need to update!
+    90 |          |                           | %define DRAW_SCREEN_EVERY_FRAME 0
+    91 |          |                           | 
+    92 |          |                           | 
+    93 |          |                           | ; -------------------------------------------------------------------
+    94 |          |                           | ;                              Macros!
+    95 |          |                           | ; -------------------------------------------------------------------
+    96 |          |                           | ; @TODO implement call, ret (probably requires push, pop too) to use actual functions! Can only do macros
+    97 |          |                           | ; for now.
+    98 |          |                           | ; NOTE(Charles): Macros seemed like a great idea at first. But holy moly they make keeping track of
+    99 |          |                           | ; which registers are used hard! (Or I guess only really cos I went and nested macros :roll:)
+   100 |          |                           | 
+   101 |          |                           | ; Don't have mul yet, just use adds!
+   102 |          |                           | ; uses cx register as counter (loop instruction), result will be in ax.
+   103 |          |                           | ; Only works for memory or immediate parameters atm!
+   104 |          |                           | ; This loops b times so it is consderiably quicker if you put the smaller number in b!
+   105 |          |                           | ; @TODO Implement mul instruction in simulator!
+   106 |          |                           | ; ax multiply(a, b)
+   107 |          |                           | %macro multiply 2
+   108 |          |                           |     mov ax, 0
+   109 |          |                           |     mov cx, 0  ; mov then add so can use zero flag
+   110 |          |                           |     add cx, %2
+   111 |          |                           |     jz %%done
+   112 |          |                           |     %%who_needs_mul:
+   113 |          |                           |         add ax, %1
+   114 |          |                           |         loop %%who_needs_mul
+   115 |          |                           |     %%done:
+   116 |          |                           | %endmacro
+   117 |          |                           | 
+   118 |          |                           | %macro divide 2
+   119 |          |                           |     ; @TODO can do a similar thing for divsion using subtraction.
+   120 |          |                           |     ; if a is divisible by b, then loop doing a - b - b - b - b until you get 0. Number of loops equal answer!
+   121 |          |                           | %endmacro
+   122 |          |                           | 
+   123 |          |                           | ; This is a no go for a few reasons atm:
+   124 |          |                           | ; 1) without mul the multiply with large numbers is _very_ slow!
+   125 |          |                           | ; 2) even if I had mul modding the result so its in a useful range seems hard (impossible?) without div and,
+   126 |          |                           | ;    more cruicially jl, jg etc
+   127 |          |                           | ; Sticking with table of random numbers with optional seed from host.
+   128 |          |                           | %define LCG_INITIAL_SEED 1234
+   129 |          |                           | %macro lcg_generate_random_number 0
+   130 |          |                           |     ; Generate a pseudo-random number using a linear congruential generator (LCG)
+   131 |          |                           |     ; Algorithm: Xn+1 = (a * Xn + c) mod m
+   132 |          |                           |     %define LCG_A 11969
+   133 |          |                           |     %define LCG_C 52429
+   134 |          |                           |     %define LCG_M 65536 ; 2^16
+   135 |          |                           |     multiply LCG_A, [lcg_seed] ; Welp, this is gonna be slow as shit...
+   136 |          |                           |     add ax, LCG_C
+   137 |          |                           |     mov [lcg_seed], ax ; Store new seed
+   138 |          |                           | %endmacro
+   139 |          |                           | 
+   140 |          |                           | %define RNG_NUM 1000
+   141 |          |                           | ; Returns in ax
+   142 |          |                           | %macro generate_random_number 0
+   143 |          |                           | mov bp, [random_number_index]
+   144 |          |                           | add bp, bp ; have to multiply the index by two because the numbers are words!
+   145 |          |                           | add bp, rng_4096_1000
+   146 |          |                           | mov ax, [bp]
+   147 |          |                           | add [random_number_index], word 1
+   148 |          |                           | cmp [random_number_index], word RNG_NUM
+   149 |          |                           | jne %%end
+   150 |          |                           | mov [random_number_index], word 0
+   151 |          |                           | %%end:
+   152 |          |                           | %endmacro
+   153 |          |                           | 
+   154 |          |                           | ; Fill a pixel with color.
+   155 |          |                           | ; void draw_pixel(x, y, r=255, g=255, b=255)
+   156 |          |                           | ; Hmm this now uses ax, bx and cx (in the multiply macro)
+   157 |          |                           | %macro draw_pixel 2-5 255, 255, 255
+   158 |          |                           |     ; framebuffer + 4 * (width * y + x)
+   159 |          |                           |     multiply [screen_size], %2 ; width * y
+   160 |          |                           |     add ax, %1 ; + x
+   161 |          |                           |     add ax, ax ; * 2
+   162 |          |                           |     add ax, ax ; * 2
+   163 |          |                           |     add ax, [frame_buffer]
+   164 |          |                           |     mov bx, ax
+   165 |          |                           |     mov byte [bx + 0], %5  ; Blue
+   166 |          |                           |     mov byte [bx + 1], %4  ; Green
+   167 |          |                           |     mov byte [bx + 2], %3  ; Red
+   168 |          |                           |     ; mov word [bx], 0xffff
+   169 |          |                           |     ; mov word [bx + 2], 0xffff
+   170 |          |                           | %endmacro
+   171 |          |                           | 
+   172 |          |                           | ; Draw pixel with pre flattened coord z, in ax
+   173 |          |                           | ; Q: Nasm docs say you can overload macros if the number of arguments is different, but I am
+   174 |          |                           | ; getting a warning if this macro is called draw_pixel too?
+   175 |          |                           | %macro draw_pixel_flat 0-3 255, 255, 255
+   176 |          |                           |     ; framebuffer + 4 * (flat_coord)
+   177 |          |                           |     add ax, ax ; * 2
+   178 |          |                           |     add ax, ax ; * 2
+   179 |          |                           |     add ax, [frame_buffer]
+   180 |          |                           |     mov bx, ax
+   181 |          |                           |     mov byte [bx + 0], %3  ; Blue
+   182 |          |                           |     mov byte [bx + 1], %2  ; Green
+   183 |          |                           |     mov byte [bx + 2], %1  ; Red
+   184 |          |                           |     ; mov word [bx], 0xffff
+   185 |          |                           |     ; mov word [bx + 2], 0xffff
+   186 |          |                           | %endmacro
+   187 |          |                           | 
+   188 |          |                           | ; Compare pixel pointed to by bp to given immediate r, g, b
+   189 |          |                           | %macro cmp_pixel_color 3
+   190 |          |                           | ; Just checking first word for now @TODO check full rgb
+   191 |          |                           | cmp [bp], word (%2 << 8) | %3
+   192 |          |                           | %endmacro
+   193 |          |                           | 
+   194 |          |                           | ; Fewer instructions than doing the nested loop. 
+   195 |          |                           | %macro clear_screen 1
+   196 |          |                           |     mov bp, [frame_buffer]
+   197 |          |                           |     mov cx, [frame_buffer_num_pixels]
+   198 |          |                           |     mov al, %1
+   199 |          |                           |     mov ah, %1
+   200 |          |                           |     %%loop_start:
+   201 |          |                           |         mov [bp], ax
+   202 |          |                           |         mov [bp + 2], al
+   203 |          |                           |         mov [bp + 3], byte 0xFF ; Do you respect alpha?
+   204 |          |                           |         add bp, 4
+   205 |          |                           |         loop %%loop_start
+   206 |          |                           | %endmacro
+   207 |          |                           | 
+   208 |          |                           | %macro draw_title_screen 0
+   209 |          |                           | ; Copy title screen to frame buffer. This is slow
+   210 |          |                           | ; @TODO Implement ability for program to specificy the frame pointer via interrupt for fast switching!
+   211 |          |                           | mov bp, [frame_buffer]
+   212 |          |                           | mov bx, title_screen
+   213 |          |                           | mov cx, [frame_buffer_num_pixels]
+   214 |          |                           | mov di, 0
+   215 |          |                           | %%copy_title_screen_loop:
+   216 |          |                           |     mov ax, [bx + di]
+   217 |          |                           |     mov [bp + di], ax
+   218 |          |                           |     mov ax, [bx + di + 2]
+   219 |          |                           |     ; mov [bp + di + 2], ax
+   220 |          |                           |     ; @HACK It didn't affect me but TheGag96 trying to run this wanted 0xFF in alpha channel.
+   221 |          |                           |     ; title screen image has alpha < 0xFF for some pixels. Fix that up here. Should really just fix
+   222 |          |                           |     ; the image. Adds an extra frame_buffer_num_pixels instructions.
+   223 |          |                           |     mov [bp + di + 2], al
+   224 |          |                           |     mov [bp + di + 3], byte 0xFF
+   225 |          |                           |     add di, 4
+   226 |          |                           |     loop %%copy_title_screen_loop
+   227 |          |                           | %endmacro
+   228 |          |                           | 
+   229 |          |                           | 
+   230 |          |                           | ; -------------------------------------------------------------------
+   231 |          |                           | ;                     Game Code Starts Here!
+   232 |          |                           | ; -------------------------------------------------------------------
+   233 |          |                           | ; NOTE(Charles): Pretty needlessly dynamically done.
+   234 |          |                           | multiply [screen_size], [screen_size]
+   235 | 00000000 | B80000                 <1>|  mov ax, 0
+   236 | 00000003 | B90000                 <1>|  mov cx, 0
+   237 | 00000006 | 030E[3404]             <1>|  add cx, %2
+   238 | 0000000A | 7406                   <1>|  jz %%done
+   239 |          |                        <1>|  %%who_needs_mul:
+   240 | 0000000C | 0306[3404]             <1>|  add ax, %1
+   241 | 00000010 | E2FA                   <1>|  loop %%who_needs_mul
+   242 |          |                        <1>|  %%done:
+   243 | 00000012 | A3[2E04]                  | mov [frame_buffer_num_pixels], ax
+   244 | 00000015 | 01C0                      | add ax, ax ; *4
+   245 | 00000017 | 01C0                      | add ax, ax 
+   246 | 00000019 | A3[2C04]                  | mov [frame_buffer_num_bytes], ax
+   247 |          |                           | 
+   248 |          |                           | ; Set initial game state based on whether title screen is present. 
+   249 | 0000001C | C706[2604]0100            | mov [game_state], word GAME_STATE_PLAY
+   250 | 00000022 | B8[EE0C]                  | mov ax, end
+   251 | 00000025 | BB[EE0C]                  | mov bx, title_screen
+   252 | 00000028 | 39D8                      | cmp ax, bx
+   253 | 0000002A | 740C                      | je no_title_screen
+   254 | 0000002C | C706[2604]0000            | mov [game_state], word GAME_STATE_MENU
+   255 | 00000032 | C706[2A04]0100            | mov [has_title_screen], word 1
+   256 |          |                           | no_title_screen:
+   257 |          |                           | 
+   258 |          |                           | ; snake_init
+   259 | 00000038 | A1[2404]                  | mov ax, [program_size]
+   260 | 0000003B | 0306[2C04]                | add ax, [frame_buffer_num_bytes]
+   261 | 0000003F | A3[3204]                  | mov [snake], ax
+   262 |          |                           | 
+   263 |          |                           | ; MGH: Request frame buffer size using int 0x21 function 0x55 instead
+   264 | 00000042 | B455                      | mov ah, 0x55
+   265 | 00000044 | 8B1E[3404]                | mov bx, [screen_size]
+   266 | 00000048 | 8B0E[3404]                | mov cx, [screen_size]
+   267 | 0000004C | 8B16[3004]                | mov dx, [frame_buffer]
+   268 | 00000050 | CD21                      | int 0x21
+   269 |          |                           | 
+   270 |          |                           | ; MGH: My nasm doesn't like `!`, so use `== 0` instead
+   271 |          |                           | %if DRAW_SCREEN_EVERY_FRAME == 0
+   272 |          |                           | ; Draw background
+   273 |          |                           | ; Have to use constant color so that when we are "deleting" snake parts we know what color to use.
+   274 |          |                           | ; @TODO If did want nicer background could load it into memory separate to frame buffer to refer to!
+   275 |          |                           | ; Frame buffer sits just after the code.
+   276 |          |                           | clear_screen screen_color
+   277 | 00000052 | 8B2E[3004]             <1>|  mov bp, [frame_buffer]
+   278 | 00000056 | 8B0E[2E04]             <1>|  mov cx, [frame_buffer_num_pixels]
+   279 | 0000005A | B01E                   <1>|  mov al, %1
+   280 | 0000005C | B41E                   <1>|  mov ah, %1
+   281 |          |                        <1>|  %%loop_start:
+   282 | 0000005E | 894600                 <1>|  mov [bp], ax
+   283 | 00000061 | 884602                 <1>|  mov [bp + 2], al
+   284 | 00000064 | C64603FF               <1>|  mov [bp + 3], byte 0xFF
+   285 | 00000068 | 83C504                 <1>|  add bp, 4
+   286 | 0000006B | E2F1                   <1>|  loop %%loop_start
+   287 |          |                           | %endif
+   288 |          |                           | 
+   289 | 0000006D | 833E[2604]01              | cmp [game_state], word GAME_STATE_PLAY
+   290 | 00000072 | 742F                      | je start_playing
+   291 |          |                           | draw_title_screen
+   292 |          |                        <1>| 
+   293 |          |                        <1>| 
+   294 | 00000074 | 8B2E[3004]             <1>| mov bp, [frame_buffer]
+   295 | 00000078 | BB[EE0C]               <1>| mov bx, title_screen
+   296 | 0000007B | 8B0E[2E04]             <1>| mov cx, [frame_buffer_num_pixels]
+   297 | 0000007F | BF0000                 <1>| mov di, 0
+   298 |          |                        <1>| %%copy_title_screen_loop:
+   299 | 00000082 | 8B01                   <1>|  mov ax, [bx + di]
+   300 | 00000084 | 8903                   <1>|  mov [bp + di], ax
+   301 | 00000086 | 8B4102                 <1>|  mov ax, [bx + di + 2]
+   302 |          |                        <1>| 
+   303 |          |                        <1>| 
+   304 |          |                        <1>| 
+   305 |          |                        <1>| 
+   306 | 00000089 | 884302                 <1>|  mov [bp + di + 2], al
+   307 | 0000008C | C64303FF               <1>|  mov [bp + di + 3], byte 0xFF
+   308 | 00000090 | 83C704                 <1>|  add di, 4
+   309 | 00000093 | E2ED                   <1>|  loop %%copy_title_screen_loop
+   310 |          |                           | state_title_screen:
+   311 | 00000095 | BDFEFF                    | mov bp, REGISTER_INPUT
+   312 | 00000098 | 8B4600                    | mov ax, [bp]
+   313 | 0000009B | 83F800                    | cmp ax, 0
+   314 | 0000009E | 7503                      | jne start_playing
+   315 | 000000A0 | E96803                    | jmp update_end
+   316 |          |                           | 
+   317 |          |                           | start_playing:
+   318 | 000000A3 | C706FEFF0000              | mov [REGISTER_INPUT], word 0 ; clear the input used to start the game so we start in correct direction!
+   319 | 000000A9 | C706[2604]0100            | mov [game_state], word GAME_STATE_PLAY
+   320 |          |                           | clear_screen screen_color
+   321 | 000000AF | 8B2E[3004]             <1>|  mov bp, [frame_buffer]
+   322 | 000000B3 | 8B0E[2E04]             <1>|  mov cx, [frame_buffer_num_pixels]
+   323 | 000000B7 | B01E                   <1>|  mov al, %1
+   324 | 000000B9 | B41E                   <1>|  mov ah, %1
+   325 |          |                        <1>|  %%loop_start:
+   326 | 000000BB | 894600                 <1>|  mov [bp], ax
+   327 | 000000BE | 884602                 <1>|  mov [bp + 2], al
+   328 | 000000C1 | C64603FF               <1>|  mov [bp + 3], byte 0xFF
+   329 | 000000C5 | 83C504                 <1>|  add bp, 4
+   330 | 000000C8 | E2F1                   <1>|  loop %%loop_start
+   331 |          |                           | reset:
+   332 | 000000CA | B81900                    | mov ax, SNAKE_START_LENGTH
+   333 | 000000CD | C706[2804]0000            | mov [score], word 0
+   334 |          |                           | 
+   335 | 000000D3 | 8B2E[3204]                | mov bp, [snake]
+   336 | 000000D7 | 894600                    | mov [bp], ax ; snake.length = SNAKE_START_LENGTH
+   337 | 000000DA | 83E801                    | sub ax, 1
+   338 | 000000DD | 894602                    | mov [bp + 2], ax; snake.head = bla
+   339 |          |                           | 
+   340 |          |                           | 
+   341 |          |                           | %define SNAKE_START SCREEN_SIZE / 2
+   342 | 000000E0 | C706[3604]2000            | mov [snake_x], word SNAKE_START
+   343 | 000000E6 | 832E[3604]01              | sub [snake_x], word 1 ; @HACK to align snake_x with snake parts
+   344 | 000000EB | C706[3804]2000            | mov [snake_y], word SNAKE_START
+   345 | 000000F1 | C706[3C04]0800            | mov [direction], word Direction_right
+   346 |          |                           | 
+   347 |          |                           | ; No bounds checking for if the start length puts us off screen!
+   348 | 000000F7 | 8B4E00                    | mov cx, [bp]
+   349 | 000000FA | 83C504                    | add bp, 4 ; bp = snake.parts
+   350 |          |                           | init_snake_parts:
+   351 | 000000FD | BB2000                    |     mov bx, SNAKE_START
+   352 | 00000100 | 895E02                    |     mov [bp + 2], bx ; y
+   353 | 00000103 | 29CB                      |     sub bx, cx
+   354 | 00000105 | 895E00                    |     mov [bp], bx ; x
+   355 | 00000108 | 83C504                    |     add bp, 4
+   356 | 0000010B | E2F0                      |     loop init_snake_parts
+   357 |          |                           | 
+   358 |          |                           | %macro draw_snake 0
+   359 |          |                           | mov bp, [snake]
+   360 |          |                           | mov dx, [bp]
+   361 |          |                           | add bp, 4 ; point to snake.parts
+   362 |          |                           | %%draw_snake_loop:
+   363 |          |                           |     draw_pixel [bp], [bp + 2], SNAKE_RGB;, SNAKE_G, SNAKE_B
+   364 |          |                           |     add bp, 4
+   365 |          |                           |     sub dx, 1
+   366 |          |                           |     jnz %%draw_snake_loop
+   367 |          |                           | %endmacro
+   368 |          |                           | ; Should really do this during the init above, but awkward to do while not really fully supporting
+   369 |          |                           | ; byte operations.
+   370 |          |                           | draw_snake
+   371 | 0000010D | 8B2E[3204]             <1>| mov bp, [snake]
+   372 | 00000111 | 8B5600                 <1>| mov dx, [bp]
+   373 | 00000114 | 83C504                 <1>| add bp, 4
+   374 |          |                        <1>| %%draw_snake_loop:
+   375 |          |                        <1>|  draw_pixel [bp], [bp + 2], SNAKE_RGB
+   376 |          |                        <2>| 
+   377 |          |                        <2>|  multiply [screen_size], %2
+   378 | 00000117 | B80000                 <3>|  mov ax, 0
+   379 | 0000011A | B90000                 <3>|  mov cx, 0
+   380 | 0000011D | 034E02                 <3>|  add cx, %2
+   381 | 00000120 | 7406                   <3>|  jz %%done
+   382 |          |                        <3>|  %%who_needs_mul:
+   383 | 00000122 | 0306[3404]             <3>|  add ax, %1
+   384 | 00000126 | E2FA                   <3>|  loop %%who_needs_mul
+   385 |          |                        <3>|  %%done:
+   386 | 00000128 | 034600                 <2>|  add ax, %1
+   387 | 0000012B | 01C0                   <2>|  add ax, ax
+   388 | 0000012D | 01C0                   <2>|  add ax, ax
+   389 | 0000012F | 0306[3004]             <2>|  add ax, [frame_buffer]
+   390 | 00000133 | 89C3                   <2>|  mov bx, ax
+   391 | 00000135 | C60764                 <2>|  mov byte [bx + 0], %5
+   392 | 00000138 | C64701DC               <2>|  mov byte [bx + 1], %4
+   393 | 0000013C | C6470264               <2>|  mov byte [bx + 2], %3
+   394 |          |                        <2>| 
+   395 |          |                        <2>| 
+   396 | 00000140 | 83C504                 <1>|  add bp, 4
+   397 | 00000143 | 83EA01                 <1>|  sub dx, 1
+   398 | 00000146 | 75CF                   <1>|  jnz %%draw_snake_loop
+   399 |          |                           | 
+   400 |          |                           | ; apple_init
+   401 |          |                           | %macro spawn_apple 0
+   402 |          |                           |     ; This can potentially infinte loop!
+   403 |          |                           |     %%loop:
+   404 |          |                           |         generate_random_number
+   405 |          |                           |         ; check this position isn't occupied!
+   406 |          |                           |         mov bp, ax
+   407 |          |                           |         mov bp, bp
+   408 |          |                           |         mov bp, bp
+   409 |          |                           |         add bp, [frame_buffer]
+   410 |          |                           |         cmp_pixel_color SCREEN_RGB
+   411 |          |                           |         jne %%loop
+   412 |          |                           |     draw_pixel_flat APPLE_RGB
+   413 |          |                           |     ; Q: Do I actually even need to store this? Can just check color of frame buffer? I'll be checking frame
+   414 |          |                           |     ; buffer to detect self collisions anyway.
+   415 |          |                           |     mov [apple_position], ax 
+   416 |          |                           | %endmacro
+   417 |          |                           | spawn_apple
+   418 |          |                        <1>| 
+   419 |          |                        <1>|  %%loop:
+   420 |          |                        <1>|  generate_random_number
+   421 | 00000148 | 8B2E[4004]             <2>| mov bp, [random_number_index]
+   422 | 0000014C | 01ED                   <2>| add bp, bp
+   423 | 0000014E | 81C5[1E05]             <2>| add bp, rng_4096_1000
+   424 | 00000152 | 8B4600                 <2>| mov ax, [bp]
+   425 | 00000155 | 8306[4004]01           <2>| add [random_number_index], word 1
+   426 | 0000015A | 813E[4004]E803         <2>| cmp [random_number_index], word RNG_NUM
+   427 | 00000160 | 7506                   <2>| jne %%end
+   428 | 00000162 | C706[4004]0000         <2>| mov [random_number_index], word 0
+   429 |          |                        <2>| %%end:
+   430 |          |                        <1>| 
+   431 | 00000168 | 89C5                   <1>|  mov bp, ax
+   432 | 0000016A | 89ED                   <1>|  mov bp, bp
+   433 | 0000016C | 89ED                   <1>|  mov bp, bp
+   434 | 0000016E | 032E[3004]             <1>|  add bp, [frame_buffer]
+   435 |          |                        <1>|  cmp_pixel_color SCREEN_RGB
+   436 |          |                        <2>| 
+   437 | 00000172 | 817E001E1E             <2>| cmp [bp], word (%2 << 8) | %3
+   438 | 00000177 | 75CF                   <1>|  jne %%loop
+   439 |          |                        <1>|  draw_pixel_flat APPLE_RGB
+   440 |          |                        <2>| 
+   441 | 00000179 | 01C0                   <2>|  add ax, ax
+   442 | 0000017B | 01C0                   <2>|  add ax, ax
+   443 | 0000017D | 0306[3004]             <2>|  add ax, [frame_buffer]
+   444 | 00000181 | 89C3                   <2>|  mov bx, ax
+   445 | 00000183 | C60764                 <2>|  mov byte [bx + 0], %3
+   446 | 00000186 | C6470164               <2>|  mov byte [bx + 1], %2
+   447 | 0000018A | C64702FA               <2>|  mov byte [bx + 2], %1
+   448 |          |                        <2>| 
+   449 |          |                        <2>| 
+   450 |          |                        <1>| 
+   451 |          |                        <1>| 
+   452 | 0000018E | A3[3A04]               <1>|  mov [apple_position], ax
+   453 |          |                           | 
+   454 |          |                           | do_one_frame:
+   455 |          |                           | ; Read input
+   456 | 00000191 | A1FEFF                    | mov ax, [REGISTER_INPUT]
+   457 |          |                           | 
+   458 |          |                           | ; Up Key
+   459 | 00000194 | 83F801                    | cmp ax, INPUT_UP
+   460 | 00000197 | 750F                      | jne up_not_pressed
+   461 |          |                           | ; Can't change to up if we are currently going down.
+   462 | 00000199 | 833E[3C04]02              | cmp [direction], word Direction_down
+   463 | 0000019E | 7473                      | je read_input_end
+   464 | 000001A0 | C706[3C04]0100            | mov [direction], word Direction_up
+   465 | 000001A6 | EB6B                      | jmp read_input_end
+   466 |          |                           | up_not_pressed:
+   467 |          |                           | 
+   468 |          |                           | ; Down Key
+   469 | 000001A8 | 83F802                    | cmp ax, INPUT_DOWN
+   470 | 000001AB | 750F                      | jne down_not_pressed
+   471 |          |                           | ; Can't change to down if we are currently going up.
+   472 | 000001AD | 833E[3C04]01              | cmp [direction], word Direction_up
+   473 | 000001B2 | 745F                      | je read_input_end
+   474 | 000001B4 | C706[3C04]0200            | mov [direction], word Direction_down
+   475 | 000001BA | EB57                      | jmp read_input_end
+   476 |          |                           | down_not_pressed:
+   477 |          |                           | 
+   478 |          |                           | ; Left Key
+   479 | 000001BC | 83F804                    | cmp ax, INPUT_LEFT
+   480 | 000001BF | 750F                      | jne left_not_pressed
+   481 |          |                           | ; Can't change to left if we are currently going right.
+   482 | 000001C1 | 833E[3C04]08              | cmp [direction], word Direction_right
+   483 | 000001C6 | 744B                      | je read_input_end
+   484 | 000001C8 | C706[3C04]0400            | mov [direction], word Direction_left
+   485 | 000001CE | EB43                      | jmp read_input_end
+   486 |          |                           | left_not_pressed:
+   487 |          |                           | 
+   488 |          |                           | ; Right Key
+   489 | 000001D0 | 83F808                    | cmp ax, INPUT_RIGHT
+   490 | 000001D3 | 750F                      | jne right_not_pressed
+   491 |          |                           | ; Can't change to right if we are currently going left.
+   492 | 000001D5 | 833E[3C04]04              | cmp [direction], word Direction_left
+   493 | 000001DA | 7437                      | je read_input_end
+   494 | 000001DC | C706[3C04]0800            | mov [direction], word Direction_right
+   495 | 000001E2 | EB2F                      | jmp read_input_end
+   496 |          |                           | right_not_pressed:
+   497 |          |                           | 
+   498 |          |                           | ; Menu Key
+   499 | 000001E4 | 83F810                    | cmp ax, INPUT_MENU
+   500 | 000001E7 | 752A                      | jne menu_not_pressed
+   501 | 000001E9 | C706[2604]0000            | mov [game_state], word GAME_STATE_MENU
+   502 |          |                           | draw_title_screen
+   503 |          |                        <1>| 
+   504 |          |                        <1>| 
+   505 | 000001EF | 8B2E[3004]             <1>| mov bp, [frame_buffer]
+   506 | 000001F3 | BB[EE0C]               <1>| mov bx, title_screen
+   507 | 000001F6 | 8B0E[2E04]             <1>| mov cx, [frame_buffer_num_pixels]
+   508 | 000001FA | BF0000                 <1>| mov di, 0
+   509 |          |                        <1>| %%copy_title_screen_loop:
+   510 | 000001FD | 8B01                   <1>|  mov ax, [bx + di]
+   511 | 000001FF | 8903                   <1>|  mov [bp + di], ax
+   512 | 00000201 | 8B4102                 <1>|  mov ax, [bx + di + 2]
+   513 |          |                        <1>| 
+   514 |          |                        <1>| 
+   515 |          |                        <1>| 
+   516 |          |                        <1>| 
+   517 | 00000204 | 884302                 <1>|  mov [bp + di + 2], al
+   518 | 00000207 | C64303FF               <1>|  mov [bp + di + 3], byte 0xFF
+   519 | 0000020B | 83C704                 <1>|  add di, 4
+   520 | 0000020E | E2ED                   <1>|  loop %%copy_title_screen_loop
+   521 | 00000210 | E9F801                    | jmp update_end
+   522 |          |                           | menu_not_pressed:
+   523 |          |                           | 
+   524 |          |                           | read_input_end:
+   525 |          |                           | 
+   526 |          |                           | 
+   527 |          |                           | ; Update player position
+   528 |          |                           | update_player_position:
+   529 |          |                           | %define DEBUG_SNAKE_POSITION 0
+   530 |          |                           | %if DEBUG_SNAKE_POSITION
+   531 |          |                           | draw_pixel [snake_x], [snake_y], screen_color, screen_color, screen_color
+   532 |          |                           | %endif
+   533 |          |                           | 
+   534 |          |                           | ; Handle left/right movement
+   535 | 00000213 | A1[3604]                  | mov ax, [snake_x]
+   536 |          |                           | 
+   537 |          |                           | ; Move right
+   538 | 00000216 | 833E[3C04]08              | cmp [direction], word Direction_right
+   539 | 0000021B | 7402                      | je direction_is_right
+   540 | 0000021D | EB11                      | jmp direction_not_right ; Too big a jump for conditional now!
+   541 |          |                           | direction_is_right:
+   542 |          |                           | ; Update the snake_x
+   543 | 0000021F | 83C001                    | add ax, 1
+   544 | 00000222 | 3B06[3404]                | cmp ax, [screen_size]
+   545 | 00000226 | 7503                      | jne no_wrap_right
+   546 | 00000228 | B80000                    | mov ax, 0
+   547 |          |                           | no_wrap_right:
+   548 | 0000022B | A3[3604]                  | mov [snake_x], ax
+   549 | 0000022E | EB55                      | jmp update_player_position_end
+   550 |          |                           | direction_not_right:
+   551 |          |                           | 
+   552 |          |                           | ; Move left
+   553 | 00000230 | 833E[3C04]04              | cmp [direction], word Direction_left
+   554 | 00000235 | 7402                      | je direction_is_left
+   555 | 00000237 | EB13                      | jmp direction_not_left
+   556 |          |                           | direction_is_left:
+   557 |          |                           | ; Update the snake_x
+   558 | 00000239 | 83C0FF                    | add ax, -1
+   559 | 0000023C | 83F8FF                    | cmp ax, -1
+   560 | 0000023F | 7506                      | jne no_wrap_left
+   561 | 00000241 | A1[3404]                  | mov ax, [screen_size]
+   562 | 00000244 | 83E801                    | sub ax, 1
+   563 |          |                           | no_wrap_left:
+   564 | 00000247 | A3[3604]                  | mov [snake_x], ax
+   565 | 0000024A | EB39                      | jmp update_player_position_end
+   566 |          |                           | direction_not_left:
+   567 |          |                           | 
+   568 |          |                           | ; Handle up/down movement
+   569 | 0000024C | A1[3804]                  | mov ax, [snake_y]
+   570 |          |                           | 
+   571 |          |                           | ; Move up
+   572 | 0000024F | 833E[3C04]01              | cmp [direction], word Direction_up
+   573 | 00000254 | 7402                      | je direction_is_up
+   574 | 00000256 | EB11                      | jmp direction_not_up
+   575 |          |                           | direction_is_up:
+   576 |          |                           | ; Update the snake_y
+   577 | 00000258 | 83C001                    | add ax, 1
+   578 | 0000025B | 3B06[3404]                | cmp ax, [screen_size]
+   579 | 0000025F | 7503                      | jne no_wrap_up
+   580 | 00000261 | B80000                    | mov ax, 0
+   581 |          |                           | no_wrap_up:
+   582 | 00000264 | A3[3804]                  | mov [snake_y], ax
+   583 | 00000267 | EB1C                      | jmp update_player_position_end
+   584 |          |                           | direction_not_up:
+   585 |          |                           | 
+   586 |          |                           | ; Move down
+   587 | 00000269 | 833E[3C04]02              | cmp [direction], word Direction_down
+   588 | 0000026E | 7402                      | je direction_is_down 
+   589 | 00000270 | EB13                      | jmp direction_not_down
+   590 |          |                           | direction_is_down:
+   591 |          |                           | ; Update the snake_y
+   592 | 00000272 | 83C0FF                    | add ax, -1
+   593 | 00000275 | 83F8FF                    | cmp ax, -1
+   594 | 00000278 | 7506                      | jne no_wrap_down
+   595 | 0000027A | A1[3404]                  | mov ax, [screen_size]
+   596 | 0000027D | 83E801                    | sub ax, 1
+   597 |          |                           | no_wrap_down:
+   598 | 00000280 | A3[3804]                  | mov [snake_y], ax
+   599 | 00000283 | EB00                      | jmp update_player_position_end
+   600 |          |                           | direction_not_down:
+   601 |          |                           | 
+   602 |          |                           | update_player_position_end:
+   603 |          |                           | 
+   604 |          |                           | ; Check what the new x, y contains. Apple, snake or nothing
+   605 |          |                           | 
+   606 |          |                           | ; Given x, y coord but the address of the pixel into ax
+   607 |          |                           | %macro get_pixel 2
+   608 |          |                           | multiply [screen_size], %2 ; width * y
+   609 |          |                           | add ax, %1 ; + x
+   610 |          |                           | add ax, ax ; * 2
+   611 |          |                           | add ax, ax ; * 2
+   612 |          |                           | add ax, [frame_buffer]
+   613 |          |                           | %endmacro
+   614 |          |                           | 
+   615 |          |                           | get_pixel [snake_x], [snake_y]
+   616 |          |                        <1>| multiply [screen_size], %2
+   617 | 00000285 | B80000                 <2>|  mov ax, 0
+   618 | 00000288 | B90000                 <2>|  mov cx, 0
+   619 | 0000028B | 030E[3804]             <2>|  add cx, %2
+   620 | 0000028F | 7406                   <2>|  jz %%done
+   621 |          |                        <2>|  %%who_needs_mul:
+   622 | 00000291 | 0306[3404]             <2>|  add ax, %1
+   623 | 00000295 | E2FA                   <2>|  loop %%who_needs_mul
+   624 |          |                        <2>|  %%done:
+   625 | 00000297 | 0306[3604]             <1>| add ax, %1
+   626 | 0000029B | 01C0                   <1>| add ax, ax
+   627 | 0000029D | 01C0                   <1>| add ax, ax
+   628 | 0000029F | 0306[3004]             <1>| add ax, [frame_buffer]
+   629 | 000002A3 | 89C5                      | mov bp, ax
+   630 |          |                           | cmp_pixel_color SNAKE_RGB
+   631 |          |                        <1>| 
+   632 | 000002A5 | 817E0064DC             <1>| cmp [bp], word (%2 << 8) | %3
+   633 | 000002AA | 751E                      | jne i_atent_dead
+   634 |          |                           | ; Just clearing whole screen for now, will be slow
+   635 |          |                           | ; @TODO clear all snake parts and apple, not entire screen.
+   636 |          |                           | ; I actually kind of like the delay when you die that this causes so not doing this because would then need
+   637 |          |                           | ; to implement that delay!
+   638 |          |                           | clear_screen screen_color
+   639 | 000002AC | 8B2E[3004]             <1>|  mov bp, [frame_buffer]
+   640 | 000002B0 | 8B0E[2E04]             <1>|  mov cx, [frame_buffer_num_pixels]
+   641 | 000002B4 | B01E                   <1>|  mov al, %1
+   642 | 000002B6 | B41E                   <1>|  mov ah, %1
+   643 |          |                        <1>|  %%loop_start:
+   644 | 000002B8 | 894600                 <1>|  mov [bp], ax
+   645 | 000002BB | 884602                 <1>|  mov [bp + 2], al
+   646 | 000002BE | C64603FF               <1>|  mov [bp + 3], byte 0xFF
+   647 | 000002C2 | 83C504                 <1>|  add bp, 4
+   648 | 000002C5 | E2F1                   <1>|  loop %%loop_start
+   649 | 000002C7 | E900FE                    | jmp reset
+   650 |          |                           | 
+   651 |          |                           | i_atent_dead:
+   652 |          |                           | ; Either we eat an apple and grow, or just move snake. Either way we need the to increment the head!
+   653 | 000002CA | 8B1E[3204]                | mov bx, [snake]
+   654 | 000002CE | 8B4F02                    | mov cx, [bx + 2] ; snake.head
+   655 | 000002D1 | 83C101                    | add cx, 1;
+   656 | 000002D4 | 3B0F                      | cmp cx, [bx]
+   657 | 000002D6 | 7503                      | jne no_wrap_head
+   658 | 000002D8 | B90000                    | mov cx, 0
+   659 |          |                           | no_wrap_head:
+   660 | 000002DB | 894F02                    | mov [bx + 2], cx ; snake.head = new_head_index
+   661 |          |                           | 
+   662 |          |                           | cmp_pixel_color APPLE_RGB
+   663 |          |                        <1>| 
+   664 | 000002DE | 817E006464             <1>| cmp [bp], word (%2 << 8) | %3
+   665 |          |                           | ; @TODO I had to change to unconditnal jump here because lots instrucitnos. but many instrucitons below
+   666 |          |                           | ; can be removed then this might go back to unconditnoial (if want to save more instructions)
+   667 | 000002E3 | 7403                      | je eaten_an_apple
+   668 | 000002E5 | E9B800                    | jmp no_apple
+   669 |          |                           | 
+   670 |          |                           | eaten_an_apple:
+   671 | 000002E8 | 8306[2804]01              | add [score], word 1
+   672 |          |                           | spawn_apple
+   673 |          |                        <1>| 
+   674 |          |                        <1>|  %%loop:
+   675 |          |                        <1>|  generate_random_number
+   676 | 000002ED | 8B2E[4004]             <2>| mov bp, [random_number_index]
+   677 | 000002F1 | 01ED                   <2>| add bp, bp
+   678 | 000002F3 | 81C5[1E05]             <2>| add bp, rng_4096_1000
+   679 | 000002F7 | 8B4600                 <2>| mov ax, [bp]
+   680 | 000002FA | 8306[4004]01           <2>| add [random_number_index], word 1
+   681 | 000002FF | 813E[4004]E803         <2>| cmp [random_number_index], word RNG_NUM
+   682 | 00000305 | 7506                   <2>| jne %%end
+   683 | 00000307 | C706[4004]0000         <2>| mov [random_number_index], word 0
+   684 |          |                        <2>| %%end:
+   685 |          |                        <1>| 
+   686 | 0000030D | 89C5                   <1>|  mov bp, ax
+   687 | 0000030F | 89ED                   <1>|  mov bp, bp
+   688 | 00000311 | 89ED                   <1>|  mov bp, bp
+   689 | 00000313 | 032E[3004]             <1>|  add bp, [frame_buffer]
+   690 |          |                        <1>|  cmp_pixel_color SCREEN_RGB
+   691 |          |                        <2>| 
+   692 | 00000317 | 817E001E1E             <2>| cmp [bp], word (%2 << 8) | %3
+   693 | 0000031C | 75CF                   <1>|  jne %%loop
+   694 |          |                        <1>|  draw_pixel_flat APPLE_RGB
+   695 |          |                        <2>| 
+   696 | 0000031E | 01C0                   <2>|  add ax, ax
+   697 | 00000320 | 01C0                   <2>|  add ax, ax
+   698 | 00000322 | 0306[3004]             <2>|  add ax, [frame_buffer]
+   699 | 00000326 | 89C3                   <2>|  mov bx, ax
+   700 | 00000328 | C60764                 <2>|  mov byte [bx + 0], %3
+   701 | 0000032B | C6470164               <2>|  mov byte [bx + 1], %2
+   702 | 0000032F | C64702FA               <2>|  mov byte [bx + 2], %1
+   703 |          |                        <2>| 
+   704 |          |                        <2>| 
+   705 |          |                        <1>| 
+   706 |          |                        <1>| 
+   707 | 00000333 | A3[3A04]               <1>|  mov [apple_position], ax
+   708 |          |                           | 
+   709 |          |                           | ; Grow the snake!
+   710 | 00000336 | 8B2E[3204]                | mov bp, [snake]
+   711 | 0000033A | 83C504                    | add bp, 4 ; bx = snake.parts
+   712 |          |                           | ; bp -> snake.parts
+   713 |          |                           | ; cx == snake.head
+   714 | 0000033D | 01C9                      | add cx, cx 
+   715 | 0000033F | 01C9                      | add cx, cx ; cx * 4 (cx is index but size of part is 4 [2xu16])
+   716 | 00000341 | 01CD                      | add bp, cx ; bp = &snake.parts[snake.head]
+   717 |          |                           | ; move all parts from snake.head (new_index) -> snake.length up one
+   718 |          |                           | ; @TODO being bit lazy with registers here, can remove some of these instructinos.
+   719 | 00000343 | 8B1E[3204]                | mov bx, [snake]
+   720 | 00000347 | 8B0F                      | mov cx, [bx]     ; cx = snake.length - snake.head
+   721 | 00000349 | 2B4F02                    | sub cx, [bx + 2] ; -
+   722 | 0000034C | 01C9                      | add cx, cx ; bx -> snake.parts + snake.length
+   723 | 0000034E | 01C9                      | add cx, cx ; -
+   724 | 00000350 | 89EB                      | mov bx, bp ; -
+   725 | 00000352 | 01CB                      | add bx, cx ; -
+   726 | 00000354 | 83C303                    | add bx, 3
+   727 |          |                           | ; @TODO re work this to go forward and not be so awkward lol!
+   728 |          |                           | realloc_snake_part:
+   729 |          |                           |     ; have to do a byte at a time to have negative address displacement I think. But why Am I doing this
+   730 |          |                           |     ; backwards at all?!
+   731 | 00000357 | 8A47FC                    |     mov al, [bx - 4] ; each part is 4 bytes
+   732 | 0000035A | 8807                      |     mov [bx], al
+   733 | 0000035C | 83EB01                    |     sub bx, 1
+   734 | 0000035F | 39EB                      |     cmp bx, bp
+   735 | 00000361 | 75F4                      |     jne realloc_snake_part
+   736 |          |                           | 
+   737 | 00000363 | 8B2E[3204]                | mov bp, [snake]
+   738 | 00000367 | 83460001                  | add [bp], word 1 ; snake.length++
+   739 |          |                           | ; set new head
+   740 | 0000036B | A1[3604]                  | mov ax, [snake_x]
+   741 | 0000036E | 8907                      | mov [bx], ax
+   742 | 00000370 | A1[3804]                  | mov ax, [snake_y]
+   743 | 00000373 | 894702                    | mov [bx + 2], ax
+   744 |          |                           | ; draw new head
+   745 |          |                           | draw_pixel [bx], [bx + 2], SNAKE_RGB
+   746 |          |                        <1>| 
+   747 |          |                        <1>|  multiply [screen_size], %2
+   748 | 00000376 | B80000                 <2>|  mov ax, 0
+   749 | 00000379 | B90000                 <2>|  mov cx, 0
+   750 | 0000037C | 034F02                 <2>|  add cx, %2
+   751 | 0000037F | 7406                   <2>|  jz %%done
+   752 |          |                        <2>|  %%who_needs_mul:
+   753 | 00000381 | 0306[3404]             <2>|  add ax, %1
+   754 | 00000385 | E2FA                   <2>|  loop %%who_needs_mul
+   755 |          |                        <2>|  %%done:
+   756 | 00000387 | 0307                   <1>|  add ax, %1
+   757 | 00000389 | 01C0                   <1>|  add ax, ax
+   758 | 0000038B | 01C0                   <1>|  add ax, ax
+   759 | 0000038D | 0306[3004]             <1>|  add ax, [frame_buffer]
+   760 | 00000391 | 89C3                   <1>|  mov bx, ax
+   761 | 00000393 | C60764                 <1>|  mov byte [bx + 0], %5
+   762 | 00000396 | C64701DC               <1>|  mov byte [bx + 1], %4
+   763 | 0000039A | C6470264               <1>|  mov byte [bx + 2], %3
+   764 |          |                        <1>| 
+   765 |          |                        <1>| 
+   766 | 0000039E | EB6B                      | jmp update_end
+   767 |          |                           | 
+   768 |          |                           | no_apple:
+   769 |          |                           | ; replace_tail_with_head
+   770 |          |                           | ; @TODO maybe rework where bp, bx point, depending on how eating code plays out!
+   771 | 000003A0 | 8B2E[3204]                | mov bp, [snake]
+   772 | 000003A4 | 83C504                    | add bp, 4 ; bx = snake.parts
+   773 |          |                           | ; bp -> snake.parts
+   774 |          |                           | ; cx == snake.head
+   775 | 000003A7 | 01C9                      | add cx, cx 
+   776 | 000003A9 | 01C9                      | add cx, cx ; cx * 4 (cx is index but size of part is 4 [2 x u16])
+   777 | 000003AB | 01CD                      | add bp, cx ; bp = &snake.parts[snake.head]
+   778 |          |                           | ; clear tail
+   779 |          |                           | draw_pixel [bp], [bp + 2], SCREEN_RGB
+   780 |          |                        <1>| 
+   781 |          |                        <1>|  multiply [screen_size], %2
+   782 | 000003AD | B80000                 <2>|  mov ax, 0
+   783 | 000003B0 | B90000                 <2>|  mov cx, 0
+   784 | 000003B3 | 034E02                 <2>|  add cx, %2
+   785 | 000003B6 | 7406                   <2>|  jz %%done
+   786 |          |                        <2>|  %%who_needs_mul:
+   787 | 000003B8 | 0306[3404]             <2>|  add ax, %1
+   788 | 000003BC | E2FA                   <2>|  loop %%who_needs_mul
+   789 |          |                        <2>|  %%done:
+   790 | 000003BE | 034600                 <1>|  add ax, %1
+   791 | 000003C1 | 01C0                   <1>|  add ax, ax
+   792 | 000003C3 | 01C0                   <1>|  add ax, ax
+   793 | 000003C5 | 0306[3004]             <1>|  add ax, [frame_buffer]
+   794 | 000003C9 | 89C3                   <1>|  mov bx, ax
+   795 | 000003CB | C6071E                 <1>|  mov byte [bx + 0], %5
+   796 | 000003CE | C647011E               <1>|  mov byte [bx + 1], %4
+   797 | 000003D2 | C647021E               <1>|  mov byte [bx + 2], %3
+   798 |          |                        <1>| 
+   799 |          |                        <1>| 
+   800 |          |                           | ; set new head
+   801 | 000003D6 | A1[3604]                  | mov ax, [snake_x]
+   802 | 000003D9 | 894600                    | mov [bp], ax
+   803 | 000003DC | A1[3804]                  | mov ax, [snake_y]
+   804 | 000003DF | 894602                    | mov [bp + 2], ax
+   805 |          |                           | ; draw new head
+   806 |          |                           | draw_pixel [bp], [bp + 2], SNAKE_RGB
+   807 |          |                        <1>| 
+   808 |          |                        <1>|  multiply [screen_size], %2
+   809 | 000003E2 | B80000                 <2>|  mov ax, 0
+   810 | 000003E5 | B90000                 <2>|  mov cx, 0
+   811 | 000003E8 | 034E02                 <2>|  add cx, %2
+   812 | 000003EB | 7406                   <2>|  jz %%done
+   813 |          |                        <2>|  %%who_needs_mul:
+   814 | 000003ED | 0306[3404]             <2>|  add ax, %1
+   815 | 000003F1 | E2FA                   <2>|  loop %%who_needs_mul
+   816 |          |                        <2>|  %%done:
+   817 | 000003F3 | 034600                 <1>|  add ax, %1
+   818 | 000003F6 | 01C0                   <1>|  add ax, ax
+   819 | 000003F8 | 01C0                   <1>|  add ax, ax
+   820 | 000003FA | 0306[3004]             <1>|  add ax, [frame_buffer]
+   821 | 000003FE | 89C3                   <1>|  mov bx, ax
+   822 | 00000400 | C60764                 <1>|  mov byte [bx + 0], %5
+   823 | 00000403 | C64701DC               <1>|  mov byte [bx + 1], %4
+   824 | 00000407 | C6470264               <1>|  mov byte [bx + 2], %3
+   825 |          |                        <1>| 
+   826 |          |                        <1>| 
+   827 |          |                           | 
+   828 |          |                           | 
+   829 |          |                           | %if DEBUG_SNAKE_POSITION
+   830 |          |                           | draw_pixel [snake_x], [snake_y], 255, 0, 255
+   831 |          |                           | %endif
+   832 |          |                           | 
+   833 |          |                           | update_end:
+   834 |          |                           | ; @TMP debugging
+   835 | 0000040B | A1[2804]                  | mov ax, [score]
+   836 | 0000040E | 89C6                      | mov si, ax
+   837 |          |                           | 
+   838 |          |                           | %if DRAW_SCREEN_EVERY_FRAME
+   839 |          |                           | ; Clear the screen
+   840 |          |                           | ; Frame buffer sits just after the code.
+   841 |          |                           | mov bp, [frame_buffer]
+   842 |          |                           | 
+   843 |          |                           | mov dx, [screen_size]
+   844 |          |                           | y_loop_start:
+   845 |          |                           |     
+   846 |          |                           |     mov cx, [screen_size]
+   847 |          |                           |     x_loop_start:
+   848 |          |                           |         mov byte [bp + 0], screen_color  ; Blue
+   849 |          |                           |         mov byte [bp + 1], screen_color  ; Green
+   850 |          |                           |         mov byte [bp + 2], cl  ; Red
+   851 |          |                           |         ; mov byte [bp + 3], 255 ; Alpha
+   852 |          |                           |         add bp, 4
+   853 |          |                           |             
+   854 |          |                           |         loop x_loop_start
+   855 |          |                           |     
+   856 |          |                           |     sub dx, 1
+   857 |          |                           |     jnz y_loop_start
+   858 |          |                           | 
+   859 |          |                           | draw_snake
+   860 |          |                           | %endif
+   861 |          |                           | 
+   862 |          |                           | ; Signal to hosting simualtor to draw frame and sleep till next frame
+   863 |          |                           | ; There is something about on actualy 8086 used to call int 15h with ah=86h to do micro second sleeps but
+   864 |          |                           | ; 1) details of it aren't obvious to me but also 2) that would require asm code to keep track of timings!
+   865 |          |                           | ; MGH: Use int 0x21 function 0x56 instead
+   866 | 00000410 | B456                      | mov ah, 0x56
+   867 | 00000412 | CD21                      | int 0x21
+   868 |          |                           | 
+   869 |          |                           | ; @TODO: Clean up handling of menu screen. This is very spaghetti!
+   870 | 00000414 | 833E[2604]01              | cmp [game_state], word GAME_STATE_PLAY
+   871 | 00000419 | 7403                      | je is_playing
+   872 | 0000041B | E977FC                    | jmp state_title_screen
+   873 |          |                           | is_playing:
+   874 |          |                           | ; NOTE(Charles): I actually _had_ to implement jmp to change the jnz that was here before because
+   875 |          |                           | ; conditional jumps only have 1 byte offset. Once I had enough instruciotns I started getting weird assembled
+   876 |          |                           | ; code. Eg I got a pop and a test instead of the jnz!
+   877 | 0000041E | E970FD                    | jmp do_one_frame
+   878 |          |                           | 
+   879 |          |                           | 
+   880 |          |                           | ; -------------------------------------------------------------------
+   881 |          |                           | ;                               Data
+   882 |          |                           | ; -------------------------------------------------------------------
+   883 |          |                           | ; Need some way to mark data stuff to not be executed (or even decoded/printed?). Atm int3 will force us
+   884 |          |                           | ; to break the loop
+   885 | 00000421 | CC                        | int3
+   886 | 00000422 | CC                        | int3
+   887 | 00000423 | CC                        | int3
+   888 |          |                           | ; NOTE(Charles): The below variable names are really just labels! eg `program_size: dw end` is equivalent.
+   889 |          |                           | ; gets the size of the program so we can check we arent gonna run out of memory!
+   890 | 00000424 | [EE0C]                    | program_size dw end
+   891 | 00000426 | 0000                      | game_state dw 0 ; 0: MENU, 1: PLAY
+   892 | 00000428 | 0000                      | score dw 0;
+   893 | 0000042A | 0000                      | has_title_screen dw 0
+   894 | 0000042C | 0000                      | frame_buffer_num_bytes dw 0
+   895 | 0000042E | 0000                      | frame_buffer_num_pixels dw 0
+   896 | 00000430 | [EE0C]                    | frame_buffer dw end
+   897 | 00000432 | 0000                      | snake dw 0
+   898 | 00000434 | 4000                      | screen_size dw SCREEN_SIZE; Using a variable instead of a constant as could then dynamically change screen size!
+   899 |          |                           | ; Technically all the information we need is in the snake struct. But it is much more convienet
+   900 |          |                           | ; to keep track of the current position in these statics!
+   901 | 00000436 | 0000                      | snake_x dw 0
+   902 | 00000438 | 0000                      | snake_y dw 0
+   903 | 0000043A | 0000                      | apple_position dw 0 ; flattened coordinate to make easier to randomly generate.
+   904 | 0000043C | 0000                      | direction dw 0
+   905 | 0000043E | D204                      | rng_seed dw LCG_INITIAL_SEED
+   906 | 00000440 | 0000                      | random_number_index dw 0
+   907 |          |                           | ; rng_limt_number
+   908 |          |                           | ; ", ".join([str(random.randint(0, 4096)) for _ in range(100)])
+   909 |          |                           | ; When testing if want first apple to be in path use 2050
+   910 | 00000442 | 76022008B20E360506-       | rng_4096_10    dw 630, 2080, 3762, 1334, 2310, 2790, 960, 3855, 3001, 1035
+   911 | 0000044B | 09E60AC0030F0FB90B-       | ...
+   912 | 00000454 | 0B04                      | ...
+   913 | 00000456 | EA0E1309DF0E3A04BD-       | rng_4096_100   dw 3818, 2323, 3807, 1082, 2237, 1101, 1694, 1536, 71, 3289, 3184, 3167, 2734, 626, 3559, 2094, 2178, 1158, 4009, 2958, 3170, 367, 3947, 3555, 120, 4021, 645, 1329, 832, 3553, 2819, 2478, 1071, 1754, 
+   914 | 0000045F | 084D049E0600064700-       | ...
+   915 | 00000468 | D90C700C5F0CAE0A72-       | ...
+   916 | 00000471 | 02E70D2E0882088604-       | ...
+   917 | 0000047A | A90F8E0B620C6F016B-       | ...
+   918 | 00000483 | 0FE30D7800B50F8502-       | ...
+   919 | 0000048C | 31054003E10D030BAE-       | ...
+   920 | 00000495 | 092F04DA062406FC0D-       | ...
+   921 | 0000049E | CE040A08030FC00384-       | ...
+   922 | 000004A7 | 0D2305630758041D09-       | ...
+   923 | 000004B0 | 1307340CB401FD06BB-       | ...
+   924 | 000004B9 | 0F8D0B17071002B903-       | ...
+   925 | 000004C2 | AC03CB0FD801BA0754-       | ...
+   926 | 000004CB | 094D070E0BC60AD00B-       | ...
+   927 | 000004D4 | B002D20D0704BF085E-       | ...
+   928 | 000004DD | 002B02900BD10F670D-       | ...
+   929 | 000004E6 | B50497028B013105FB-       | ...
+   930 | 000004EF | 0ECB014C0DE3037802-       | ...
+   931 | 000004F8 | 940BB30DA5036A0864-       | ...
+   932 | 00000501 | 096A01780F3B046607-       | ...
+   933 | 0000050A | EA01270C4F07220892-       | ...
+   934 | 00000513 | 0E7A0911093009EA0F-       | ...
+   935 | 0000051C | 260C                      | ...
+   936 | 0000051E | E70503039508D0086D-       | rng_4096_1000  dw 1511, 771, 2197, 2256, 1133, 1022, 3580, 1786, 2204, 3182, 713, 2126, 3942, 148, 3438, 2714, 1825, 1861, 2634, 3926, 872, 1327, 2635, 3078, 369, 2189, 1399, 323, 1200, 2015, 1470, 152, 3544, 3251, 
+   937 | 00000527 | 04FE03FC0DFA069C08-       | ...
+   938 | 00000530 | 6E0CC9024E08660F94-       | ...
+   939 | 00000539 | 006E0D9A0A21074507-       | ...
+   940 | 00000542 | 4A0A560F68032F054B-       | ...
+   941 | 0000054B | 0A060C71018D087705-       | ...
+   942 | 00000554 | 4301B004DF07BE0598-       | ...
+   943 | 0000055D | 00D80DB30C6A02B109-       | ...
+   944 | 00000566 | 90042500E7041603EC-       | ...
+   945 | 0000056F | 0D150AD10081073304-       | ...
+   946 | 00000578 | 210AAD04C508670F37-       | ...
+   947 | 00000581 | 09D90F790D2D06F20B-       | ...
+   948 | 0000058A | 9A0CC20947081D0B74-       | ...
+   949 | 00000593 | 004C0B30076F03830A-       | ...
+   950 | 0000059C | 2D06A6028707580561-       | ...
+   951 | 000005A5 | 05610A500C7905F300-       | ...
+   952 | 000005AE | A7066C05340AD30315-       | ...
+   953 | 000005B7 | 0E0E077501DF0CE803-       | ...
+   954 | 000005C0 | 4B09460B8007120C75-       | ...
+   955 | 000005C9 | 0104059D0EE0032104-       | ...
+   956 | 000005D2 | AE0BF00379098F06EB-       | ...
+   957 | 000005DB | 0E3705E8027900A20E-       | ...
+   958 | 000005E4 | 0D0649050500CF0767-       | ...
+   959 | 000005ED | 0103079E0B53074806-       | ...
+   960 | 000005F6 | AB01850F870EA306C1-       | ...
+   961 | 000005FF | 03330A620D7F011005-       | ...
+   962 | 00000608 | DB06950FE30F530759-       | ...
+   963 | 00000611 | 02BB00900BFA08AC03-       | ...
+   964 | 0000061A | 88016701EF00840383-       | ...
+   965 | 00000623 | 0F10004B0663015107-       | ...
+   966 | 0000062C | 3806CD086606840428-       | ...
+   967 | 00000635 | 017002A20D840A0807-       | ...
+   968 | 0000063E | 8F0490067A025908C7-       | ...
+   969 | 00000647 | 0EEA0D710E0606B602-       | ...
+   970 | 00000650 | 010718044A0BC50021-       | ...
+   971 | 00000659 | 086B002509960E920B-       | ...
+   972 | 00000662 | FF0E430CCE010D0961-       | ...
+   973 | 0000066B | 084C06EE059801510A-       | ...
+   974 | 00000674 | 9C0554041204FB0B0A-       | ...
+   975 | 0000067D | 05C101DC0BE20C9C06-       | ...
+   976 | 00000686 | D00FED00D5096607AD-       | ...
+   977 | 0000068F | 06F40FF9020C03FF0B-       | ...
+   978 | 00000698 | F80BE6078803410EA9-       | ...
+   979 | 000006A1 | 0A1308EB0FC205FD0E-       | ...
+   980 | 000006AA | 1709C802CD002F0B10-       | ...
+   981 | 000006B3 | 097807290A250BD801-       | ...
+   982 | 000006BC | 8C0A020B810F140E81-       | ...
+   983 | 000006C5 | 02C2030303C2003F0B-       | ...
+   984 | 000006CE | BC07FC0AF6052807D0-       | ...
+   985 | 000006D7 | 01EF079F09150E2801-       | ...
+   986 | 000006E0 | 7A0A750E90005C0DF3-       | ...
+   987 | 000006E9 | 0F39032603E00D5E01-       | ...
+   988 | 000006F2 | 700AB606D00E2607B7-       | ...
+   989 | 000006FB | 024908E00547033E0C-       | ...
+   990 | 00000704 | 370F8F09C104770F79-       | ...
+   991 | 0000070D | 0CB8053F0AE10FB502-       | ...
+   992 | 00000716 | 4E0B6F0FAE0FA308F4-       | ...
+   993 | 0000071F | 0F560B7F03D40FBD08-       | ...
+   994 | 00000728 | C5010309A40B610DD9-       | ...
+   995 | 00000731 | 02390A520D22023E01-       | ...
+   996 | 0000073A | A507B10D03055505E0-       | ...
+   997 | 00000743 | 03DF031B06F30EA807-       | ...
+   998 | 0000074C | 560311080C0097034B-       | ...
+   999 | 00000755 | 000201950CD20F0C0D-       | ...
+  1000 | 0000075E | 94084E08D20FDA0DB2-       | ...
+  1001 | 00000767 | 016A080B010E04430A-       | ...
+  1002 | 00000770 | 3105DB0F930B170F9B-       | ...
+  1003 | 00000779 | 0DF206E105A906850F-       | ...
+  1004 | 00000782 | 0500010288086C0C59-       | ...
+  1005 | 0000078B | 06AC0A030C7F063806-       | ...
+  1006 | 00000794 | 25042E0A540CFC0B11-       | ...
+  1007 | 0000079D | 0BB208FA0DEB0AD90D-       | ...
+  1008 | 000007A6 | 260E2B072403730F2E-       | ...
+  1009 | 000007AF | 0475087603C40A3C07-       | ...
+  1010 | 000007B8 | 7A06D7052903300D0C-       | ...
+  1011 | 000007C1 | 09520406070D0CA10F-       | ...
+  1012 | 000007CA | B30808000204020338-       | ...
+  1013 | 000007D3 | 0FB60CF40CF004FB04-       | ...
+  1014 | 000007DC | 370D8701720DC204BA-       | ...
+  1015 | 000007E5 | 044C0DA9011400DD06-       | ...
+  1016 | 000007EE | 8300E90CCC067F01C4-       | ...
+  1017 | 000007F7 | 08DB07DE0F82044F06-       | ...
+  1018 | 00000800 | 57076E01B7054C0EA1-       | ...
+  1019 | 00000809 | 04B503C50577093B0B-       | ...
+  1020 | 00000812 | B70B5E0C2B006103A3-       | ...
+  1021 | 0000081B | 02210F0C06190AF303-       | ...
+  1022 | 00000824 | FC04F20C2902800A1B-       | ...
+  1023 | 0000082D | 018C08C009C70BEF0D-       | ...
+  1024 | 00000836 | BF08BA031906EA04FC-       | ...
+  1025 | 0000083F | 01050B0C02660BE409-       | ...
+  1026 | 00000848 | C103E4038A03F90904-       | ...
+  1027 | 00000851 | 08E80135044F099C07-       | ...
+  1028 | 0000085A | 7C00B803BE0A01017E-       | ...
+  1029 | 00000863 | 087D032E007500980C-       | ...
+  1030 | 0000086C | 5D007E041F0E8F064D-       | ...
+  1031 | 00000875 | 0DEA0C8106FC00A40A-       | ...
+  1032 | 0000087E | 48064C007207DF0D45-       | ...
+  1033 | 00000887 | 0C770B200774064A06-       | ...
+  1034 | 00000890 | AF0A01081403180550-       | ...
+  1035 | 00000899 | 00F50CAD09A90A7F0B-       | ...
+  1036 | 000008A2 | 4303EA019A0A4408E2-       | ...
+  1037 | 000008AB | 0EA50F870E0A00B30F-       | ...
+  1038 | 000008B4 | 270BF400FE0D190BF7-       | ...
+  1039 | 000008BD | 0F7F0F5A036401AD09-       | ...
+  1040 | 000008C6 | 840EC8098208080AEE-       | ...
+  1041 | 000008CF | 0CDC04760CC200AE09-       | ...
+  1042 | 000008D8 | 270BA5054E0D430FF9-       | ...
+  1043 | 000008E1 | 04D7073206D208C406-       | ...
+  1044 | 000008EA | 130C470D600B110596-       | ...
+  1045 | 000008F3 | 01B80EC50EA904780E-       | ...
+  1046 | 000008FC | 9E0AE40FED05DB00E9-       | ...
+  1047 | 00000905 | 08E9024C0530013307-       | ...
+  1048 | 0000090E | CB0D850ACE0D84006F-       | ...
+  1049 | 00000917 | 0AE20AEE03B309DE00-       | ...
+  1050 | 00000920 | AE07390D0E0324021E-       | ...
+  1051 | 00000929 | 0446044804EF07AD0C-       | ...
+  1052 | 00000932 | 0E01750E800CE8045A-       | ...
+  1053 | 0000093B | 08D4011D0AC0068309-       | ...
+  1054 | 00000944 | 52098D0EFA0E1F017D-       | ...
+  1055 | 0000094D | 0E4408F50B1905AA01-       | ...
+  1056 | 00000956 | C809DC0599013009EC-       | ...
+  1057 | 0000095F | 08040452032B0F240B-       | ...
+  1058 | 00000968 | A307700C9508B408F4-       | ...
+  1059 | 00000971 | 0ABB01A8071F05D000-       | ...
+  1060 | 0000097A | C30AA5027B064B06C7-       | ...
+  1061 | 00000983 | 0A91009D0C4F0B2B09-       | ...
+  1062 | 0000098C | 83059B089209F00666-       | ...
+  1063 | 00000995 | 098005530E570E2B03-       | ...
+  1064 | 0000099E | 1901E20AD30B250D8D-       | ...
+  1065 | 000009A7 | 0BD20E7F051606CF0F-       | ...
+  1066 | 000009B0 | B407A9005F01750B82-       | ...
+  1067 | 000009B9 | 07940D440E68007904-       | ...
+  1068 | 000009C2 | F70ABD0F4F06630895-       | ...
+  1069 | 000009CB | 00A9033F018A0C460D-       | ...
+  1070 | 000009D4 | 5E044E05860D92023A-       | ...
+  1071 | 000009DD | 08E00E400497019308-       | ...
+  1072 | 000009E6 | BE05C806820EDF0283-       | ...
+  1073 | 000009EF | 05FB00F006F3077E0B-       | ...
+  1074 | 000009F8 | 8D0DB903F20FD80ADF-       | ...
+  1075 | 00000A01 | 01D20B14077404C20D-       | ...
+  1076 | 00000A0A | A003F30F120AE00DE0-       | ...
+  1077 | 00000A13 | 0C1D0F44066101E40C-       | ...
+  1078 | 00000A1C | 97070E0FC0009E02AF-       | ...
+  1079 | 00000A25 | 05E60DBC05FA037003-       | ...
+  1080 | 00000A2E | 9A073602E707920BEC-       | ...
+  1081 | 00000A37 | 0FA9014B0D1E01DB0E-       | ...
+  1082 | 00000A40 | 800297088D06BF005F-       | ...
+  1083 | 00000A49 | 0C800A4E0F25071F08-       | ...
+  1084 | 00000A52 | DE03D10089033B03B9-       | ...
+  1085 | 00000A5B | 0BF50A1B038504D909-       | ...
+  1086 | 00000A64 | 3D0E360B8406E40E4F-       | ...
+  1087 | 00000A6D | 008006DA01B80E1F07-       | ...
+  1088 | 00000A76 | BD03480E8F0F6708D0-       | ...
+  1089 | 00000A7F | 0B9301D300910B730A-       | ...
+  1090 | 00000A88 | 0E06D70B1E0B4F00E4-       | ...
+  1091 | 00000A91 | 0322014D0C68097104-       | ...
+  1092 | 00000A9A | 29070106E70BB80F1F-       | ...
+  1093 | 00000AA3 | 0382090D0A200C390E-       | ...
+  1094 | 00000AAC | 61090007130A050C47-       | ...
+  1095 | 00000AB5 | 0F2807BF0DC101BC07-       | ...
+  1096 | 00000ABE | AA01BE02640305085B-       | ...
+  1097 | 00000AC7 | 0EA00A9D0C0D0FFB04-       | ...
+  1098 | 00000AD0 | 3F04A2087F0ABE02B2-       | ...
+  1099 | 00000AD9 | 00670EF5044B0A390A-       | ...
+  1100 | 00000AE2 | 9E0A52057503450044-       | ...
+  1101 | 00000AEB | 0DAF03D8024F0B2A0B-       | ...
+  1102 | 00000AF4 | D1054A026503630B57-       | ...
+  1103 | 00000AFD | 0AC1029101100BDF0C-       | ...
+  1104 | 00000B06 | 740AD20EAD06A30807-       | ...
+  1105 | 00000B0F | 0D7709BD087809EC02-       | ...
+  1106 | 00000B18 | 360D38072E0AE609E1-       | ...
+  1107 | 00000B21 | 06DF01510F9A0E390C-       | ...
+  1108 | 00000B2A | 6E0DC700000AD20708-       | ...
+  1109 | 00000B33 | 00B401A406B8019104-       | ...
+  1110 | 00000B3C | 2209D6064B0F8100AA-       | ...
+  1111 | 00000B45 | 097F08D50CDC047F08-       | ...
+  1112 | 00000B4E | 64054509D20C2F0499-       | ...
+  1113 | 00000B57 | 0BDF0A5E021D029B0A-       | ...
+  1114 | 00000B60 | 4809CD05410E280192-       | ...
+  1115 | 00000B69 | 006C0BC20AD90E380C-       | ...
+  1116 | 00000B72 | 5303D50F900B5A03FC-       | ...
+  1117 | 00000B7B | 0ED207F003BE017305-       | ...
+  1118 | 00000B84 | CB0CFB016B0B170DC7-       | ...
+  1119 | 00000B8D | 027100910F68002D0A-       | ...
+  1120 | 00000B96 | E40D40003004F20430-       | ...
+  1121 | 00000B9F | 0DD302BB096003ED0A-       | ...
+  1122 | 00000BA8 | 8502980A2D0BB501B3-       | ...
+  1123 | 00000BB1 | 070A0ACC08DE03AD06-       | ...
+  1124 | 00000BBA | 3803D50818092F06F3-       | ...
+  1125 | 00000BC3 | 0780038C0C3C0B900C-       | ...
+  1126 | 00000BCC | 500E3F04B301D30388-       | ...
+  1127 | 00000BD5 | 069900570F41048F06-       | ...
+  1128 | 00000BDE | 6B0FB8064806A909C6-       | ...
+  1129 | 00000BE7 | 011D0EE8082E039806-       | ...
+  1130 | 00000BF0 | BD08950CF508940305-       | ...
+  1131 | 00000BF9 | 0B15086A02040FB70E-       | ...
+  1132 | 00000C02 | B90073013107750C52-       | ...
+  1133 | 00000C0B | 0A0F06F1033A063500-       | ...
+  1134 | 00000C14 | 470A2C05080CBC059B-       | ...
+  1135 | 00000C1D | 0C8C04420B7B0D1A03-       | ...
+  1136 | 00000C26 | 940C160A0F0F8E0733-       | ...
+  1137 | 00000C2F | 06D0098A0C130AC908-       | ...
+  1138 | 00000C38 | 28080A02900BC50088-       | ...
+  1139 | 00000C41 | 0D770C6409750FF00E-       | ...
+  1140 | 00000C4A | 7F00AF0DDD00650820-       | ...
+  1141 | 00000C53 | 0DD30B2204CB0E310A-       | ...
+  1142 | 00000C5C | 79071605BB0442093E-       | ...
+  1143 | 00000C65 | 0E7B06E40FFF05C409-       | ...
+  1144 | 00000C6E | 11075E0A8C0C7C0CAF-       | ...
+  1145 | 00000C77 | 0D4301360AF50F1404-       | ...
+  1146 | 00000C80 | 1C03CC08520C52036D-       | ...
+  1147 | 00000C89 | 0A2F04C50C5D07C40F-       | ...
+  1148 | 00000C92 | 7F0C2A081F051E016C-       | ...
+  1149 | 00000C9B | 04610D4C01D60D8F00-       | ...
+  1150 | 00000CA4 | 4C016C05B70B53049E-       | ...
+  1151 | 00000CAD | 0BAE09A206530F2A02-       | ...
+  1152 | 00000CB6 | 0E096807030DA908B3-       | ...
+  1153 | 00000CBF | 07CC05740173087400-       | ...
+  1154 | 00000CC8 | D90F5B0DE902FC070F-       | ...
+  1155 | 00000CD1 | 05DA0121057C07AB0C-       | ...
+  1156 | 00000CDA | 9006F60F210EF3099B-       | ...
+  1157 | 00000CE3 | 08590A050E2E0E2405-       | ...
+  1158 | 00000CEC | 9400                      | ...
+  1159 |          |                           | ; Somethign weird is happening when using 10k. At some point the snake stops clearing its tail. Presumably
+  1160 |          |                           | ; I'm overwriting some memory I shouldn't but I can't see where :shrug:.
+  1161 |          |                           | ; 10k random numbers for snake is proooobably overkill anyway. It's almost as much memory as the frame buffer...
+  1162 |          |                           | ; rng_4096_10000 dw 909, 3655, 4062, 2186, 1144, 2097, 2338, 235, 1071, 3344, 84, 3637, 3035, 1454, 533, 1205, 1369, 2584, 1584, 3986, 2731, 3914, 529, 3891, 1243, 2820, 3718, 292, 6, 1553, 1973, 3302, 2352, 605, 10
+  1163 |          |                           | title_screen:
+  1164 |          |                           | %ifdef USE_TITLE_SCREEN
+  1165 |          |                           | %include "sim86_title_screen.dat"
+  1166 |          |                           | %endif
+  1167 |          |                           | end:
