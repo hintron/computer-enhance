@@ -21,6 +21,7 @@ pub struct MainSettings {
     pub no_ip: bool,
     pub display_file: Option<String>,
     pub display_window: bool,
+    pub display_mem: bool,
 }
 
 /// Decode-specific settings
@@ -77,9 +78,10 @@ pub struct ArgsType {
     /// If true, enable a graphical display to be used for the program.
     /// The graphical display will take over the main thread, and the decode and
     /// simulate logic will be moved into a separate thread.
-    /// If the program didn't print anything to the graphical display, then
-    /// print the first 64x65 bytes of memory at the end of execution.
     pub display_window: bool,
+    /// Graphically display the first 64x65 bytes of memory at the end of
+    /// execution.
+    pub display_mem: bool,
     /// If true, save final memory contents to a file
     pub display_file: Option<String>,
     /// If specified, exit simulation after this many cycles have elapsed
@@ -140,8 +142,10 @@ this value.
 
 --sp <value> : If specified, initialize the stack pointer to this value.
 
---display-window : If specified, graphically display final memory contents in a
-                   window.
+--display-window : If specified, set up a graphical display window.
+
+--display-mem : If specified, graphically display memory contents as a 64x65
+                32-bit pixel RGBA image when execution naturally finishes.
 
 --display-file <file>: If specified, save final memory contents to the given
                        file. (To view, save the file with the .data extension,
@@ -239,6 +243,9 @@ fn parse_optional(arg: String, parsed_args: &mut ArgsType) -> Result<ArgType> {
         Ok(ArgType::InitSp)
     } else if arg.starts_with("--display-window") {
         parsed_args.display_window = true;
+        Ok(ArgType::NoValue)
+    } else if arg.starts_with("--display-mem") {
+        parsed_args.display_mem = true;
         Ok(ArgType::NoValue)
     } else if arg.starts_with("--display-file") {
         Ok(ArgType::DisplayFile)
@@ -346,6 +353,7 @@ pub fn args_to_settings(
         no_ip: args.no_ip,
         display_file: args.display_file,
         display_window: args.display_window,
+        display_mem: args.display_mem,
     };
 
     let decode_settings = DecodeSettings {

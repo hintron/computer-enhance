@@ -146,7 +146,7 @@ fn decode_simulate(
             }
             None => {}
         }
-        match (main_settings.display_window, &send_to_gfx) {
+        match (main_settings.display_mem, &send_to_gfx) {
             (true, Some(send_to_gfx)) => {
                 println!("Graphically displaying memory (64x65)...");
                 let slice = &cpu_state.memory[..];
