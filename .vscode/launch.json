@@ -54,6 +54,7 @@
                 "snake-debug.log",
                 "--display-window",
                 "--stop-on-int3",
+                "--fps",
             ],
             "cwd": "${workspaceFolder}"
         },
