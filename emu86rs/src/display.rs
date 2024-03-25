@@ -316,6 +316,12 @@ pub fn graphics_loop(
                     Key::Named(NamedKey::Escape) => {
                         println!("Escape key pressed! Exiting...");
                         elwt.exit();
+                        match send_to_emu.send(InterruptType::Exit) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                println!("ERROR: Failed to send Exit interrupt to emulator: {e}")
+                            }
+                        };
                     }
                     Key::Named(NamedKey::ArrowUp) => increase_scale = true,
                     Key::Named(NamedKey::ArrowDown) => decrease_scale = true,

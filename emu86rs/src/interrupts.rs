@@ -6,6 +6,8 @@
 /// the Snake game interrupts, and some represent actual hardware interrupts
 /// (coming soon).
 pub enum InterruptType {
+    // Tell the emulator to exit
+    Exit,
     // Snake game key down
     SnakeDown,
     // Snake game key up

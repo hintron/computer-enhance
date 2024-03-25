@@ -266,6 +266,10 @@ pub fn execute(
                         println!("SnakeMenu");
                         0b10000
                     }
+                    InterruptType::Exit => {
+                        println!("Exiting emulator at the request of the graphical loop");
+                        return (effect, true);
+                    }
                 };
                 // Store the new control register value at 0xFFFE
                 store_u16_in_mem(&mut state.memory, 0xFFFE, new_ctrl_reg);
