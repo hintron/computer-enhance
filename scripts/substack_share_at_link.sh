@@ -51,6 +51,9 @@ case "$FIELD_COUNT" in
         ;;
 esac
 
-TOTAL_SECONDS=$(( (HOUR * 60 * 60) + (MIN * 60) + SEC ))
+# Use 10# to force base 10, so e.g. "08" doesn't fail as an invalid octal number
+# See https://stackoverflow.com/questions/24777597/value-too-great-for-base-error-token-is-08
+# See https://stackoverflow.com/questions/12821715/convert-string-into-integer-in-bash-script-leading-zero-number-error/12821845#12821845
+TOTAL_SECONDS=$(( (10#$HOUR * 60 * 60) + (10#$MIN * 60) + 10#$SEC ))
 # echo "TOTAL_SECONDS: $TOTAL_SECONDS"
 echo "${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
