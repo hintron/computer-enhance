@@ -13,7 +13,8 @@
 # https://www.computerenhance.com/p/q-and-a-48-2024-03-25?utm_campaign=post&utm_medium=web&timestamp=267
 
 URL=$1
-HR_MIN_SEC=$2
+# Remove any [, ] from input
+HR_MIN_SEC="$(echo "$2" | tr -d [])"
 
 # In awk, NF is a predefined variable that prints the number of fields found
 # (i.e. the # of delimiters found + 1)
