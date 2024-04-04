@@ -19,19 +19,29 @@
 
 # So, the workflow is that I have a VSCode terminal open in one window, and the
 # Google Doc open in another window. I use the VSCode terminal instead of
-# Windows Terminal because it copy and pastes easier. I copy the link to the
-# Q+A article and paste it into the terminal as the first parameter to this
-# script. Then, I click to the beginning or end of the [HH:MM:SS] timestamp in
-# the Google Doc and use shift+ctrl+left/right arrow to select the timestamp.
-# I do ctrl+c to copy, then ctrl+k to create a link pop-up. I use my mouse to
-# focus on the VSCode terminal. (I had to disable Window's 'helpful' clipboard
-# popup, since it added an extra click to this process).
-# Then, I ctrl+v paste into the terminal and hit enter.
-# I double-click the output URL, do ctrl+shift+c to copy, use alt+tab to shift
-# focus to the link creation popup in Google docs, and then
-# do ctrl+shift+l/r-arrow to select the timestamp text. Finally, I do ctrl+v to
-# paste the URL into the link. To quickly get to the next bullet point, I do
-# ctrl+down. Whew!
+# Windows Terminal because it copy and pastes easier.
+
+# Initial setup:
+# Copy the link to the Q+A article and paste it into the terminal as the first
+# parameter to this script. Make sure the Google Doc cursor is pointed to the
+# first timestamp, then move the mouse cursor to be where the script output URL
+# will be in the terminal. Input the first timestamp manually to prime the loop.
+
+# Workflow loop:
+# * With the cursor already at the beginning of the [HH:MM:SS] timestamp in
+#   the Google Doc, do shift+ctrl+right and shift+right to select the timestamp.
+# * Do ctrl+c to copy, then ctrl+k to create a link pop-up.
+# * Do alt-tab to focus the VSCode terminal. (I had to disable Window's
+#   'helpful' clipboard popup, since it messes this up).
+# * Do ctrl+w to erase the last timestamp.
+# * Do ctrl+v to paste the timestamp into the terminal.
+# * Hit enter to run the script.
+# * With the mouse never moving, double-click the output URL, do ctrl+shift+c to
+#   copy the URL.
+# * Do alt+tab to shift focus to the link creation popup in Google docs.
+# * Do ctrl+v to paste the URL into the link.
+# * Do ctrl+down to quickly get to the next bullet point.
+# Whew!
 
 # For a Q+A of 5 questions (5 links), it took me 58 seconds with this method, or
 # about 11.6 seconds per link. That is much faster than it took to manually get
@@ -39,6 +49,9 @@
 
 # Starting at Q+A 23
 # 23, 26: 3:56 (236) / 19 q's = 12.42 sec/q
+
+# Starting at Q+A 28
+# 28 (8 q's), 31 (17 q's). 4:31 (271 s) / 25 q's = 10.84 seconds / question
 
 URL=$1
 # Remove any [, ] from input
