@@ -23,17 +23,22 @@
 # Q+A article and paste it into the terminal as the first parameter to this
 # script. Then, I click to the beginning or end of the [HH:MM:SS] timestamp in
 # the Google Doc and use shift+ctrl+left/right arrow to select the timestamp.
-# I do ctrl+c to copy, then use my mouse to focus on the VSCode terminal. (I had
-# to disable Window's 'helpful' clipboard popup, since it added an extra click
-# to this process). Then, I ctrl+v paste into the terminal and hit enter.
-# I use my mouse to select the output URL, do ctrl+shift+c to copy, use my mouse
-# to click to the beginning of the timestamp to link in the Google doc, and then
-# do ctrl+shift+l/r-arrow to select the timestamp text. Finally, I do ctrl+k
-# and then ctrl+v to paste the URL into the link. Whew!
+# I do ctrl+c to copy, then ctrl+k to create a link pop-up. I use my mouse to
+# focus on the VSCode terminal. (I had to disable Window's 'helpful' clipboard
+# popup, since it added an extra click to this process).
+# Then, I ctrl+v paste into the terminal and hit enter.
+# I double-click the output URL, do ctrl+shift+c to copy, use alt+tab to shift
+# focus to the link creation popup in Google docs, and then
+# do ctrl+shift+l/r-arrow to select the timestamp text. Finally, I do ctrl+v to
+# paste the URL into the link. To quickly get to the next bullet point, I do
+# ctrl+down. Whew!
 
 # For a Q+A of 5 questions (5 links), it took me 58 seconds with this method, or
 # about 11.6 seconds per link. That is much faster than it took to manually get
 # the share at link from the substack video player!
+
+# Starting at Q+A 23
+# 23, 26: 3:56 (236) / 19 q's = 12.42 sec/q
 
 URL=$1
 # Remove any [, ] from input
@@ -81,3 +86,4 @@ esac
 TOTAL_SECONDS=$(( (10#$HOUR * 60 * 60) + (10#$MIN * 60) + 10#$SEC ))
 # echo "TOTAL_SECONDS: $TOTAL_SECONDS"
 echo "${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
+
