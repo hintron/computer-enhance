@@ -1,15 +1,16 @@
 #!/bin/bash
 
-# This script takes a substack post link and a min:sec timestamp and converts it
+# This script takes a video link and a min:sec timestamp and converts it
 # into a link that automatically navigates to that timestamp in the video.
-# This just scriptifies the "Share from" -> "Copy link" action when hovering
-# over the video timeline.
+# This just scriptifies e.g. the "Share from" -> "Copy link" action when
+# hovering over the video timeline in substack.
 
-# $1: The substack article URL. There should be no parameters
-# $2: The hour:min:sec timestamp
+# $1: The URL type - either youtube or substack
+# $2: The video/article URL. There should be no parameters
+# $3: The hour:min:sec timestamp
 
 # E.g.:
-# $ ./scripts/substack_share_at_link.sh https://www.computerenhance.com/p/q-and-a-48-2024-03-25 4:27
+# $ ./scripts/link-generator.sh substack https://www.computerenhance.com/p/q-and-a-48-2024-03-25 4:27
 # https://www.computerenhance.com/p/q-and-a-48-2024-03-25?utm_campaign=post&utm_medium=web&timestamp=267
 
 # Explanation of how I use this script:
@@ -53,9 +54,10 @@
 # Starting at Q+A 28
 # 28 (8 q's), 31 (17 q's). 4:31 (271 s) / 25 q's = 10.84 seconds / question
 
-URL=$1
+TYPE="$1"
+URL="$2"
 # Remove any [, ] from input
-HR_MIN_SEC="$(echo "$2" | tr -d [])"
+HR_MIN_SEC="$(echo "$3" | tr -d [])"
 
 # In awk, NF is a predefined variable that prints the number of fields found
 # (i.e. the # of delimiters found + 1)
@@ -98,5 +100,20 @@ esac
 # See https://stackoverflow.com/questions/12821715/convert-string-into-integer-in-bash-script-leading-zero-number-error/12821845#12821845
 TOTAL_SECONDS=$(( (10#$HOUR * 60 * 60) + (10#$MIN * 60) + 10#$SEC ))
 # echo "TOTAL_SECONDS: $TOTAL_SECONDS"
-echo "${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
+
+QUESTION_MARKS=$(awk -F"?" '{print NF - 1}' <<< "${URL}")
+
+
+case $TYPE in
+"y" | "youtube")
+    if ((QUESTION_MARKS > 0)); then
+        echo "${URL}&t=${TOTAL_SECONDS}s"
+    else
+        echo "${URL}?t=${TOTAL_SECONDS}s"
+    fi
+    ;;
+"s" | "substack")
+    echo "${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
+    ;;
+esac
 
