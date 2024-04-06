@@ -23,16 +23,21 @@ fn main() -> Result<()> {
         count = DEFAULT_COUNT;
     }
 
-    println!("{{\"pairs\": [");
+    let mut output_buffer = String::new();
+    output_buffer.push_str("{\"pairs\": [\n");
     for i in 0..count {
         let x0 = i as f64;
         let y0 = i as f64;
         let x1 = i as f64;
         let y1 = i as f64;
         let comma = if i == (count - 1) { "" } else { "," };
-        println!("    {{\"x0\": {x0}, \"y0\": {y0}, \"x1\": {x1}, \"y1\": {y1}}}{comma}");
+        output_buffer.push_str(&format!(
+            "    {{\"x0\": {x0}, \"y0\": {y0}, \"x1\": {x1}, \"y1\": {y1}}}{comma}\n"
+        ));
     }
-    println!("]}}");
+    output_buffer.push_str("]}\n");
+
+    print!("{}", output_buffer);
 
     Ok(())
 }
