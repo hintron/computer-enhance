@@ -5,23 +5,46 @@
 
 // Standard library imports
 use std::env;
+use std::fs::OpenOptions;
+use std::io::Write;
+
 // External imports
 use anyhow::Result;
-
 // Internal imports
+
 const DEFAULT_COUNT: u64 = 10_000_000;
+
+/// Create a JSON file of Haversine pairs.
+/// first arg: # of pairs to generate (10 million if not specified)
+/// second arg: output file (stdout if not specified)
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let mut count = 0;
+    let mut output_file = None;
+
+    // Parse args
     for arg in &args[1..] {
         if count == 0 {
             count = arg.parse()?;
+        } else if output_file.is_none() {
+            output_file = Some(arg);
         }
     }
+
+    // Handle arg values
     if count == 0 {
         count = DEFAULT_COUNT;
     }
+    let output_file_handle = match output_file {
+        Some(file) => {
+            let mut file_options = OpenOptions::new();
+            file_options.write(true).create(true);
+            file_options.truncate(true);
+            Some(file_options.open(file)?)
+        }
+        None => None,
+    };
 
     let mut output_buffer = String::new();
     output_buffer.push_str("{\"pairs\": [\n");
@@ -37,7 +60,10 @@ fn main() -> Result<()> {
     }
     output_buffer.push_str("]}\n");
 
-    print!("{}", output_buffer);
+    match output_file_handle {
+        Some(mut file) => file.write_all(output_buffer.as_bytes())?,
+        None => print!("{}", output_buffer),
+    }
 
     Ok(())
 }
