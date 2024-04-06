@@ -46,6 +46,9 @@ fn main() -> Result<()> {
         None => None,
     };
 
+    // TODO: Try ArrayVec or ArrayString, to avoid heap to see if faster
+    // TODO: Try streaming in chunks to avoid needing a huge buffer
+    // TODO: Push bytes instead of formatted strings!
     let mut output_buffer = String::new();
     output_buffer.push_str("{\"pairs\": [\n");
     for i in 0..count {
