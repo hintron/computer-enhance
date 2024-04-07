@@ -32,12 +32,15 @@ if ! cargo test -q > /dev/null; then
     exit 1
 fi
 
-echo "Running regressions..."
-# Run all rust tests to make sure things succeed
-if ! ./emu86rs/scripts/regress.sh >& regress.log; then
-    REPO=$(git rev-parse --show-toplevel)
-    echo "Commit ABORTED: Emulator: \`regress.sh\` failed."
-    echo "Please see $REPO/regress.log or rerun regressions with $REPO/emu86rs/scripts/regress.sh"
-    exit 1
+# Only run regressions if code changed in emu86rs/
+if [[ $(git diff --staged --name-only | grep "^emu86rs/") ]]; then
+    echo "Running emu86rs regressions..."
+    # Run all rust tests to make sure things succeed
+    if ! ./emu86rs/scripts/regress.sh >& regress.log; then
+        REPO=$(git rev-parse --show-toplevel)
+        echo "Commit ABORTED: Emulator: \`regress.sh\` failed."
+        echo "Please see $REPO/regress.log or rerun regressions with $REPO/emu86rs/scripts/regress.sh"
+        exit 1
+    fi
+    rm regress.log
 fi
-rm regress.log
