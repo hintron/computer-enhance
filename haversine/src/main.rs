@@ -28,13 +28,16 @@ fn main() -> Result<()> {
         if count == 0 {
             count = arg.parse()?;
         } else if output_file.is_none() {
-            output_file = Some(arg);
+            output_file = Some(arg.as_str());
         }
     }
 
     // Handle arg values
     if count == 0 {
         count = DEFAULT_COUNT;
+    }
+    if output_file.is_none() {
+        output_file = Some("haversine.json");
     }
     let output_file_handle = match output_file {
         Some(file) => {

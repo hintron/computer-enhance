@@ -4,6 +4,7 @@ build-*/
 temp/
 tmp/
 *.log
+haversine.json
 
 # IDEs
 .idea/
