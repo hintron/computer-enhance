@@ -23,6 +23,14 @@ fn main() -> Result<()> {
     let mut count = 0;
     let mut output_file = None;
 
+    // Do a quick scan for -h/--help before processing any other args
+    for arg in &args[1..] {
+        if arg.starts_with("-h") || arg.starts_with("--help") {
+            println!("USAGE: haversine [<count=10mil> [<output_file=haversine.json>]]");
+            return Ok(());
+        }
+    }
+
     // Parse args
     for arg in &args[1..] {
         if count == 0 {
