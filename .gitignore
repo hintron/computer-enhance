@@ -9,3 +9,5 @@ haversine.json
 # IDEs
 .idea/
 .vscode/
+
+*.zip
