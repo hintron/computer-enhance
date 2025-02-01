@@ -11,3 +11,13 @@ haversine.json
 .vscode/
 
 *.zip
+
+# Ignore Zig stuff
+zig-out/
+.zig-cache/
+
+# Ignore Odin stuff
+odin/*.bin
+
+# MacOS
+.DS_Store
