@@ -11,6 +11,7 @@ haversine.json
 .vscode/
 
 *.zip
+*.gz
 
 # Ignore Zig stuff
 zig-out/
