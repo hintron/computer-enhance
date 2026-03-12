@@ -103,17 +103,19 @@ TOTAL_SECONDS=$(( (10#$HOUR * 60 * 60) + (10#$MIN * 60) + 10#$SEC ))
 
 QUESTION_MARKS=$(awk -F"?" '{print NF - 1}' <<< "${URL}")
 
+OUTPUT_LINK=""
 
 case $TYPE in
 "y" | "youtube")
     if ((QUESTION_MARKS > 0)); then
-        echo "${URL}&t=${TOTAL_SECONDS}s"
+        OUTPUT_LINK="${URL}&t=${TOTAL_SECONDS}s"
     else
-        echo "${URL}?t=${TOTAL_SECONDS}s"
+        OUTPUT_LINK="${URL}?t=${TOTAL_SECONDS}s"
     fi
     ;;
 "s" | "substack")
-    echo "${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
+    OUTPUT_LINK="${URL}?utm_campaign=post&utm_medium=web&timestamp=$TOTAL_SECONDS"
     ;;
 esac
 
+echo "$OUTPUT_LINK"
