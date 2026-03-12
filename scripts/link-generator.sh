@@ -103,6 +103,20 @@ TOTAL_SECONDS=$(( (10#$HOUR * 60 * 60) + (10#$MIN * 60) + 10#$SEC ))
 
 QUESTION_MARKS=$(awk -F"?" '{print NF - 1}' <<< "${URL}")
 
+copy_clipboard() {
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy
+  elif command -v clip >/dev/null 2>&1; then
+    clip
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard
+  elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --input
+  else
+    cat >/dev/null
+  fi
+}
+
 OUTPUT_LINK=""
 
 case $TYPE in
@@ -118,4 +132,6 @@ case $TYPE in
     ;;
 esac
 
-echo "$OUTPUT_LINK"
+printf "$OUTPUT_LINK" | copy_clipboard
+echo "Copied the following link to the clipboard:"
+printf "$OUTPUT_LINK"
