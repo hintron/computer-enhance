@@ -69,7 +69,7 @@ MIN=0
 SEC=0
 
 # See https://stackoverflow.com/questions/16679369/count-occurrences-of-a-char-in-a-string-using-bash
-case "$FIELD_COUNT" in 
+case "$FIELD_COUNT" in
     1)
         # echo "Found only seconds"
         SEC=$HR_MIN_SEC
